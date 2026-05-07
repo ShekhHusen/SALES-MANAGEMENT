@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Company": {
+      "title": "Company",
+      "description": "Vehicle manufacturing company",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Model": {
+      "title": "Model",
+      "description": "Vehicle model linked to a company",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "companyId": { "type": "string" }
+      },
+      "required": ["name", "companyId"]
+    },
+    "Party": {
+      "title": "Party",
+      "description": "Vendor or Customer records",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "type": { "type": "string", "enum": ["vendor", "customer"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type"]
+    },
+    "Vehicle": {
+      "title": "Vehicle Chassis",
+      "description": "Storage for vehicle chassis details",
+      "type": "object",
+      "properties": {
+        "chassisNumber": { "type": "string" },
+        "companyId": { "type": "string" },
+        "modelId": { "type": "string" },
+        "color": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "bluebookStatus": { "type": "string", "enum": ["Not Received", "Received"] },
+        "naamsariStatus": { "type": "string", "enum": ["Pending", "Names of JBMT", "Customer Done"] },
+        "status": { "type": "string", "enum": ["in-stock", "sold"] },
+        "currentOwnerId": { "type": "string" },
+        "purchaseId": { "type": "string" },
+        "saleId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chassisNumber", "companyId", "modelId", "status"]
+    },
+    "Purchase": {
+      "title": "Purchase Record",
+      "description": "Purchases from vendors",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "invoiceNumber": { "type": "string" },
+        "vendorId": { "type": "string" },
+        "chassisNumbers": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "vendorId", "chassisNumbers"]
+    },
+    "Sale": {
+      "title": "Sales Record",
+      "description": "Sales to customers",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "customerId": { "type": "string" },
+        "chassisNumber": { "type": "string" },
+        "fileNumber": { "type": "number" },
+        "companyId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "customerId", "chassisNumber", "fileNumber", "companyId"]
+    }
+  },
+  "firestore": {
+    "companies": { "schema": "Company", "description": "Vehicle manufacturers" },
+    "models": { "schema": "Model", "description": "Models linked to companies" },
+    "parties": { "schema": "Party", "description": "Vendors and customers" },
+    "vehicles": { "schema": "Vehicle", "description": "Inventory of vehicle chassis" },
+    "purchases": { "schema": "Purchase", "description": "Purchase transaction history" },
+    "sales": { "schema": "Sale", "description": "Sales transaction history" }
+  }
+}

@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Global Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Companies
+    match /companies/{companyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().name is string && incoming().name.size() > 0;
+      allow update, delete: if isSignedIn();
+    }
+
+    // Models
+    match /models/{modelId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().name is string && incoming().name.size() > 0 &&
+                    incoming().companyId is string && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
+      allow update, delete: if isSignedIn();
+    }
+
+    // Parties (Vendors and Customers)
+    match /parties/{partyId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().name is string && incoming().name.size() > 0 &&
+                    incoming().type in ['vendor', 'customer'];
+      allow update, delete: if isSignedIn();
+    }
+
+    // Vehicles
+    match /vehicles/{chassisNumber} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(chassisNumber) &&
+                    incoming().chassisNumber == chassisNumber &&
+                    incoming().status in ['in-stock', 'sold'];
+      allow update: if isSignedIn() && (
+        // Allow updating status, ownership, etc.
+        incoming().diff(existing()).affectedKeys().hasAny(['status', 'currentOwnerId', 'saleId', 'bluebookStatus', 'naamsariStatus', 'color', 'updatedAt'])
+      );
+      allow delete: if isSignedIn();
+    }
+
+    // Purchases
+    match /purchases/{purchaseId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().vendorId is string &&
+                    incoming().chassisNumbers is list;
+      allow update, delete: if isSignedIn();
+    }
+
+    // Sales
+    match /sales/{saleId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().customerId is string &&
+                    incoming().chassisNumber is string &&
+                    incoming().fileNumber is number;
+      allow update, delete: if isSignedIn();
+    }
+  }
+}
