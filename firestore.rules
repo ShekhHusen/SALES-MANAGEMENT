@@ -55,33 +55,30 @@ service cloud.firestore {
     // Vehicles
     match /vehicles/{chassisNumber} {
       allow read, list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(chassisNumber) &&
-                    incoming().chassisNumber == chassisNumber &&
-                    incoming().status in ['in-stock', 'sold'];
-      allow update: if isSignedIn() && (
-        // Allow updating status, ownership, etc.
-        incoming().diff(existing()).affectedKeys().hasAny(['status', 'currentOwnerId', 'saleId', 'bluebookStatus', 'naamsariStatus', 'color', 'updatedAt'])
-      );
-      allow delete: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
     }
 
     // Purchases
     match /purchases/{purchaseId} {
       allow read, list: if isSignedIn();
-      allow create: if isSignedIn() && 
-                    incoming().vendorId is string &&
-                    incoming().chassisNumbers is list;
-      allow update, delete: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     // Sales
     match /sales/{saleId} {
       allow read, list: if isSignedIn();
-      allow create: if isSignedIn() && 
-                    incoming().customerId is string &&
-                    incoming().chassisNumber is string &&
-                    incoming().fileNumber is number;
-      allow update, delete: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    match /other_details/{docId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    match /document_uploads/{docId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
   }
 }

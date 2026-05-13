@@ -16,8 +16,10 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Trash2, Search, CarFront, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus, Trash2, Search, CarFront, Check, Download, ArrowUp, ArrowDown, FilterIcon, FilterX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import * as XLSX from 'xlsx';
 
 export function Purchases() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -25,6 +27,59 @@ export function Purchases() {
   const [vendors, setVendors] = useState<Party[]>([]);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   const [purchases, setPurchases] = useState<(Purchase & { id: string })[]>([]);
+  
+  const [sortField, setSortField] = useState<'date' | 'invoiceNumber' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [vendorFilter, setVendorFilter] = useState('ALL');
+  const [chassisFilter, setChassisFilter] = useState('');
+  const [activePopover, setActivePopover] = useState<string | null>(null);
+
+  const hasActiveFilters = vendorFilter !== 'ALL' || chassisFilter !== '';
+
+  const clearFilters = () => {
+    setVendorFilter('ALL');
+    setChassisFilter('');
+  };
+
+  const handleSort = (field: 'date' | 'invoiceNumber') => {
+    if (sortField === field) {
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+        setSortField(field);
+        setSortDirection('asc');
+    }
+  };
+
+  const processedPurchases = [...purchases]
+    .filter(purchase => {
+      // Find the vehicles for this purchase
+      const purchaseVehicles = allVehicles.filter(v => purchase.chassisNumbers.includes(v.chassisNumber));
+      
+      const matchesVendor = vendorFilter === 'ALL' || purchase.vendorId === vendorFilter;
+      const matchesChassis = !chassisFilter || purchaseVehicles.some(v => v.chassisNumber.toLowerCase().includes(chassisFilter.toLowerCase()));
+      
+      if (!matchesVendor) return false;
+      if (!matchesChassis) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      let valA, valB;
+      if (sortField === 'date') {
+        const dateA = a.date instanceof Timestamp ? a.date.toMillis() : new Date(a.date).getTime();
+        const dateB = b.date instanceof Timestamp ? b.date.toMillis() : new Date(b.date).getTime();
+        valA = dateA; valB = dateB;
+      } else if (sortField === 'invoiceNumber') {
+        valA = a.invoiceNumber; valB = b.invoiceNumber;
+      }
+      
+      if (valA! < valB!) return sortDirection === 'asc' ? -1 : 1;
+      if (valA! > valB!) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  // Delete Confirmation State
+  const [purchaseToDelete, setPurchaseToDelete] = useState<(Purchase & { id: string }) | null>(null);
   
   // Edit Purchase State
   const [editingPurchase, setEditingPurchase] = useState<(Purchase & { id: string }) | null>(null);
@@ -92,38 +147,45 @@ export function Purchases() {
     }
   };
 
-  const deletePurchase = async (purchase: Purchase & { id: string }) => {
+  const confirmDeletePurchase = async () => {
+    if (!purchaseToDelete) return;
+
     // Check if any vehicles in this purchase are sold
     const vehiclesInPurchase = allVehicles.filter(v => 
-      v.purchaseId === purchase.id || 
-      (purchase.chassisNumbers && purchase.chassisNumbers.includes(v.chassisNumber))
+      v.purchaseId === purchaseToDelete.id || 
+      (purchaseToDelete.chassisNumbers && purchaseToDelete.chassisNumbers.includes(v.chassisNumber))
     );
     
     const soldVehicles = vehiclesInPurchase.filter(v => v.status === 'sold' || v.saleId);
     
     if (soldVehicles.length > 0) {
-      toast.error(`Cannot delete purchase "${purchase.invoiceNumber}". ${soldVehicles.length} vehicle(s) from this invoice have already been sold. Please delete the corresponding sales records first.`);
+      toast.error(`Restricted: Invoice "${purchaseToDelete.invoiceNumber}" contains ${soldVehicles.length} sold unit(s). Purging is blocked to maintain sales integrity.`);
+      setPurchaseToDelete(null);
       return;
     }
-
-    if (!window.confirm(`Are you sure you want to delete purchase invoice "${purchase.invoiceNumber}"? This will also remove ALL ${vehiclesInPurchase.length} linked vehicles from your inventory manifest.`)) return;
 
     try {
       const batch = writeBatch(db);
       
-      // Delete vehicles
+      // Revert inventory records back to ready-to-purchase
       vehiclesInPurchase.forEach(v => {
-        batch.delete(doc(db, 'vehicles', v.chassisNumber));
+        batch.update(doc(db, 'vehicles', v.chassisNumber), {
+          purchaseId: null,
+          currentOwnerId: null,
+          status: 'ready-to-purchase',
+          updatedAt: Timestamp.now()
+        });
       });
       
-      // Delete purchase
-      batch.delete(doc(db, 'purchases', purchase.id));
+      // Delete purchase record
+      batch.delete(doc(db, 'purchases', purchaseToDelete.id));
       
       await batch.commit();
-      toast.success('Purchase invoice and associated inventory records have been purged.');
+      toast.success('Purchase manifest and linked inventory records purged.');
+      setPurchaseToDelete(null);
     } catch (error) {
       console.error("Delete Purchase Error:", error);
-      toast.error('Failed to purge purchase record. Integrity check failed or permission denied.');
+      toast.error('Failed to purge records. Database connectivity issue.');
       handleFirestoreError(error, OperationType.DELETE, 'purchases');
     }
   };
@@ -156,8 +218,19 @@ export function Purchases() {
       return;
     }
 
+    // Sanitize entries
+    const sanitizedEntries = currentChassisEntries.map(e => ({
+      ...e,
+      chassisNumber: (e.chassisNumber || '').trim().toUpperCase()
+    }));
+
     // Check for duplicates in current form
-    const chassisNumbers = currentChassisEntries.map(e => e.chassisNumber);
+    const chassisNumbers = sanitizedEntries.map(e => e.chassisNumber);
+    if (chassisNumbers.some(c => !c)) {
+      toast.error('Chassis numbers cannot be empty');
+      return;
+    }
+
     if (new Set(chassisNumbers).size !== chassisNumbers.length) {
       toast.error('Duplicate chassis numbers in this purchase entries');
       return;
@@ -167,21 +240,32 @@ export function Purchases() {
       // 1. Check if invoice already exists for this vendor
       const invoiceCheckQuery = query(
         collection(db, 'purchases'), 
-        where('vendorId', '==', selectedVendor),
-        where('invoiceNumber', '==', invoiceNumber)
+        where('vendorId', '==', selectedVendor)
       );
       const invoiceCheckSnap = await getDocs(invoiceCheckQuery);
-      if (!invoiceCheckSnap.empty) {
+      if (invoiceCheckSnap.docs.some(d => d.data().invoiceNumber === invoiceNumber)) {
         toast.error('An invoice with this number already exists for this vendor');
         return;
       }
 
-      // 2. Check if any chassis already exists in global inventory
+      // 2. Verify all chassis exist in inventory and are not already purchased
       for (const chassis of chassisNumbers) {
         if (!chassis) continue;
         const vehicleDoc = await getDoc(doc(db, 'vehicles', chassis));
-        if (vehicleDoc.exists()) {
-          toast.error(`Chassis number ${chassis} already exists in inventory`);
+        
+        if (!vehicleDoc.exists()) {
+          toast.error(`Chassis number ${chassis} is not found in inventory. Please add it to inventory first.`);
+          return;
+        }
+        
+        const vehicleData = vehicleDoc.data();
+        if (vehicleData.purchaseId) {
+          toast.error(`Chassis number ${chassis} is already linked to a purchase.`);
+          return;
+        }
+        
+        if (vehicleData.status === 'sold') {
+          toast.error(`Chassis number ${chassis} is marked as sold and cannot be purchased.`);
           return;
         }
       }
@@ -199,7 +283,7 @@ export function Purchases() {
       });
 
       // 2. Create/Update Vehicles
-      for (const entry of currentChassisEntries) {
+      for (const entry of sanitizedEntries) {
         if (!entry.chassisNumber) continue;
         const vehicleRef = doc(db, 'vehicles', entry.chassisNumber);
         
@@ -227,6 +311,28 @@ export function Purchases() {
       setCurrentChassisEntries([]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'purchases/vehicles');
+    }
+  };
+
+  const exportPurchases = () => {
+    try {
+      const data = processedPurchases.map(p => ({
+        'Invoice Number': p.invoiceNumber,
+        'Date': p.date?.toDate ? p.date.toDate().toLocaleDateString('en-US') : '',
+        'Vendor Name': vendors.find(v => v.id === p.vendorId)?.name || 'Unknown',
+        'Chassis Numbers': p.chassisNumbers.join(', ')
+      }));
+      if (data.length === 0) {
+        toast.error("No purchases to export.");
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Purchases');
+      XLSX.writeFile(wb, 'Purchase_Records.xlsx');
+      toast.success('Purchase records exported');
+    } catch(err) {
+      toast.error('Failed to export purchase records');
     }
   };
 
@@ -308,13 +414,13 @@ export function Purchases() {
                 <TableBody>
                   {currentChassisEntries.map((entry, index) => (
                     <TableRow key={index} className="hover:bg-slate-50/50 border-transparent">
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-2.5">
                         <div className="relative flex items-center">
                           <Input 
-                            placeholder="VIN/Chassis" 
+                            placeholder="Search VIN/Chassis..." 
                             value={entry.chassisNumber} 
-                            onChange={(e) => updateRow(index, 'chassisNumber', e.target.value.toUpperCase())}
-                            className="h-10 rounded-lg border-slate-200 font-mono font-bold text-sm bg-white pr-10"
+                            readOnly
+                            className="h-10 rounded-lg border-slate-200 font-mono font-bold text-sm bg-slate-50 pr-10 text-slate-500 cursor-not-allowed"
                           />
                           <Button 
                             variant="ghost" 
@@ -329,13 +435,14 @@ export function Purchases() {
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-2.5">
                         <Select 
                           value={entry.companyId} 
                           onValueChange={(val) => {
                             updateRow(index, 'companyId', val);
                             updateRow(index, 'modelId', ''); 
                           }}
+                          disabled
                         >
                           <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white border-slate-200">
                             <SelectValue placeholder="Brand" />
@@ -345,11 +452,11 @@ export function Purchases() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-2.5">
                         <Select 
                           value={entry.modelId} 
                           onValueChange={(val) => updateRow(index, 'modelId', val)}
-                          disabled={!entry.companyId}
+                          disabled
                         >
                           <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white border-slate-200">
                             <SelectValue placeholder="Variants" />
@@ -361,7 +468,7 @@ export function Purchases() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-2.5">
                          <Select 
                           value={entry.color} 
                           onValueChange={(val) => updateRow(index, 'color', val)}
@@ -376,7 +483,7 @@ export function Purchases() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-6 py-2.5">
                         <Button variant="ghost" size="icon" onClick={() => removeRow(index)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -433,6 +540,7 @@ export function Purchases() {
               </TableHeader>
               <TableBody>
                 {allVehicles
+                  .filter(v => v.status === 'ready-to-purchase')
                   .filter(v => {
                     const searchLower = searchQuery.toLowerCase();
                     const companyName = companies.find(c => c.id === v.companyId)?.name || '';
@@ -488,30 +596,102 @@ export function Purchases() {
       </Dialog>
 
       {/* Purchase List History */}
-      <Card className="mt-8 rounded-2xl border-slate-100 shadow-sm overflow-hidden">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-          <CardTitle className="text-xl font-black">Purchase History</CardTitle>
-          <CardDescription>View and manage previous procurement invoices.</CardDescription>
+      <Card className="mt-8 rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col h-[600px]">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-6 shrink-0 shadow-sm z-20 sticky top-0">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-black">Purchase History</CardTitle>
+            <CardDescription>View and manage previous procurement invoices.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900" onClick={clearFilters}>
+                <FilterX className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 bg-white" onClick={exportPurchases}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Records
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="p-0 text-xs">
+        <CardContent className="p-0 text-xs flex-1 overflow-auto relative [&_[data-slot=table-container]]:overflow-visible">
           <Table>
-            <TableHeader className="bg-slate-50/50">
+            <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
               <TableRow className="divide-x divide-slate-100">
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Party Name</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Invoice No.</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Vehicle Details</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Document Status</TableHead>
-                <TableHead className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Action</TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-1.5">
+                    Party Name
+                    <Popover open={activePopover === 'vendor'} onOpenChange={(open) => setActivePopover(open ? 'vendor' : null)}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                          <FilterIcon className={`w-3.5 h-3.5 ${vendorFilter !== 'ALL' ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="space-y-1 p-3 w-[200px]">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
+                          <Select value={vendorFilter} onValueChange={(val) => { setVendorFilter(val); setActivePopover(null); }}>
+                            <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                              <SelectValue placeholder="All Vendors" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60">
+                              <SelectItem value="ALL">All Vendors</SelectItem>
+                              {vendors.map(v => (
+                                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('invoiceNumber')}>
+                  <div className="flex items-center gap-1">
+                    Invoice No.
+                    {sortField === 'invoiceNumber' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-1.5">
+                    Vehicle Details
+                    <Popover open={activePopover === 'company'} onOpenChange={(open) => setActivePopover(open ? 'company' : null)}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                          <FilterIcon className={`w-3.5 h-3.5 ${chassisFilter !== '' ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="space-y-3 p-3 w-[200px]">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
+                            <Input 
+                              placeholder="Search chassis..." 
+                              value={chassisFilter} 
+                              onChange={e => setChassisFilter(e.target.value)}
+                              className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                            />
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  Document Status
+                </TableHead>
+                <TableHead className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {purchases.map((purchase) => {
+              {processedPurchases.map((purchase) => {
                 const vendor = vendors.find(v => v.id === purchase.vendorId);
                 const vehiclesForThisPurchase = allVehicles.filter(v => v.purchaseId === purchase.id || (purchase.chassisNumbers && purchase.chassisNumbers.includes(v.chassisNumber)));
 
                 return (
                   <TableRow key={purchase.id} className="hover:bg-slate-50/50 border-transparent divide-x divide-slate-100">
-                    <TableCell className="px-4 py-4">
+                    <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-1">
                         <span className="font-black text-slate-900 uppercase">{vendor?.name || 'Unknown Vendor'}</span>
                         <span className="text-[10px] font-bold text-slate-400">
@@ -521,7 +701,7 @@ export function Purchases() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 font-black text-slate-900 text-center">
+                    <TableCell className="px-4 py-2.5 font-black text-slate-900 text-center">
                       <Badge variant="outline" className="border-slate-200 bg-white font-black">
                         {purchase.invoiceNumber}
                       </Badge>
@@ -548,8 +728,11 @@ export function Purchases() {
                     <TableCell className="p-0">
                       <div className="divide-y divide-slate-100 h-full">
                         {vehiclesForThisPurchase.map((v) => (
-                          <div key={v.chassisNumber + '_status'} className="px-4 py-2 flex flex-col justify-center h-[41px]">
-                            <span className="font-black text-[9px] uppercase tracking-tighter">
+                          <div key={v.chassisNumber + '_status'} className="px-4 py-2 flex flex-col justify-center gap-0.5">
+                            <span className="font-bold text-xs uppercase text-slate-800">
+                              {v.registrationNumber || 'UNREGISTERED'}
+                            </span>
+                            <span className="font-bold text-[9px] uppercase tracking-tighter text-slate-500">
                               {v.bluebookStatus || 'NOT RECEIVED'} - {v.naamsariStatus || 'PENDING'}
                             </span>
                           </div>
@@ -559,7 +742,7 @@ export function Purchases() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-center">
+                    <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
                         <Button 
                           variant="default" 
@@ -573,7 +756,7 @@ export function Purchases() {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => deletePurchase(purchase)}
+                          onClick={() => setPurchaseToDelete(purchase)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -593,6 +776,25 @@ export function Purchases() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!purchaseToDelete} onOpenChange={(open) => !open && setPurchaseToDelete(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-red-600">Purge Purchase Record?</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              This will permanently delete invoice <span className="text-slate-900 font-extrabold">{purchaseToDelete?.invoiceNumber}</span> and ALL associated inventory chassis that are currently in stock.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-6">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setPurchaseToDelete(null)}>
+              Abort
+            </Button>
+            <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeletePurchase}>
+              Confirm Purge
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Purchase Dialog */}
       <Dialog open={!!editingPurchase} onOpenChange={(open) => !open && setEditingPurchase(null)}>

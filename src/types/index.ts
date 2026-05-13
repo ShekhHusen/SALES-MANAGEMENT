@@ -2,7 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 
 export type BluebookStatus = 'Not Received' | 'Received';
 export type NaamsariStatus = 'Pending' | 'Names of JBMT' | 'Customer Done';
-export type VehicleStatus = 'in-stock' | 'sold';
+export type VehicleStatus = 'ready-to-purchase' | 'in-stock' | 'sold';
 export type PartyType = 'vendor' | 'customer';
 
 export interface Company {
@@ -58,5 +58,35 @@ export interface Sale {
   chassisNumber: string;
   fileNumber: number;
   companyId: string;
+  documentationCompleted?: boolean;
+  createdAt: Timestamp;
+}
+
+export interface OtherDetails {
+  id: string;
+  chassisNumber: string;
+  saleId: string;
+  price: number;
+  batteryDetails: {
+    numberOfBattery: number;
+    category: string;
+    model: string;
+    productId: string;
+    bluetoothId: string;
+    serialNumbers: string[];
+  };
+  createdAt: Timestamp;
+}
+
+export interface DocumentUpload {
+  id: string;
+  chassisNumber: string;
+  saleId: string;
+  selfieUrl?: string;
+  citizenshipFrontUrl?: string;
+  citizenshipBackUrl?: string;
+  passportSizePhotoUrl?: string;
+  chequeUrl?: string;
+  bikrinamaUrl?: string;
   createdAt: Timestamp;
 }

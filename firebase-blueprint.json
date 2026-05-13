@@ -76,9 +76,51 @@
         "chassisNumber": { "type": "string" },
         "fileNumber": { "type": "number" },
         "companyId": { "type": "string" },
+        "documentationCompleted": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["date", "customerId", "chassisNumber", "fileNumber", "companyId"]
+    },
+    "OtherDetail": {
+      "title": "Other Details",
+      "description": "Additional details like battery info and price for a chassis",
+      "type": "object",
+      "properties": {
+        "chassisNumber": { "type": "string" },
+        "saleId": { "type": "string" },
+        "price": { "type": "number" },
+        "batteryDetails": {
+          "type": "object",
+          "properties": {
+            "numberOfBattery": { "type": "number" },
+            "category": { "type": "string" },
+            "model": { "type": "string" },
+            "productId": { "type": "string" },
+            "bluetoothId": { "type": "string" },
+            "serialNumbers": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["numberOfBattery"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chassisNumber", "saleId", "price"]
+    },
+    "DocumentUpload": {
+      "title": "Document Upload Details",
+      "description": "Upload URLs for multiple documents linked to a chassis",
+      "type": "object",
+      "properties": {
+        "chassisNumber": { "type": "string" },
+        "saleId": { "type": "string" },
+        "selfieUrl": { "type": "string" },
+        "citizenshipFrontUrl": { "type": "string" },
+        "citizenshipBackUrl": { "type": "string" },
+        "passportSizePhotoUrl": { "type": "string" },
+        "chequeUrl": { "type": "string" },
+        "bikrinamaUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chassisNumber", "saleId"]
     }
   },
   "firestore": {
@@ -87,6 +129,8 @@
     "parties": { "schema": "Party", "description": "Vendors and customers" },
     "vehicles": { "schema": "Vehicle", "description": "Inventory of vehicle chassis" },
     "purchases": { "schema": "Purchase", "description": "Purchase transaction history" },
-    "sales": { "schema": "Sale", "description": "Sales transaction history" }
+    "sales": { "schema": "Sale", "description": "Sales transaction history" },
+    "other_details": { "schema": "OtherDetail", "description": "Additional details like battery and price" },
+    "document_uploads": { "schema": "DocumentUpload", "description": "Documentation URLs" }
   }
 }

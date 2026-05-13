@@ -7,14 +7,20 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+
+import { ImportData } from '@/components/ImportData';
+import { ExportData } from '@/components/ExportData';
 
 export function Settings() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
+  const [isBrandExpanded, setIsBrandExpanded] = useState(false);
+  const [isVariantExpanded, setIsVariantExpanded] = useState(false);
 
   useEffect(() => {
     const unsubCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
@@ -51,7 +57,24 @@ export function Settings() {
     }
   };
 
-  const deleteItem = async (col: string, id: string, name: string) => {
+  const [itemToDelete, setItemToDelete] = useState<{ col: string, id: string, name: string } | null>(null);
+
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
+    const { col, id, name } = itemToDelete;
+
+    try {
+      await deleteDoc(doc(db, col, id));
+      toast.success('Item deleted');
+      setItemToDelete(null);
+    } catch (error) {
+      console.error("Delete Settings Item Error:", error);
+      toast.error('Failed to delete item. It might be in use elsewhere.');
+      handleFirestoreError(error, OperationType.DELETE, col);
+    }
+  };
+
+  const attemptDeleteItem = async (col: string, id: string, name: string) => {
     if (col === 'companies') {
       // Check if any model refers to this company
       const modelQuery = query(collection(db, 'models'), where('companyId', '==', id));
@@ -72,16 +95,7 @@ export function Settings() {
       }
     }
 
-    if (!window.confirm(`Are you sure you want to delete this "${name}"?`)) return;
-
-    try {
-      await deleteDoc(doc(db, col, id));
-      toast.success('Item deleted');
-    } catch (error) {
-      console.error("Delete Settings Item Error:", error);
-      toast.error('Failed to delete item. It might be in use elsewhere.');
-      handleFirestoreError(error, OperationType.DELETE, col);
-    }
+    setItemToDelete({ col, id, name });
   };
 
   return (
@@ -94,10 +108,17 @@ export function Settings() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Companies Section */}
         <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div 
+            className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+            onClick={() => setIsBrandExpanded(!isBrandExpanded)}
+          >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Brand Directory</h3>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
+              {isBrandExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
-          <CardContent className="p-6 space-y-6">
+          {isBrandExpanded && (
+            <CardContent className="p-6 space-y-6">
             <div className="flex gap-2">
               <Input 
                 placeholder="Manufacturer Name..." 
@@ -124,7 +145,7 @@ export function Settings() {
                       <TableRow key={company.id} className="hover:bg-slate-50/30 border-transparent">
                         <TableCell className="px-6 py-4 font-extrabold text-slate-900">{company.name}</TableCell>
                         <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => deleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -139,13 +160,21 @@ export function Settings() {
               </Table>
             </div>
           </CardContent>
+          )}
         </Card>
 
         {/* Models Section */}
         <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+          <div 
+            className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+            onClick={() => setIsVariantExpanded(!isVariantExpanded)}
+          >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Variant Manifest</h3>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
+              {isVariantExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
+          {isVariantExpanded && (
           <CardContent className="p-6 space-y-6">
             <div className="grid gap-3">
               <Select 
@@ -194,7 +223,7 @@ export function Settings() {
                           </span>
                         </TableCell>
                         <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => deleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -209,8 +238,31 @@ export function Settings() {
               </Table>
             </div>
           </CardContent>
+          )}
         </Card>
       </div>
+
+      <Dialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-red-600">Delete Item?</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              This will permanently delete <span className="text-slate-900 font-extrabold">{itemToDelete?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-6">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setItemToDelete(null)}>
+              Abort
+            </Button>
+            <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeleteItem}>
+              Confirm Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ImportData />
+      <ExportData />
     </div>
   );
 }

@@ -26,7 +26,9 @@ import {
   Package, 
   CheckCircle2, 
   Clock,
-  TrendingUp
+  AlertCircle,
+  FileText,
+  UserCheck
 } from 'lucide-react';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -48,11 +50,12 @@ export function Dashboard() {
 
   const stats = {
     totalInventory: vehicles.length,
-    totalProcurement: purchases.length,
-    totalSales: vehicles.filter(v => v.status === 'sold').length,
-    inStock: vehicles.filter(v => v.status === 'in-stock' && !!v.purchaseId).length,
+    totalProcurement: purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
+    totalSales: sales.length,
+    inStock: vehicles.filter(v => v.status === 'in-stock').length,
     bluebookPending: vehicles.filter(v => v.bluebookStatus === 'Not Received').length,
     bluebookReceived: vehicles.filter(v => v.bluebookStatus === 'Received').length,
+    naamsariPending: vehicles.filter(v => v.naamsariStatus === 'Pending').length,
     jbmtName: vehicles.filter(v => v.naamsariStatus === 'Names of JBMT').length,
     customerDone: vehicles.filter(v => v.naamsariStatus === 'Customer Done').length,
   };
@@ -89,46 +92,72 @@ export function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-4">
         <StatCard 
           title="Total Inventory" 
           value={stats.totalInventory} 
           icon={Car} 
-          color="text-blue-600" 
-          meta="+8.2% from last gate"
-          metaColor="text-emerald-600"
+          color="text-blue-500"
+          bg="bg-blue-50"
         />
         <StatCard 
           title="Total Purchases" 
           value={stats.totalProcurement} 
           icon={ShoppingCart} 
-          color="text-purple-600" 
-          meta={`Across ${purchases.length} invoices`}
-          metaColor="text-slate-500"
+          color="text-purple-500"
+          bg="bg-purple-50"
         />
         <StatCard 
           title="In-Stock Units" 
           value={stats.inStock} 
           icon={Package} 
-          color="text-indigo-600" 
-          meta={`${stats.totalInventory > 0 ? Math.round(stats.inStock/stats.totalInventory*100) : 0}% of total pool`}
-          metaColor="text-slate-500"
+          color="text-indigo-500"
+          bg="bg-indigo-50"
         />
         <StatCard 
           title="Sales Recorded" 
           value={stats.totalSales} 
           icon={BadgeDollarSign} 
-          color="text-emerald-600" 
-          meta="+12.5% vs last month"
-          metaColor="text-emerald-600"
+          color="text-emerald-500"
+          bg="bg-emerald-50"
         />
+      </div>
+
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Doc Pending" 
           value={stats.bluebookPending} 
           icon={Clock} 
-          color="text-amber-600" 
-          meta="Requires immediate action"
-          metaColor="text-amber-600"
+          color="text-amber-500"
+          bg="bg-amber-50"
+        />
+        <StatCard 
+          title="Doc Received" 
+          value={stats.bluebookReceived} 
+          icon={CheckCircle2} 
+          color="text-teal-500"
+          bg="bg-teal-50"
+        />
+        <StatCard 
+          title="Namsari Pending" 
+          value={stats.naamsariPending} 
+          icon={AlertCircle} 
+          color="text-orange-500"
+          bg="bg-orange-50"
+        />
+        <StatCard 
+          title="Names of JBMT" 
+          value={stats.jbmtName} 
+          icon={UserCheck} 
+          color="text-cyan-500"
+          bg="bg-cyan-50"
+        />
+        <StatCard 
+          title="Customer Done" 
+          value={stats.customerDone} 
+          icon={FileText} 
+          color="text-emerald-500"
+          bg="bg-emerald-50"
         />
       </div>
 
@@ -233,21 +262,17 @@ export function Dashboard() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, meta, metaColor }: any) {
+function StatCard({ title, value, icon: Icon, color, bg }: any) {
   return (
-    <Card className="shadow-sm border-slate-200 hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">{title}</span>
-          <div className={cn("p-2 rounded-lg bg-slate-50", color)}>
-            <Icon className="h-5 w-5" />
-          </div>
+    <Card className="relative overflow-hidden border-none shadow-md bg-white hover:shadow-xl transition-all duration-300 group rounded-2xl">
+      <div className={cn("absolute inset-0 opacity-0 bg-gradient-to-br transition-opacity duration-300 group-hover:opacity-10", bg, "from-transparent to-current")} />
+      <CardContent className="p-4 relative z-10 flex items-center gap-4">
+        <div className={cn("p-3 rounded-2xl shadow-sm backdrop-blur-md transition-transform duration-300 group-hover:scale-110 shrink-0", bg, color)}>
+          <Icon className="h-6 w-6" strokeWidth={2.5} />
         </div>
-        <div className="flex flex-col">
-          <span className="text-3xl font-black text-slate-900 tracking-tight">{value}</span>
-          <span className={cn("text-[10px] font-bold mt-1", metaColor || "text-slate-400")}>
-            {meta}
-          </span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1 cursor-default">{value}</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 group-hover:text-slate-800 transition-colors truncate cursor-default">{title}</span>
         </div>
       </CardContent>
     </Card>

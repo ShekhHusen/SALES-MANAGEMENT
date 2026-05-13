@@ -13,7 +13,9 @@ import {
   CloudMoon,
   Menu,
   X,
-  LogOut
+  LogOut,
+  ActivitySquare,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -26,6 +28,8 @@ const navItems = [
   { label: 'Parties', icon: Users, path: '/parties' },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases' },
   { label: 'Sales', icon: BadgeDollarSign, path: '/sales' },
+  { label: 'Document Process', icon: FileText, path: '/document-process' },
+  { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer' },
   { label: 'Settings', icon: SettingsIcon, path: '/settings' },
 ];
 
@@ -49,10 +53,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-[#0F172A] text-slate-400 transition-transform lg:static lg:translate-x-0 outline-none",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F172A] text-slate-400 transition-transform duration-300 outline-none flex flex-col shadow-2xl",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        "lg:-translate-x-full lg:hover:translate-x-0",
+        "lg:after:content-[''] lg:after:absolute lg:after:top-0 lg:after:-right-8 lg:after:w-8 lg:after:h-full lg:after:bg-transparent lg:after:cursor-pointer"
       )}>
-        <div className="flex h-full flex-col py-6">
+        <div className="flex flex-col h-full py-6">
           <div className="px-6 pb-8 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <div className="text-xl font-extrabold tracking-tight text-[#3B82F6]">
@@ -111,45 +117,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center justify-between border-b bg-white px-8 dark:bg-card">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={toggleSidebar}>
-              <Menu className="h-6 w-6" />
+        {/* Floating Menu & Theme Controls */}
+        <div className="fixed top-4 left-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8 rounded-xl" onClick={toggleSidebar}>
+            <Menu className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-7 w-7 rounded-lg p-0", theme === 'light' && "bg-white shadow-sm text-blue-600 dark:text-white dark:bg-slate-700")} 
+              onClick={() => setTheme('light')}
+            >
+              <Sun className="h-3.5 w-3.5" />
             </Button>
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-extrabold text-slate-800 dark:text-foreground tracking-tight">
-                {navItems.find(item => item.path === location.pathname)?.label || 'Operations'}
-              </h2>
-              <div className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-500 uppercase tracking-tighter">
-                v2.4.0
-              </div>
-            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-7 w-7 rounded-lg p-0", theme === 'dark' && "bg-slate-700 text-white shadow-sm")} 
+              onClick={() => setTheme('dark')}
+            >
+              <Moon className="h-3.5 w-3.5" />
+            </Button>
           </div>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {/* Theme Toggle Simplified */}
-            <div className="flex items-center rounded-lg bg-slate-100 p-1">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn("h-7 w-7 rounded-md p-0", theme === 'light' && "bg-white shadow-sm text-primary")} 
-                onClick={() => setTheme('light')}
-              >
-                <Sun className="h-3.5 w-3.5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn("h-7 w-7 rounded-md p-0", theme === 'dark' && "bg-slate-700 text-white")} 
-                onClick={() => setTheme('dark')}
-              >
-                <Moon className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="mx-auto max-w-7xl">
             {/* Professional entry animation placeholder */}
             <div className="animate-in fade-in duration-500 slide-in-from-bottom-2">

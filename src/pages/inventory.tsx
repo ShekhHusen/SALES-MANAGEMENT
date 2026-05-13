@@ -10,10 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2 } from 'lucide-react';
+import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2, X, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export function Inventory() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -23,9 +24,12 @@ export function Inventory() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [purchaseDetails, setPurchaseDetails] = useState<Purchase | null>(null);
   const [saleDetails, setSaleDetails] = useState<Sale | null>(null);
   const [parties, setParties] = useState<Party[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
 
   // New Vehicle Form State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -37,7 +41,7 @@ export function Inventory() {
     registrationNumber: '',
     bluebookStatus: 'Not Received' as BluebookStatus,
     naamsariStatus: 'Pending' as NaamsariStatus,
-    status: 'in-stock' as 'in-stock' | 'sold',
+    status: 'ready-to-purchase' as 'ready-to-purchase' | 'in-stock' | 'sold',
   });
 
   useEffect(() => {
@@ -46,9 +50,41 @@ export function Inventory() {
     onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
     onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ ...d.data(), id: d.id } as Model))));
     onSnapshot(collection(db, 'parties'), (s) => setParties(s.docs.map(d => ({ ...d.data(), id: d.id } as Party))));
+    onSnapshot(collection(db, 'purchases'), (s) => setPurchases(s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase))));
+    onSnapshot(collection(db, 'sales'), (s) => setSales(s.docs.map(d => ({ ...d.data(), id: d.id } as Sale))));
     
     return () => unsubVehicles();
   }, []);
+
+  // Background Data Integrity Healer
+  useEffect(() => {
+    if (vehicles.length > 0 && (purchases.length > 0 || sales.length > 0)) {
+      vehicles.forEach(vehicle => {
+        const saleId = sales.find(s => s.chassisNumber === vehicle.chassisNumber)?.id || null;
+        const purchaseId = purchases.find(p => p.chassisNumbers.includes(vehicle.chassisNumber))?.id || null;
+        
+        let realStatus: 'ready-to-purchase' | 'in-stock' | 'sold' = 'ready-to-purchase';
+        if (saleId) {
+          realStatus = 'sold';
+        } else if (purchaseId) {
+          realStatus = 'in-stock';
+        }
+
+        const needsSync = 
+          vehicle.status !== realStatus || 
+          (vehicle.saleId || null) !== saleId || 
+          (vehicle.purchaseId || null) !== purchaseId;
+
+        if (needsSync) {
+          updateDoc(doc(db, 'vehicles', vehicle.chassisNumber), {
+            status: realStatus,
+            saleId,
+            purchaseId
+          }).catch(console.error);
+        }
+      });
+    }
+  }, [vehicles, purchases, sales]);
 
   const handleCreateVehicle = async (e: FormEvent) => {
     e.preventDefault();
@@ -83,7 +119,7 @@ export function Inventory() {
         registrationNumber: '',
         bluebookStatus: 'Not Received',
         naamsariStatus: 'Pending',
-        status: 'in-stock',
+        status: 'ready-to-purchase',
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `vehicles/${newVehicle.chassisNumber}`);
@@ -105,18 +141,32 @@ export function Inventory() {
     }
   };
 
-  const updateDocStatus = async (chassisNumber: string, bluebook: BluebookStatus, naamsari: NaamsariStatus) => {
+  const updateDocStatus = async (chassisNumber: string, bluebook: BluebookStatus, naamsari: NaamsariStatus, registrationNumber: string) => {
     try {
       const vehicleRef = doc(db, 'vehicles', chassisNumber);
       await updateDoc(vehicleRef, {
         bluebookStatus: bluebook,
         naamsariStatus: naamsari,
+        registrationNumber: registrationNumber || '',
         updatedAt: Timestamp.now(),
       });
       toast.success('Status updated');
       setSelectedVehicle(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${chassisNumber}`);
+    }
+  };
+
+  const confirmDeleteVehicle = async () => {
+    if (!vehicleToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'vehicles', vehicleToDelete.chassisNumber));
+      toast.success('Vehicle deleted from inventory');
+      setVehicleToDelete(null);
+    } catch (error) {
+      console.error("Delete Vehicle Error:", error);
+      toast.error('Could not delete vehicle. Permissions or database error.');
+      handleFirestoreError(error, OperationType.DELETE, `vehicles/${vehicleToDelete.chassisNumber}`);
     }
   };
 
@@ -133,16 +183,7 @@ export function Inventory() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete vehicle ${vehicle.chassisNumber}?`)) return;
-
-    try {
-      await deleteDoc(doc(db, 'vehicles', vehicle.chassisNumber));
-      toast.success('Vehicle deleted from inventory');
-    } catch (error) {
-      console.error("Delete Vehicle Error:", error);
-      toast.error('Could not delete vehicle. Permissions or database error.');
-      handleFirestoreError(error, OperationType.DELETE, `vehicles/${vehicle.chassisNumber}`);
-    }
+    setVehicleToDelete(vehicle);
   };
 
   const filteredVehicles = vehicles.filter(v => {
@@ -151,6 +192,34 @@ export function Inventory() {
     const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const exportRecords = () => {
+    try {
+      const data = filteredVehicles.map(v => ({
+        'Chassis Number': v.chassisNumber,
+        'Company': companies.find(c => c.id === v.companyId)?.name || 'Unknown',
+        'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
+        'Color': v.color,
+        'Registration Number': v.registrationNumber,
+        'Inventory Status': v.status,
+        'Bluebook Status': v.bluebookStatus,
+        'Naamsari Status': v.naamsariStatus,
+      }));
+      
+      if(data.length === 0) {
+        toast.error("No records to export.");
+        return;
+      }
+      
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+      XLSX.writeFile(wb, 'Inventory_Records.xlsx');
+      toast.success('Inventory records exported');
+    } catch(err) {
+      toast.error('Failed to export inventory records');
+    }
+  };
 
   return (
     <div className="space-y-8 pb-10">
@@ -179,6 +248,7 @@ export function Inventory() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Inventory</SelectItem>
+              <SelectItem value="ready-to-purchase">Ready to Purchase</SelectItem>
               <SelectItem value="in-stock">In Stock Units</SelectItem>
               <SelectItem value="sold">Sold Units</SelectItem>
             </SelectContent>
@@ -291,7 +361,8 @@ export function Inventory() {
               </form>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200">
+          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200" onClick={exportRecords}>
+            <Download className="h-4 w-4 mr-2" />
             Export Records
           </Button>
         </div>
@@ -302,37 +373,50 @@ export function Inventory() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Chassis No</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Make & Model</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Color</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Inventory Status</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Bluebook</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Naamsari</TableHead>
-                <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Chassis No</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Make & Model</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Color</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Reg. Number</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Inventory Status</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Bluebook</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Naamsari</TableHead>
+                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredVehicles.map((vehicle) => (
                 <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-50/40 border-b border-slate-100 last:border-0 transition-colors">
-                  <TableCell className="px-6 py-4 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-2.5 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
+                  <TableCell className="px-6 py-2.5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
                       <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-2.5">
                     <span className="text-sm font-semibold text-slate-600">{vehicle.color}</span>
                   </TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-2.5">
+                    <span className="text-sm font-semibold text-slate-600">{vehicle.registrationNumber || '-'}</span>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
                     <div className="flex items-center gap-2">
-                       <div className={cn("h-2 w-2 rounded-full", vehicle.status === 'in-stock' ? "bg-emerald-500" : "bg-slate-300")} />
-                       <span className={cn("text-xs font-bold capitalize", vehicle.status === 'in-stock' ? "text-emerald-700" : "text-slate-500")}>
-                        {vehicle.status === 'in-stock' ? 'In-Stock' : 'Sold'}
+                       <div className={cn(
+                        "h-2 w-2 rounded-full", 
+                        vehicle.status === 'in-stock' ? "bg-emerald-500" : 
+                        vehicle.status === 'ready-to-purchase' ? "bg-amber-500" : "bg-slate-300"
+                        )} />
+                       <span className={cn(
+                        "text-xs font-bold capitalize", 
+                        vehicle.status === 'in-stock' ? "text-emerald-700" : 
+                        vehicle.status === 'ready-to-purchase' ? "text-amber-700" : "text-slate-500"
+                        )}>
+                        {vehicle.status === 'in-stock' ? 'In-Stock' : 
+                         vehicle.status === 'ready-to-purchase' ? 'Ready to Purchase' : 'Sold'}
                        </span>
                     </div>
                   </TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-2.5">
                     <span className={cn(
                       "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
                       vehicle.bluebookStatus === 'Received' 
@@ -342,7 +426,7 @@ export function Inventory() {
                       {vehicle.bluebookStatus}
                     </span>
                   </TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-2.5">
                     <span className={cn(
                       "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
                       vehicle.naamsariStatus === 'Customer Done' 
@@ -354,7 +438,7 @@ export function Inventory() {
                       {vehicle.naamsariStatus}
                     </span>
                   </TableCell>
-                  <TableCell className="px-6 py-4 text-right">
+                  <TableCell className="px-6 py-2.5 text-right">
                     <div className="flex justify-end gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
@@ -362,15 +446,18 @@ export function Inventory() {
                             <Info className="h-3.5 w-3.5 mr-1" /> View Details
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-0">
+                        <DialogContent showCloseButton={false} className="max-w-5xl xl:max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-0">
                         <div className="p-8 bg-[#0F172A] text-white overflow-hidden relative">
                            <div className="absolute top-0 right-0 p-12 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-                           <DialogHeader className="relative z-10">
+                           <DialogClose className="absolute top-4 right-4 z-20 rounded-full p-2 bg-white/10 hover:bg-white/20 transition-colors text-white">
+                             <X className="h-5 w-5" />
+                           </DialogClose>
+                           <DialogHeader className="relative z-10 w-11/12">
                               <div className="flex items-center gap-3 mb-2">
                                  <Badge variant="outline" className="text-blue-400 border-blue-400 uppercase text-[10px] font-black">History Log</Badge>
-                                 <span className="text-slate-500 text-xs font-mono">{vehicle.chassisNumber}</span>
+                                 <span className="text-slate-400 text-xs font-mono">{vehicle.chassisNumber}</span>
                               </div>
-                              <DialogTitle className="text-2xl font-black tracking-tight">Lifecycle Intelligence</DialogTitle>
+                              <DialogTitle className="text-2xl font-black tracking-tight text-white">Lifecycle Intelligence</DialogTitle>
                            </DialogHeader>
                         </div>
                         
@@ -399,7 +486,18 @@ export function Inventory() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reg. Number</label>
+                                <Input 
+                                  value={selectedVehicle?.registrationNumber || ''} 
+                                  onChange={(e) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, registrationNumber: e.target.value.toUpperCase() });
+                                  }}
+                                  placeholder="Eg. BA 1 CHA 1234"
+                                  className="h-10 rounded-lg border-slate-200 uppercase"
+                                />
+                              </div>
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Update Bluebook</label>
                                 <Select 
@@ -436,7 +534,7 @@ export function Inventory() {
                                 </Select>
                               </div>
                             </div>
-                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(selectedVehicle.chassisNumber, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus)}>
+                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(selectedVehicle.chassisNumber, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '')}>
                               Commit Status Changes
                             </Button>
                           </div>
@@ -494,6 +592,24 @@ export function Inventory() {
                               <p className="text-xs text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 font-bold uppercase tracking-widest italic">Pending Commercial Completion</p>
                             )}
                           </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Dialog open={!!vehicleToDelete} onOpenChange={(open) => !open && setVehicleToDelete(null)}>
+                      <DialogContent className="sm:max-w-md rounded-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-xl font-black text-red-600">Delete Vehicle Record?</DialogTitle>
+                          <DialogDescription className="font-bold text-slate-500">
+                            This will permanently delete the vehicle <span className="text-slate-900 font-extrabold">{vehicleToDelete?.chassisNumber}</span> from your inventory.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex gap-3 pt-6">
+                          <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setVehicleToDelete(null)}>
+                            Abort
+                          </Button>
+                          <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeleteVehicle}>
+                            Confirm Delete
+                          </Button>
                         </div>
                       </DialogContent>
                     </Dialog>

@@ -11,11 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { Plus, Search, UserPlus, Trash2 } from 'lucide-react';
+import { Plus, Search, UserPlus, Trash2, Download } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 
 const partySchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -29,6 +30,7 @@ type PartyFormValues = z.infer<typeof partySchema>;
 export function Parties() {
   const [parties, setParties] = useState<Party[]>([]);
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
@@ -91,27 +93,14 @@ export function Parties() {
     }
   };
 
-  const deleteParty = async (id: string, name: string) => {
-    // Check if used in purchases (as vendor)
-    const purchaseQuery = query(collection(db, 'purchases'), where('vendorId', '==', id));
-    const purchaseSnap = await getDocs(purchaseQuery);
-    if (!purchaseSnap.empty) {
-      toast.error(`Cannot delete "${name}". This vendor is linked to ${purchaseSnap.size} purchase invoices.`);
-      return;
-    }
+  const [partyToDelete, setPartyToDelete] = useState<Party | null>(null);
 
-    // Check if used in sales (as customer)
-    const salesQuery = query(collection(db, 'sales'), where('customerId', '==', id));
-    const salesSnap = await getDocs(salesQuery);
-    if (!salesSnap.empty) {
-      toast.error(`Cannot delete "${name}". This customer is linked to ${salesSnap.size} sales records.`);
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to delete stakeholder "${name}"?`)) return;
+  const confirmDeleteParty = async () => {
+    if (!partyToDelete) return;
     try {
-      await deleteDoc(doc(db, 'parties', id));
+      await deleteDoc(doc(db, 'parties', partyToDelete.id));
       toast.success('Stakeholder record deleted');
+      setPartyToDelete(null);
     } catch (error) {
       console.error("Delete Party Error:", error);
       toast.error('Failed to delete party record. It might be in use or forbidden.');
@@ -119,10 +108,54 @@ export function Parties() {
     }
   };
 
-  const filteredParties = parties.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.contactNumber.includes(search)
-  );
+  const deleteParty = async (party: Party) => {
+    // Check if used in purchases (as vendor)
+    const purchaseQuery = query(collection(db, 'purchases'), where('vendorId', '==', party.id));
+    const purchaseSnap = await getDocs(purchaseQuery);
+    if (!purchaseSnap.empty) {
+      toast.error(`Cannot delete "${party.name}". This vendor is linked to ${purchaseSnap.size} purchase invoices.`);
+      return;
+    }
+
+    // Check if used in sales (as customer)
+    const salesQuery = query(collection(db, 'sales'), where('customerId', '==', party.id));
+    const salesSnap = await getDocs(salesQuery);
+    if (!salesSnap.empty) {
+      toast.error(`Cannot delete "${party.name}". This customer is linked to ${salesSnap.size} sales records.`);
+      return;
+    }
+
+    setPartyToDelete(party);
+  };
+
+  const filteredParties = parties.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.contactNumber.includes(search);
+    const matchesType = filterType === 'all' || p.type === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  const exportRecords = () => {
+    try {
+      const data = filteredParties.map(p => ({
+        'Name': p.name,
+        'Type': p.type,
+        'Address': p.address,
+        'Contact Number': p.contactNumber,
+        'Onboarding Date': p.createdAt.toDate().toLocaleDateString('en-US')
+      }));
+      if (data.length === 0) {
+        toast.error("No records to export.");
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Parties');
+      XLSX.writeFile(wb, 'Stakeholders_Records.xlsx');
+      toast.success('Stakeholder records exported');
+    } catch(err) {
+      toast.error('Failed to export stakeholder records');
+    }
+  };
 
   return (
     <div className="space-y-8 pb-10">
@@ -226,14 +259,21 @@ export function Parties() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="h-10 w-px bg-slate-100 hidden sm:block mx-2" />
-        <Tabs defaultValue="all" className="w-full sm:w-auto">
-          <TabsList className="bg-slate-50 p-1 rounded-lg h-10 border border-slate-100">
-            <TabsTrigger value="all" onClick={() => setSearch('')} className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Everything</TabsTrigger>
-            <TabsTrigger value="customer" onClick={() => setSearch('')} className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Customers</TabsTrigger>
-            <TabsTrigger value="vendor" onClick={() => setSearch('')} className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Vendors</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <Tabs value={filterType} onValueChange={(val) => setFilterType(val)} className="w-full sm:w-auto">
+            <TabsList className="bg-slate-50 p-1 rounded-lg h-10 border border-slate-100">
+              <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Everything</TabsTrigger>
+              <TabsTrigger value="customer" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Customers</TabsTrigger>
+              <TabsTrigger value="vendor" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Vendors</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200" onClick={exportRecords}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Records
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
@@ -241,20 +281,20 @@ export function Parties() {
           <Table>
             <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Principal Identity</TableHead>
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-center">Classification</TableHead>
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Contact Line</TableHead>
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Registry Address</TableHead>
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Onboarding Date</TableHead>
-                  <TableHead className="py-4 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Principal Identity</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-center">Classification</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Contact Line</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Registry Address</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Onboarding Date</TableHead>
+                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
               {filteredParties.length > 0 ? (
                 filteredParties.map((party) => (
                   <TableRow key={party.id} className="hover:bg-slate-50/40 border-b border-slate-100 last:border-0 transition-colors">
-                    <TableCell className="px-6 py-4 font-extrabold text-slate-900">{party.name}</TableCell>
-                    <TableCell className="px-6 py-4 text-center">
+                    <TableCell className="px-6 py-2.5 font-extrabold text-slate-900">{party.name}</TableCell>
+                    <TableCell className="px-6 py-2.5 text-center">
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
                         party.type === 'customer' 
@@ -264,12 +304,12 @@ export function Parties() {
                         {party.type}
                       </span>
                     </TableCell>
-                    <TableCell className="px-6 py-4 font-black text-blue-600 text-xs">{party.contactNumber}</TableCell>
-                    <TableCell className="px-6 py-4 text-sm font-medium text-slate-500">{party.address}</TableCell>
-                    <TableCell className="px-6 py-4 text-xs font-bold text-slate-400">
+                    <TableCell className="px-6 py-2.5 font-black text-blue-600 text-xs">{party.contactNumber}</TableCell>
+                    <TableCell className="px-6 py-2.5 text-sm font-medium text-slate-500">{party.address}</TableCell>
+                    <TableCell className="px-6 py-2.5 text-xs font-bold text-slate-400">
                       {party.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </TableCell>
-                    <TableCell className="px-6 py-4 text-right">
+                    <TableCell className="px-6 py-2.5 text-right">
                       <div className="flex justify-end gap-2">
                         <Button 
                           variant="ghost" 
@@ -288,7 +328,7 @@ export function Parties() {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => deleteParty(party.id, party.name)}
+                          onClick={() => deleteParty(party)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -298,7 +338,7 @@ export function Parties() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-20">
+                  <TableCell colSpan={6} className="text-center py-20">
                     <div className="flex flex-col items-center gap-3">
                        <UserPlus className="h-8 w-8 text-slate-200" />
                        <p className="text-slate-400 font-bold text-sm tracking-tight italic">No stakeholders identified in this segment.</p>
@@ -310,6 +350,25 @@ export function Parties() {
           </Table>
         </CardContent>
       </Card>
+      
+      <Dialog open={!!partyToDelete} onOpenChange={(open) => !open && setPartyToDelete(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-red-600">Delete Stakeholder?</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              This will permanently delete the stakeholder <span className="text-slate-900 font-extrabold">{partyToDelete?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-6">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setPartyToDelete(null)}>
+              Abort
+            </Button>
+            <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeleteParty}>
+              Confirm Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

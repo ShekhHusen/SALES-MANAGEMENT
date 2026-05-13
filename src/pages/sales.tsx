@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -23,9 +23,11 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { BadgeDollarSign, Car, User, FileText, Search, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { BadgeDollarSign, Car, User, FileText, Search, Check, ArrowUp, ArrowDown, FilterIcon, FilterX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export function Sales() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -48,6 +50,83 @@ export function Sales() {
   const [editingSale, setEditingSale] = useState<(Sale & { id: string }) | null>(null);
   const [editSaleDate, setEditSaleDate] = useState('');
   const [editFileNumber, setEditFileNumber] = useState<number | string>('');
+
+  const [sortField, setSortField] = useState<'date' | 'fileNumber' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [fileNumberFilter, setFileNumberFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  
+  const [companyFilter, setCompanyFilter] = useState('ALL');
+  const [modelFilter, setModelFilter] = useState('ALL');
+  const [colorFilter, setColorFilter] = useState('ALL');
+  const [chassisFilter, setChassisFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL'); // Naamsari
+  const [bluebookFilter, setBluebookFilter] = useState('ALL');
+  const [activePopover, setActivePopover] = useState<string | null>(null);
+
+  const uniqueColors = Array.from(new Set(allVehicles.map(v => v.color).filter(Boolean)));
+
+  const hasActiveFilters = fileNumberFilter !== '' || customerFilter !== '' || companyFilter !== 'ALL' || modelFilter !== 'ALL' || colorFilter !== 'ALL' || chassisFilter !== '' || statusFilter !== 'ALL' || bluebookFilter !== 'ALL';
+
+  const clearFilters = () => {
+    setFileNumberFilter('');
+    setCustomerFilter('');
+    setCompanyFilter('ALL');
+    setModelFilter('ALL');
+    setColorFilter('ALL');
+    setChassisFilter('');
+    setStatusFilter('ALL');
+    setBluebookFilter('ALL');
+  };
+
+  const handleSort = (field: 'date' | 'fileNumber') => {
+    if (sortField === field) {
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+        setSortField(field);
+        setSortDirection('asc');
+    }
+  };
+
+  const processedSales = [...sales]
+    .filter(sale => {
+      const customer = customers.find(c => c.id === sale.customerId);
+      const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
+      
+      const matchesFile = sale.fileNumber.toString().includes(fileNumberFilter);
+      const matchesCustomer = customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()) || false;
+      const matchesCompany = companyFilter === 'ALL' || sale.companyId === companyFilter;
+      const matchesModel = modelFilter === 'ALL' || vehicle?.modelId === modelFilter;
+      const matchesColor = colorFilter === 'ALL' || vehicle?.color === colorFilter;
+      const matchesChassis = !chassisFilter || vehicle?.chassisNumber.toLowerCase().includes(chassisFilter.toLowerCase());
+      const matchesStatus = statusFilter === 'ALL' || vehicle?.naamsariStatus === statusFilter;
+      const matchesBluebook = bluebookFilter === 'ALL' || vehicle?.bluebookStatus === bluebookFilter;
+      
+      if (fileNumberFilter && !matchesFile) return false;
+      if (customerFilter && !matchesCustomer) return false;
+      if (!matchesCompany) return false;
+      if (!matchesModel) return false;
+      if (!matchesColor) return false;
+      if (!matchesChassis) return false;
+      if (!matchesStatus) return false;
+      if (!matchesBluebook) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      let valA, valB;
+      if (sortField === 'date') {
+        const dateA = a.date instanceof Timestamp ? a.date.toMillis() : new Date(a.date).getTime();
+        const dateB = b.date instanceof Timestamp ? b.date.toMillis() : new Date(b.date).getTime();
+        valA = dateA; valB = dateB;
+      } else if (sortField === 'fileNumber') {
+        valA = a.fileNumber; valB = b.fileNumber;
+      }
+      
+      if (valA! < valB!) return sortDirection === 'asc' ? -1 : 1;
+      if (valA! > valB!) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   useEffect(() => {
     onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
@@ -94,31 +173,29 @@ export function Sales() {
     if (!saleToDelete) return;
     
     try {
-      const batch = writeBatch(db);
+      // 1. Delete the sale record first
+      await deleteDoc(doc(db, 'sales', saleToDelete.id));
       
-      // 1. Revert vehicle status if it exists
-      const vehicleRef = doc(db, 'vehicles', saleToDelete.chassisNumber);
-      const vehicleDoc = await getDoc(vehicleRef);
-      
-      if (vehicleDoc.exists()) {
-        batch.update(vehicleRef, {
+      // 2. Attempt to revert vehicle status (non-blocking)
+      try {
+        const vehicleRef = doc(db, 'vehicles', saleToDelete.chassisNumber);
+        await updateDoc(vehicleRef, {
           status: 'in-stock',
           saleId: null,
           currentOwnerId: null,
           updatedAt: Timestamp.now(),
         });
+      } catch (vehError) {
+        console.warn("Could not revert vehicle status (it may have been deleted):", vehError);
+        // Non-blocking catch
       }
 
-      // 2. Delete sale record
-      batch.delete(doc(db, 'sales', saleToDelete.id));
-
-      await batch.commit();
-      toast.success('Sale record deleted successfully');
+      toast.success('Sale record successfully removed.');
       setSaleToDelete(null);
     } catch (error) {
       console.error("Delete Sale Error:", error);
-      toast.error('Failed to delete sale record. Please check if you have required permissions.');
-      handleFirestoreError(error, OperationType.DELETE, 'sales');
+      toast.error('Failed to delete sale record. Please check database connectivity.');
+      handleFirestoreError(error, OperationType.DELETE, `sales/${saleToDelete.id}`);
     }
   };
 
@@ -140,14 +217,13 @@ export function Sales() {
       // Get next file number for this company
       const salesQuery = query(
         collection(db, 'sales'), 
-        where('companyId', '==', currentVehicle.companyId),
-        orderBy('fileNumber', 'desc'),
-        limit(1)
+        where('companyId', '==', currentVehicle.companyId)
       );
       const salesSnap = await getDocs(salesQuery);
       let nextFileNumber = 1;
       if (!salesSnap.empty) {
-        nextFileNumber = salesSnap.docs[0].data().fileNumber + 1;
+        const fileNumbers = salesSnap.docs.map(d => d.data().fileNumber || 0);
+        nextFileNumber = Math.max(...fileNumbers) + 1;
       }
 
       const batch = writeBatch(db);
@@ -181,6 +257,29 @@ export function Sales() {
       setSelectedCustomer('');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'sales');
+    }
+  };
+
+  const exportSales = () => {
+    try {
+      const data = processedSales.map(s => ({
+        'File Number': s.fileNumber,
+        'Date': s.date?.toDate ? s.date.toDate().toLocaleDateString('en-US') : '',
+        'Customer Name': customers.find(c => c.id === s.customerId)?.name || 'Unknown',
+        'Chassis Number': s.chassisNumber,
+        'Company': companies.find(c => c.id === s.companyId)?.name || 'Unknown'
+      }));
+      if (data.length === 0) {
+        toast.error("No sales to export.");
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sales');
+      XLSX.writeFile(wb, 'Sales_Records.xlsx');
+      toast.success('Sales records exported');
+    } catch(err) {
+      toast.error('Failed to export sales records');
     }
   };
 
@@ -323,7 +422,7 @@ export function Sales() {
                 <FileText className="h-4 w-4" /> Registry Attributes
               </h3>
             </div>
-            <CardContent className="p-6 space-y-8">
+            <CardContent className="px-6 py-[10px] space-y-8">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Date</label>
                 <Input 
@@ -338,26 +437,168 @@ export function Sales() {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-          <CardTitle className="text-xl font-black">Sales History</CardTitle>
-          <CardDescription>Detailed overview of all vehicle sales transactions.</CardDescription>
+      <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col h-[600px]">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-black">Sales History</CardTitle>
+            <CardDescription>Detailed overview of all vehicle sales transactions.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900" onClick={clearFilters}>
+                <FilterX className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            )}
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 bg-white" onClick={exportSales}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Records
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-auto flex-1 relative [&_[data-slot=table-container]]:overflow-visible">
           <Table>
-            <TableHeader className="bg-slate-50/50">
+            <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
               <TableRow>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">SN</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Sale Dates</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">File#</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Vehicle Details</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Customer Details</TableHead>
-                <TableHead className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Document Status</TableHead>
-                <TableHead className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Action</TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">SN</TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('date')}>
+                  <div className="flex items-center gap-1">
+                    Sale Dates
+                    {sortField === 'date' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-800" onClick={() => handleSort('fileNumber')}>
+                    File#
+                    {sortField === 'fileNumber' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-1.5">
+                    Vehicle Details
+                    <Popover open={activePopover === 'company'} onOpenChange={(open) => setActivePopover(open ? 'company' : null)}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                          <FilterIcon className={`w-3.5 h-3.5 ${(companyFilter !== 'ALL' || modelFilter !== 'ALL' || colorFilter !== 'ALL' || chassisFilter !== '') ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="space-y-3 p-3 w-[200px]">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
+                            <Input 
+                              placeholder="Search chassis..." 
+                              value={chassisFilter} 
+                              onChange={e => setChassisFilter(e.target.value)}
+                              className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Company</label>
+                            <Select value={companyFilter} onValueChange={(val) => { setCompanyFilter(val); }}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                                <SelectValue placeholder="All Companies" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Companies</SelectItem>
+                                {companies.map(c => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Model</label>
+                            <Select value={modelFilter} onValueChange={(val) => { setModelFilter(val); }}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full" disabled={companyFilter === 'ALL' && models.length === 0}>
+                                <SelectValue placeholder="All Models" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Models</SelectItem>
+                                {models.filter(m => companyFilter === 'ALL' || m.companyId === companyFilter).map(m => (
+                                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Color</label>
+                            <Select value={colorFilter} onValueChange={(val) => { setColorFilter(val); setActivePopover(null); }}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                                <SelectValue placeholder="All Colors" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Colors</SelectItem>
+                                {uniqueColors.map(c => (
+                                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1"> Customer Details </div>
+                    <Input 
+                      placeholder="Filter..." 
+                      value={customerFilter} 
+                      onChange={e => setCustomerFilter(e.target.value)}
+                      className="h-6 w-full max-w-[120px] text-[10px] px-2 rounded-md font-bold"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                  <div className="flex items-center justify-between gap-1.5">
+                    Document Status
+                    <Popover open={activePopover === 'status'} onOpenChange={(open) => setActivePopover(open ? 'status' : null)}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                          <FilterIcon className={`w-3.5 h-3.5 ${(statusFilter !== 'ALL' || bluebookFilter !== 'ALL') ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="space-y-3 p-3 w-[200px]">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook Status</label>
+                            <Select value={bluebookFilter} onValueChange={(val) => { setBluebookFilter(val); }}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Status</SelectItem>
+                                <SelectItem value="Not Received">Pending</SelectItem>
+                                <SelectItem value="Received">Received</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Naamsari Status</label>
+                            <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setActivePopover(null); }}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ALL">All Status</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Names of JBMT">Names of JBMT</SelectItem>
+                                <SelectItem value="Customer Done">Customer Done</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sales.map((sale, index) => {
+              {processedSales.map((sale, index) => {
                 const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
                 const customer = customers.find(c => c.id === sale.customerId);
                 const company = companies.find(c => c.id === sale.companyId);
@@ -365,48 +606,48 @@ export function Sales() {
 
                 return (
                   <TableRow key={sale.id} className="hover:bg-slate-50/50 border-transparent divide-x divide-slate-100">
-                    <TableCell className="px-4 py-4 text-center font-bold text-slate-500">{index + 1}</TableCell>
-                    <TableCell className="px-4 py-4 font-bold text-slate-700">
+                    <TableCell className="px-4 py-2.5 text-center font-bold text-slate-500">{index + 1}</TableCell>
+                    <TableCell className="px-4 py-2.5 font-bold text-slate-700">
                       {sale.date instanceof Timestamp 
                         ? sale.date.toDate().toLocaleDateString('en-GB') 
                         : String(sale.date)}
                     </TableCell>
-                    <TableCell className="px-4 py-4 font-black text-slate-900">
+                    <TableCell className="px-4 py-2.5 font-black text-slate-900">
                       #{sale.fileNumber}
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-black text-sm uppercase text-slate-900">{sale.chassisNumber}</span>
                         <span className="text-[11px] font-bold text-slate-500">
-                          {company?.name} - {model?.name}
-                        </span>
-                        <span className="text-[10px] font-black text-blue-600 uppercase">
-                          {vehicle?.color}
+                          {company?.name} - {model?.name} <span className="text-blue-600 uppercase ml-1">• {vehicle?.color}</span>
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4">
+                    <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-black text-sm uppercase text-slate-900">{customer?.name}</span>
                         <span className="text-[11px] font-bold text-slate-500 uppercase">
-                          {customer?.address}
-                        </span>
-                        <span className="text-[10px] font-black text-slate-400">
-                          {customer?.contactNumber}
+                          {customer?.address} <span className="ml-1">• {customer?.contactNumber}</span>
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : ''}`}>
-                          {vehicle?.bluebookStatus || 'NOT RECEIVED'}
-                        </Badge>
-                        <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.naamsariStatus === 'Customer Done' ? 'bg-blue-100 text-blue-700' : ''}`}>
-                          {vehicle?.naamsariStatus || 'PENDING'}
-                        </Badge>
+                    <TableCell className="px-4 py-2.5">
+                      <div className="flex flex-col justify-center gap-1.5">
+                        <span className="font-bold text-xs uppercase text-slate-800 px-1">
+                          {vehicle?.registrationNumber || 'UNREGISTERED'}
+                        </span>
+                        <div className="flex items-center gap-1 px-1">
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : ''}`}>
+                            {vehicle?.bluebookStatus || 'NOT RECEIVED'}
+                          </Badge>
+                          <span className="text-slate-300">-</span>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : vehicle?.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : ''}`}>
+                            {vehicle?.naamsariStatus || 'PENDING'}
+                          </Badge>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-center">
+                    <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
                         <Button 
                           variant="default" 
