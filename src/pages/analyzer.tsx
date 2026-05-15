@@ -9,6 +9,7 @@ import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, Fi
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger, PopoverHeader, PopoverTitle } from '@/components/ui/popover';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export function Analyzer() {

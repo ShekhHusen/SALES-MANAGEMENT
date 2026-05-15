@@ -11,7 +11,8 @@ import { Inventory } from '@/pages/inventory';
 import { Parties } from '@/pages/parties';
 import { Purchases } from '@/pages/purchases';
 import { Sales } from '@/pages/sales';
-import { DocumentProcess } from '@/pages/document-process';
+import { ProcessDocument } from '@/pages/process-document';
+import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { Analyzer } from '@/pages/analyzer';
 
@@ -63,7 +64,8 @@ function AppRoutes() {
         <Route path="/parties" element={<Parties />} />
         <Route path="/purchases" element={<Purchases />} />
         <Route path="/sales" element={<Sales />} />
-        <Route path="/document-process" element={<DocumentProcess />} />
+        <Route path="/process-document" element={<ProcessDocument />} />
+        <Route path="/quotation" element={<Quotation />} />
         <Route path="/analyzer" element={<Analyzer />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

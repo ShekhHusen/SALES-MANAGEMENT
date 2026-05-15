@@ -15,7 +15,8 @@ import {
   X,
   LogOut,
   ActivitySquare,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -28,7 +29,8 @@ const navItems = [
   { label: 'Parties', icon: Users, path: '/parties' },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases' },
   { label: 'Sales', icon: BadgeDollarSign, path: '/sales' },
-  { label: 'Document Process', icon: FileText, path: '/document-process' },
+  { label: 'Process Document', icon: FileText, path: '/process-document' },
+  { label: 'Print Quotation', icon: Printer, path: '/quotation' },
   { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer' },
   { label: 'Settings', icon: SettingsIcon, path: '/settings' },
 ];

@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2, X, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2, X, Download, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -22,6 +23,15 @@ export function Inventory() {
   const [models, setModels] = useState<Model[]>([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  // Custom Filters & Sorting
+  const [sortField, setSortField] = useState<'chassis' | 'customer' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [filterCompany, setFilterCompany] = useState<string>('all');
+  const [filterModel, setFilterModel] = useState<string>('all');
+  const [filterColor, setFilterColor] = useState<string>('all');
+  const [filterBluebook, setFilterBluebook] = useState<string>('all');
+  const [filterNaamsari, setFilterNaamsari] = useState<string>('all');
   
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
@@ -186,12 +196,37 @@ export function Inventory() {
     setVehicleToDelete(vehicle);
   };
 
-  const filteredVehicles = vehicles.filter(v => {
+  const processedVehicles = vehicles.filter(v => {
+    const saleDetails = v.saleId ? sales.find(s => s.id === v.saleId) : null;
+    const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
+
     const matchesSearch = v.chassisNumber.toLowerCase().includes(search.toLowerCase()) || 
-                          v.registrationNumber?.toLowerCase().includes(search.toLowerCase());
+                          v.registrationNumber?.toLowerCase().includes(search.toLowerCase()) ||
+                          customer?.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesCompany = filterCompany === 'all' || v.companyId === filterCompany;
+    const matchesModel = filterModel === 'all' || v.modelId === filterModel;
+    const matchesColor = filterColor === 'all' || v.color === filterColor;
+    const matchesBluebook = filterBluebook === 'all' || v.bluebookStatus === filterBluebook;
+    const matchesNaamsari = filterNaamsari === 'all' || v.naamsariStatus === filterNaamsari;
+
+    return matchesSearch && matchesStatus && matchesCompany && matchesModel && matchesColor && matchesBluebook && matchesNaamsari;
   });
+
+  if (sortField) {
+    processedVehicles.sort((a, b) => {
+      if (sortField === 'chassis') {
+         return sortOrder === 'asc' ? a.chassisNumber.localeCompare(b.chassisNumber) : b.chassisNumber.localeCompare(a.chassisNumber);
+      } else if (sortField === 'customer') {
+         const customerA = (a.saleId ? parties.find(p => p.id === sales.find(s => s.id === a.saleId)?.customerId)?.name : '') || '';
+         const customerB = (b.saleId ? parties.find(p => p.id === sales.find(s => s.id === b.saleId)?.customerId)?.name : '') || '';
+         return sortOrder === 'asc' ? customerA.localeCompare(customerB) : customerB.localeCompare(customerA);
+      }
+      return 0;
+    });
+  }
+
+  const filteredVehicles = processedVehicles;
 
   const exportRecords = () => {
     try {
@@ -233,7 +268,7 @@ export function Inventory() {
           <div className="relative flex-1 sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Search by Chassis Number..." 
+              placeholder="Search by Chassis or Customer Name..." 
               className="pl-10 h-10 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-lg"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -373,31 +408,107 @@ export function Inventory() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Chassis No</TableHead>
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Make & Model</TableHead>
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Color</TableHead>
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Reg. Number</TableHead>
+                <TableHead className="py-2.5 px-6">
+                  <div 
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                    onClick={() => {
+                      if (sortField === 'chassis') {
+                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('chassis');
+                        setSortOrder('asc');
+                      }
+                    }}
+                  >
+                    Chassis No
+                    <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'chassis' && "opacity-100 text-[#1a4731]")} />
+                  </div>
+                </TableHead>
+                <TableHead className="py-2.5 px-6">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
+                      Vehicle Details
+                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all') && "opacity-100 text-[#1a4731]")} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48 max-h-[300px] overflow-y-auto">
+                      <DropdownMenuLabel>Company</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={filterCompany} onValueChange={(val) => setFilterCompany(String(val))}>
+                        <DropdownMenuRadioItem value="all">All Companies</DropdownMenuRadioItem>
+                        {companies.map(c => <DropdownMenuRadioItem key={c.id} value={c.id}>{c.name}</DropdownMenuRadioItem>)}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Model</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={filterModel} onValueChange={(val) => setFilterModel(String(val))}>
+                         <DropdownMenuRadioItem value="all">All Models</DropdownMenuRadioItem>
+                         {models.filter(m => filterCompany === 'all' || m.companyId === filterCompany).map(m => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.name}</DropdownMenuRadioItem>)}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Color</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={filterColor} onValueChange={(val) => setFilterColor(String(val))}>
+                         <DropdownMenuRadioItem value="all">All Colors</DropdownMenuRadioItem>
+                         {Array.from(new Set(vehicles.map(v => v.color))).filter(c => typeof c === 'string' && c.length > 0).map(color => <DropdownMenuRadioItem key={color as string} value={color as string}>{color as string}</DropdownMenuRadioItem>)}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
                 <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Inventory Status</TableHead>
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Bluebook</TableHead>
-                <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Naamsari</TableHead>
+                <TableHead className="py-2.5 px-6">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
+                      Registration Details
+                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterBluebook !== 'all' || filterNaamsari !== 'all') && "opacity-100 text-[#1a4731]")} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuLabel>Bluebook</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={filterBluebook} onValueChange={(val) => setFilterBluebook(String(val))}>
+                        <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Received">Received</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Naamsari</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup value={filterNaamsari} onValueChange={(val) => setFilterNaamsari(String(val))}>
+                        <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Names of JBMT">Names of JBMT</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Customer Done">Customer Done</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableHead>
+                <TableHead className="py-2.5 px-6">
+                  <div 
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                    onClick={() => {
+                      if (sortField === 'customer') {
+                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortField('customer');
+                        setSortOrder('asc');
+                      }
+                    }}
+                  >
+                    Customer Details
+                    <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'customer' && "opacity-100 text-[#1a4731]")} />
+                  </div>
+                </TableHead>
                 <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => {
+                const saleDetails = vehicle.saleId ? sales.find(s => s.id === vehicle.saleId) : null;
+                const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
+                
+                return (
                 <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-50/40 border-b border-slate-100 last:border-0 transition-colors">
                   <TableCell className="px-6 py-2.5 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
                       <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
+                      <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600">{vehicle.color}</span></span>
                     </div>
-                  </TableCell>
-                  <TableCell className="px-6 py-2.5">
-                    <span className="text-sm font-semibold text-slate-600">{vehicle.color}</span>
-                  </TableCell>
-                  <TableCell className="px-6 py-2.5">
-                    <span className="text-sm font-semibold text-slate-600">{vehicle.registrationNumber || '-'}</span>
                   </TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex items-center gap-2">
@@ -417,26 +528,40 @@ export function Inventory() {
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-2.5">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
-                      vehicle.bluebookStatus === 'Received' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-amber-50 text-amber-700 border-amber-200"
-                    )}>
-                      {vehicle.bluebookStatus}
-                    </span>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-slate-700 tracking-tight">{vehicle.registrationNumber || '-'}</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-tight border",
+                          vehicle.bluebookStatus === 'Received' 
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        )}>
+                          BB: {vehicle.bluebookStatus}
+                        </span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-sm text-[9px] font-black uppercase tracking-tight border",
+                          vehicle.naamsariStatus === 'Customer Done' 
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
+                            : vehicle.naamsariStatus === 'Names of JBMT'
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-slate-100 text-slate-600 border-slate-200"
+                        )}>
+                          NS: {vehicle.naamsariStatus === 'Names of JBMT' ? 'JBMT' : vehicle.naamsariStatus === 'Customer Done' ? 'Customer' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="px-6 py-2.5">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
-                      vehicle.naamsariStatus === 'Customer Done' 
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
-                        : vehicle.naamsariStatus === 'Names of JBMT'
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : "bg-slate-100 text-slate-600 border-slate-200"
-                    )}>
-                      {vehicle.naamsariStatus}
-                    </span>
+                    {customer ? (
+                        <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 text-xs">{customer.name}</span>
+                            <span className="text-[10px] text-slate-500">{customer.contactNumber}</span>
+                            <span className="text-[10px] text-slate-400 line-clamp-1">{customer.address}</span>
+                        </div>
+                    ) : (
+                        <span className="text-[10px] text-slate-400 font-medium italic">Pending Sale</span>
+                    )}
                   </TableCell>
                   <TableCell className="px-6 py-2.5 text-right">
                     <div className="flex justify-end gap-2">
@@ -624,10 +749,11 @@ export function Inventory() {
                   </div>
                 </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filteredVehicles.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-16">
+                  <TableCell colSpan={6} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                        <Search className="h-8 w-8 text-slate-200" />
                        <p className="text-slate-400 font-bold text-sm">No chassis segments matched your criteria.</p>

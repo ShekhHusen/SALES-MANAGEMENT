@@ -59,6 +59,7 @@ export interface Sale {
   fileNumber: number;
   companyId: string;
   documentationCompleted?: boolean;
+  otherDetails?: any;
   createdAt: Timestamp;
 }
 

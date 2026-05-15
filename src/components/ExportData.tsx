@@ -36,7 +36,7 @@ export function ExportData() {
       const wb = XLSX.utils.book_new();
 
       // 1. Inventory
-      const inventoryData = vehicles.map(v => ({
+      const inventoryData: any[] = vehicles.map(v => ({
         'Chassis Number': v.chassisNumber,
         'Company': companies.find(c => c.id === v.companyId)?.name || 'Unknown',
         'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
@@ -54,7 +54,7 @@ export function ExportData() {
       XLSX.utils.book_append_sheet(wb, wsInventory, 'Inventory');
 
       // 2. Parties
-      const partiesData = parties.map(p => ({
+      const partiesData: any[] = parties.map(p => ({
         'Name': p.name,
         'Type': p.type,
         'Address': p.address,
@@ -65,7 +65,7 @@ export function ExportData() {
       XLSX.utils.book_append_sheet(wb, wsParties, 'Parties');
 
       // 3. Purchases
-      const purchasesData = purchases.map(p => ({
+      const purchasesData: any[] = purchases.map(p => ({
         'Invoice Number': p.invoiceNumber,
         'Date': p.date?.toDate ? p.date.toDate().toLocaleDateString() : '',
         'Vendor Name': parties.find(party => party.id === p.vendorId)?.name || 'Unknown',
@@ -76,7 +76,7 @@ export function ExportData() {
       XLSX.utils.book_append_sheet(wb, wsPurchases, 'Purchases');
 
       // 4. Sales
-      const salesData = sales.map(s => ({
+      const salesData: any[] = sales.map(s => ({
         'File Number': s.fileNumber,
         'Date': s.date?.toDate ? s.date.toDate().toLocaleDateString() : '',
         'Customer Name': parties.find(party => party.id === s.customerId)?.name || 'Unknown',
