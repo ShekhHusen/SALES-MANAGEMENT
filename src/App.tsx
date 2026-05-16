@@ -15,6 +15,7 @@ import { ProcessDocument } from '@/pages/process-document';
 import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { Analyzer } from '@/pages/analyzer';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
@@ -81,6 +82,7 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
           <Toaster position="top-right" />
+          <SpeedInsights />
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
