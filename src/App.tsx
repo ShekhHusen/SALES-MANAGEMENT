@@ -18,6 +18,7 @@ import { Analyzer } from '@/pages/analyzer';
 
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
+import { Analytics } from '@vercel/analytics/react';
 
 function AppRoutes() {
   const { user, loading, login } = useAuth();
@@ -81,6 +82,7 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
           <Toaster position="top-right" />
+          <Analytics />
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
