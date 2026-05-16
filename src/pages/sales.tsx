@@ -284,7 +284,7 @@ export function Sales() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Sales Desk</h1>

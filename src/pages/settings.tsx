@@ -99,7 +99,7 @@ export function Settings() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Configuration</h1>
         <p className="text-sm text-slate-500 font-medium">Maintain authoritative catalogs of manufacturers and specific model variants.</p>

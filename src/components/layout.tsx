@@ -144,10 +144,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="mx-auto max-w-7xl">
+        <main className="flex-1 overflow-hidden pt-4 px-4 pb-[10px] lg:pt-8 lg:px-8 lg:pb-[10px] flex flex-col">
+          <div className="mx-auto max-w-[1400px] w-full flex-1 flex flex-col h-full overflow-hidden">
             {/* Professional entry animation placeholder */}
-            <div className="animate-in fade-in duration-500 slide-in-from-bottom-2">
+            <div className="animate-in fade-in duration-500 slide-in-from-bottom-2 flex-1 flex flex-col overflow-hidden h-full">
               {children}
             </div>
           </div>

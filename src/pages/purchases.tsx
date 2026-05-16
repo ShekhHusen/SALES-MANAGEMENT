@@ -337,11 +337,10 @@ export function Purchases() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Purchase Operations</h1>
-          <p className="text-sm text-slate-500 font-medium">Capture incoming vehicle shipments and register chassis IDs.</p>
+    <div className="flex flex-col flex-1 gap-4 h-full">
+      <div className="flex items-center justify-between shrink-0 mb-1">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Purchase Operations</h1>
         </div>
         <Button 
           onClick={handleSavePurchase} 
@@ -596,8 +595,8 @@ export function Purchases() {
       </Dialog>
 
       {/* Purchase List History */}
-      <Card className="mt-8 rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col h-[600px]">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-6 shrink-0 shadow-sm z-20 sticky top-0">
+      <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Purchase History</CardTitle>
             <CardDescription>View and manage previous procurement invoices.</CardDescription>
@@ -615,9 +614,9 @@ export function Purchases() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0 text-xs flex-1 overflow-auto relative [&_[data-slot=table-container]]:overflow-visible">
+        <CardContent className="p-0 text-xs flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
-            <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
+            <TableHeader>
               <TableRow className="divide-x divide-slate-100">
                 <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
                   <div className="flex items-center justify-between gap-1.5">

@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2, X, Download, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -257,13 +257,14 @@ export function Inventory() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Vehicle Inventory</h1>
-        <p className="text-sm text-slate-500 font-medium">Monitor chassis records and document lifecycle progress.</p>
+    <div className="flex flex-col flex-1 gap-4 h-full">
+      <div className="flex items-center justify-between shrink-0 mb-1">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Vehicle Inventory</h1>
+        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card shrink-0">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -403,8 +404,8 @@ export function Inventory() {
         </div>
       </div>
 
-      <Card className="shadow-sm border-slate-200 overflow-hidden rounded-xl">
-        <CardContent className="p-0">
+      <Card className="shadow-sm border-slate-200 overflow-hidden rounded-xl flex-1 flex flex-col min-h-0">
+        <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
@@ -430,24 +431,46 @@ export function Inventory() {
                       Vehicle Details
                       <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all') && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48 max-h-[300px] overflow-y-auto">
-                      <DropdownMenuLabel>Company</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup value={filterCompany} onValueChange={(val) => setFilterCompany(String(val))}>
-                        <DropdownMenuRadioItem value="all">All Companies</DropdownMenuRadioItem>
-                        {companies.map(c => <DropdownMenuRadioItem key={c.id} value={c.id}>{c.name}</DropdownMenuRadioItem>)}
-                      </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Model</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup value={filterModel} onValueChange={(val) => setFilterModel(String(val))}>
-                         <DropdownMenuRadioItem value="all">All Models</DropdownMenuRadioItem>
-                         {models.filter(m => filterCompany === 'all' || m.companyId === filterCompany).map(m => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.name}</DropdownMenuRadioItem>)}
-                      </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Color</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup value={filterColor} onValueChange={(val) => setFilterColor(String(val))}>
-                         <DropdownMenuRadioItem value="all">All Colors</DropdownMenuRadioItem>
-                         {Array.from(new Set(vehicles.map(v => v.color))).filter(c => typeof c === 'string' && c.length > 0).map(color => <DropdownMenuRadioItem key={color as string} value={color as string}>{color as string}</DropdownMenuRadioItem>)}
-                      </DropdownMenuRadioGroup>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <span>Company</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
+                            <DropdownMenuRadioGroup value={filterCompany} onValueChange={(val) => setFilterCompany(String(val))}>
+                              <DropdownMenuRadioItem value="all">All Companies</DropdownMenuRadioItem>
+                              {companies.map(c => <DropdownMenuRadioItem key={c.id} value={c.id}>{c.name}</DropdownMenuRadioItem>)}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <span>Model</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
+                            <DropdownMenuRadioGroup value={filterModel} onValueChange={(val) => setFilterModel(String(val))}>
+                               <DropdownMenuRadioItem value="all">All Models</DropdownMenuRadioItem>
+                               {models.filter(m => filterCompany === 'all' || m.companyId === filterCompany).map(m => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.name}</DropdownMenuRadioItem>)}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <span>Color</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
+                            <DropdownMenuRadioGroup value={filterColor} onValueChange={(val) => setFilterColor(String(val))}>
+                               <DropdownMenuRadioItem value="all">All Colors</DropdownMenuRadioItem>
+                               {Array.from(new Set(vehicles.map(v => v.color))).filter(c => typeof c === 'string' && c.length > 0).map(color => <DropdownMenuRadioItem key={color as string} value={color as string}>{color as string}</DropdownMenuRadioItem>)}
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableHead>
@@ -459,20 +482,35 @@ export function Inventory() {
                       <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterBluebook !== 'all' || filterNaamsari !== 'all') && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48">
-                      <DropdownMenuLabel>Bluebook</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup value={filterBluebook} onValueChange={(val) => setFilterBluebook(String(val))}>
-                        <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Received">Received</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Naamsari</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup value={filterNaamsari} onValueChange={(val) => setFilterNaamsari(String(val))}>
-                        <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Names of JBMT">Names of JBMT</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Customer Done">Customer Done</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <span>Bluebook</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuRadioGroup value={filterBluebook} onValueChange={(val) => setFilterBluebook(String(val))}>
+                              <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="Received">Received</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <span>Naamsari</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuRadioGroup value={filterNaamsari} onValueChange={(val) => setFilterNaamsari(String(val))}>
+                              <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="Names of JBMT">Names of JBMT</DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="Customer Done">Customer Done</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableHead>

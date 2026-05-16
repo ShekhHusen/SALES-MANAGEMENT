@@ -158,11 +158,10 @@ export function Parties() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Stakeholder Management</h1>
-          <p className="text-sm text-slate-500 font-medium">Maintain comprehensive records of vendor partners and vehicle customers.</p>
+    <div className="flex flex-col flex-1 gap-4 h-full">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 mb-1">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Stakeholder Management</h1>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -171,7 +170,7 @@ export function Parties() {
         }}>
           <DialogTrigger
             render={
-              <Button className="h-12 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold gap-2 px-6">
+              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6">
                 <Plus className="h-4.5 w-4.5" /> Initialize New Party
               </Button>
             }
@@ -249,7 +248,7 @@ export function Parties() {
         </Dialog>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card shrink-0">
         <div className="relative flex-1 sm:max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
@@ -276,8 +275,8 @@ export function Parties() {
         </div>
       </div>
 
-      <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-        <CardContent className="p-0">
+      <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+        <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
