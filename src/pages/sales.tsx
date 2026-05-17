@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
+import { logAction } from '@/lib/audit';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,10 +31,12 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
+import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
 import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
+  const { user } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock' && !!v.purchaseId);
@@ -143,8 +147,22 @@ export function Sales() {
 
   const openEditSale = (sale: Sale & { id: string }) => {
     setEditingSale(sale);
-    setEditSaleDate(sale.date instanceof Timestamp ? sale.date.toDate().toISOString().split('T')[0] : String(sale.date));
-    setEditFileNumber(sale.fileNumber);
+    let parsedDate = '';
+    try {
+      if (sale.date) {
+        if (typeof (sale.date as any).toDate === 'function') {
+          parsedDate = (sale.date as any).toDate().toISOString().split('T')[0];
+        } else if ((sale.date as any).seconds) {
+          parsedDate = new Date((sale.date as any).seconds * 1000).toISOString().split('T')[0];
+        } else {
+          parsedDate = new Date(sale.date as any).toISOString().split('T')[0];
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse sale date:", sale.date, e);
+    }
+    setEditSaleDate(parsedDate);
+    setEditFileNumber(sale.fileNumber || '');
   };
 
   const handleUpdateSale = async () => {
@@ -158,6 +176,14 @@ export function Sales() {
         updatedAt: Timestamp.now(),
       });
       await batch.commit();
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'UPDATE', 'Sale', editingSale.id, {
+          date: editSaleDate,
+          fileNumber: editFileNumber,
+        });
+      }
+
       toast.success('Sale record updated successfully');
       setEditingSale(null);
     } catch (error) {
@@ -186,6 +212,10 @@ export function Sales() {
       } catch (vehError) {
         console.warn("Could not revert vehicle status (it may have been deleted):", vehError);
         // Non-blocking catch
+      }
+
+      if (user) {
+        logAction(user.uid, user.email || '', 'DELETE', 'Sale', saleToDelete.id, saleToDelete);
       }
 
       toast.success('Sale record successfully removed.');
@@ -244,6 +274,16 @@ export function Sales() {
       });
 
       await batch.commit();
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'CREATE', 'Sale', saleRef.id, {
+          customerId: selectedCustomer,
+          chassisNumber: selectedChassis,
+          fileNumber: nextFileNumber,
+          companyId: currentVehicle.companyId,
+        });
+      }
+
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
       
       // Reset
@@ -309,7 +349,7 @@ export function Sales() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Chassis</label>
                   <div className="relative flex items-center gap-2">
                     <Select value={selectedChassis} onValueChange={setSelectedChassis}>
-                      <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
+                      <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
                         <SelectValue placeholder="Identify Unit by Chassis Number" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -329,6 +369,12 @@ export function Sales() {
                         )}
                       </SelectContent>
                     </Select>
+                    <QuickAddVehicle onAdded={(chassis) => {
+                       // Just open selector or directly select if it's in-stock. 
+                       // Note: if it's just registered it is 'ready-to-purchase'. Not 'in-stock'. 
+                       // So it would need to be purchased first to show up here properly, but we expose the option per user request.
+                       toast.info(`Vehicle ${chassis} created. To sell it, you must procure it in Purchase Operations first.`);
+                    }} />
                     <Button 
                       variant="outline" 
                       size="icon" 
@@ -374,21 +420,26 @@ export function Sales() {
               <CardContent className="p-6 space-y-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
-                  <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                    <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12">
-                      <SelectValue placeholder="Identify Registered Party" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
-                      {customers.map(c => (
-                        <SelectItem key={c.id} value={c.id} className="py-3">
-                           <div className="flex flex-col">
-                              <span className="font-bold text-sm">{c.name}</span>
-                              <span className="text-[10px] uppercase font-black text-slate-400 tracking-tight">{c.contactNumber}</span>
-                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2 items-center">
+                    <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                      <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
+                        <SelectValue placeholder="Identify Registered Party" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
+                        {customers.map(c => (
+                          <SelectItem key={c.id} value={c.id} className="py-3">
+                             <div className="flex flex-col">
+                                <span className="font-bold text-sm">{c.name}</span>
+                                <span className="text-[10px] uppercase font-black text-slate-400 tracking-tight">{c.contactNumber}</span>
+                             </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex-shrink-0">
+                      <QuickAddParty type="customer" onAdded={setSelectedCustomer} />
+                    </div>
+                  </div>
                 </div>
                 
                 {selectedCustomer && (

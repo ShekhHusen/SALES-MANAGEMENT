@@ -34,6 +34,7 @@ const navItems = [
   { label: 'Print Quotation', icon: Printer, path: '/quotation' },
   { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer' },
   { label: 'Settings', icon: SettingsIcon, path: '/settings' },
+  { label: 'Audit Log', icon: ActivitySquare, path: '/audit' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -101,7 +102,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1">
+          <nav className="flex-1 space-y-1 overflow-y-auto sidebar-scrollbar">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (

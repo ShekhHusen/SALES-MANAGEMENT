@@ -3,6 +3,8 @@ import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, getD
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Vehicle, Company, Model, BluebookStatus, NaamsariStatus, Purchase, Sale, Party } from '@/types';
 import { cn } from '@/lib/utils';
+import { logAction } from '@/lib/audit';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +23,7 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Inventory() {
+  const { user } = useAuth();
   const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -109,6 +112,11 @@ export function Inventory() {
       };
 
       await setDoc(vehicleRef, vehicleData);
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', newVehicle.chassisNumber, newVehicle);
+      }
+      
       toast.success('Vehicle added successfully');
       setIsAddDialogOpen(false);
       setNewVehicle({
@@ -150,6 +158,11 @@ export function Inventory() {
         registrationNumber: registrationNumber || '',
         updatedAt: Timestamp.now(),
       });
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', chassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber });
+      }
+
       toast.success('Status updated');
       setSelectedVehicle(null);
     } catch (error) {
@@ -161,6 +174,11 @@ export function Inventory() {
     if (!vehicleToDelete) return;
     try {
       await deleteDoc(doc(db, 'vehicles', vehicleToDelete.chassisNumber));
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'DELETE', 'Vehicle', vehicleToDelete.chassisNumber, vehicleToDelete);
+      }
+
       toast.success('Vehicle deleted from inventory');
       setVehicleToDelete(null);
     } catch (error) {

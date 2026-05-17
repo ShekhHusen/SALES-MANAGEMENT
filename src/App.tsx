@@ -15,6 +15,7 @@ import { ProcessDocument } from '@/pages/process-document';
 import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { Analyzer } from '@/pages/analyzer';
+import { AuditLog } from '@/pages/audit';
 
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
@@ -69,6 +70,7 @@ function AppRoutes() {
           <Route path="/process-document" element={<ProcessDocument />} />
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/analyzer" element={<Analyzer />} />
+          <Route path="/audit" element={<AuditLog />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

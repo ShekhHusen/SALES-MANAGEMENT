@@ -220,3 +220,28 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-
   padding-top: 10px;
   padding-bottom: 10px;
 }
+
+/* Global Custom Scrollbar */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.5) transparent;
+}

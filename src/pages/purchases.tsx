@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, onSnapshot, query, where, Timestamp, writeBatch, doc, orderBy, deleteDoc, getDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Purchase } from '@/types';
+import { logAction } from '@/lib/audit';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,10 +23,12 @@ import { Plus, Trash2, Search, CarFront, Check, Download, ArrowUp, ArrowDown, Fi
 import { Badge } from '@/components/ui/badge';
 import * as XLSX from 'xlsx';
 
+import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
 import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Purchases() {
+  const { user } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
   const vendors = parties.filter(p => p.type === 'vendor');
 
@@ -145,6 +149,14 @@ export function Purchases() {
         updatedAt: Timestamp.now(),
       });
       await batch.commit();
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'UPDATE', 'Purchase', editingPurchase.id, {
+          date: editPurchaseDate,
+          invoiceNumber: editInvoiceNumber,
+        });
+      }
+
       toast.success('Purchase record updated successfully');
       setEditingPurchase(null);
     } catch (error) {
@@ -186,6 +198,11 @@ export function Purchases() {
       batch.delete(doc(db, 'purchases', purchaseToDelete.id));
       
       await batch.commit();
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
+      }
+
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
     } catch (error) {
@@ -304,6 +321,15 @@ export function Purchases() {
       }
 
       await batch.commit();
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'CREATE', 'Purchase', purchaseRef.id, {
+          invoiceNumber,
+          vendorId: selectedVendor,
+          chassisNumbers,
+        });
+      }
+
       toast.success('Purchase recorded and inventory updated');
       
       // Reset
@@ -377,16 +403,21 @@ export function Purchases() {
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Associated Vendor</label>
-              <Select value={selectedVendor} onValueChange={setSelectedVendor}>
-                <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all">
-                  <SelectValue placeholder="Identify Source..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
-                  {vendors.map(v => (
-                    <SelectItem key={v.id} value={v.id} className="font-medium">{v.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 items-center">
+                <Select value={selectedVendor} onValueChange={setSelectedVendor}>
+                  <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all flex-1">
+                    <SelectValue placeholder="Identify Source..." />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
+                    {vendors.map(v => (
+                      <SelectItem key={v.id} value={v.id} className="font-medium">{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex-shrink-0">
+                  <QuickAddParty type="vendor" onAdded={setSelectedVendor} />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -394,9 +425,17 @@ export function Purchases() {
         <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Chassis Manifest</h3>
-            <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Entry Row
-            </Button>
+            <div className="flex gap-2">
+               <QuickAddVehicle onAdded={(chassis) => {
+                 setTargetRowIndex(currentChassisEntries.length);
+                 addChassisRow();
+                 setSearchQuery(chassis);
+                 setIsSelectorOpen(true);
+               }} />
+               <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600 px-4">
+                 <Plus className="h-4 w-4 mr-1" /> Add Entry Row
+               </Button>
+            </div>
           </div>
           <CardContent className="p-0">
             <div className="min-w-full">

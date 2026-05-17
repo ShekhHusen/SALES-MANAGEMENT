@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { collection, query, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
+import { logAction } from '@/lib/audit';
+import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -14,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { PdfTemplates } from '@/components/PdfTemplates';
@@ -23,6 +26,7 @@ type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function ProcessDocument() {
+  const { user } = useAuth();
   const { sales, parties, vehicles, companies, models } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
@@ -128,6 +132,8 @@ export function ProcessDocument() {
   
   // Form State for Documents (Mocked since Firebase Storage is skipped)
   const [images, setImages] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'sold_vehicle', label: 'Sold Vehicle' },
@@ -214,6 +220,14 @@ export function ProcessDocument() {
           images
         }
       });
+      
+      if (user) {
+        logAction(user.uid, user.email || '', 'UPDATE', 'Document', selectedSale.id, {
+          documentationCompleted: true,
+          actionType: 'DOCUMENT_PROCESSED'
+        });
+      }
+
       toast.success('Documentation completed successfully!');
       setUnlockedTabs({ sold_vehicle: true, others_details: false, documents: false, completed: true });
       setActiveTab('completed');
@@ -494,7 +508,7 @@ export function ProcessDocument() {
               {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
-                  <label key={docName} className="relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group overflow-hidden">
+                  <div key={docName} className="relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group overflow-hidden">
                     {images[docKey] ? (
                       <>
                         <img src={images[docKey]} alt={docName} className="absolute inset-0 w-full h-full object-cover opacity-50" />
@@ -502,50 +516,88 @@ export function ProcessDocument() {
                           <CheckCircle className="w-6 h-6 text-emerald-600" />
                         </div>
                         <span className="relative z-10 text-sm font-bold text-slate-900 dark:text-slate-100 bg-white/80 px-2 rounded text-center">{docName}</span>
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20">
+                           <Button variant="secondary" size="sm" onClick={() => setPreviewImage(images[docKey])}>Preview</Button>
+                           <Button variant="destructive" size="sm" onClick={() => {
+                             const n = {...images};
+                             delete n[docKey];
+                             setImages(n);
+                           }}>Remove</Button>
+                        </div>
                       </>
+                    ) : uploadProgress[docKey] !== undefined ? (
+                      <div className="flex flex-col items-center justify-center w-full space-y-2">
+                        <div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700">
+                          <div className="bg-[#1a4731] h-2.5 rounded-full transition-all duration-200" style={{ width: `${uploadProgress[docKey]}%` }}></div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">Uploading {uploadProgress[docKey]}%</span>
+                      </div>
                     ) : (
-                      <>
-                        <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                      <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform mb-2">
                           <FileText className="w-5 h-5 text-slate-400 group-hover:text-amber-500" />
                         </div>
                         <span className="text-sm font-bold text-slate-600 text-center">{docName}</span>
-                      </>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setUploadProgress(prev => ({ ...prev, [docKey]: 0 }));
+                              const interval = setInterval(() => {
+                                setUploadProgress(prev => {
+                                  const current = prev[docKey] || 0;
+                                  if (current >= 90) {
+                                    clearInterval(interval);
+                                    return prev;
+                                  }
+                                  return { ...prev, [docKey]: current + 15 };
+                                });
+                              }, 100);
+
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  let width = img.width;
+                                  let height = img.height;
+                                  const MAX_DIMENSION = 800;
+                                  if (width > height && width > MAX_DIMENSION) {
+                                    height *= MAX_DIMENSION / width;
+                                    width = MAX_DIMENSION;
+                                  } else if (height > MAX_DIMENSION) {
+                                    width *= MAX_DIMENSION / height;
+                                    height = MAX_DIMENSION;
+                                  }
+                                  canvas.width = width;
+                                  canvas.height = height;
+                                  const ctx = canvas.getContext('2d');
+                                  ctx?.drawImage(img, 0, 0, width, height);
+
+                                  setTimeout(() => {
+                                    setUploadProgress(prev => ({ ...prev, [docKey]: 100 }));
+                                    setTimeout(() => {
+                                      setImages(prev => ({ ...prev, [docKey]: canvas.toDataURL('image/jpeg', 0.6) }));
+                                      setUploadProgress(prev => {
+                                        const next = { ...prev };
+                                        delete next[docKey];
+                                        return next;
+                                      });
+                                    }, 200);
+                                  }, 500);
+                                };
+                                img.src = ev.target?.result as string;
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
                     )}
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const img = new Image();
-                            img.onload = () => {
-                              const canvas = document.createElement('canvas');
-                              let width = img.width;
-                              let height = img.height;
-                              const MAX_DIMENSION = 800;
-                              if (width > height && width > MAX_DIMENSION) {
-                                height *= MAX_DIMENSION / width;
-                                width = MAX_DIMENSION;
-                              } else if (height > MAX_DIMENSION) {
-                                width *= MAX_DIMENSION / height;
-                                height = MAX_DIMENSION;
-                              }
-                              canvas.width = width;
-                              canvas.height = height;
-                              const ctx = canvas.getContext('2d');
-                              ctx?.drawImage(img, 0, 0, width, height);
-                              setImages(prev => ({ ...prev, [docKey]: canvas.toDataURL('image/jpeg', 0.6) }));
-                            };
-                            img.src = ev.target?.result as string;
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
+                  </div>
                 );
               })}
             </div>
@@ -872,6 +924,19 @@ export function ProcessDocument() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/95 border-slate-800">
+          <DialogHeader className="absolute top-0 right-0 z-50 p-4">
+          </DialogHeader>
+          <div className="flex items-center justify-center min-h-[50vh] max-h-[90vh]">
+            {previewImage && (
+              <img src={previewImage} alt="Preview" className="max-w-full max-h-[90vh] object-contain" />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Hidden PDF Templates */}
       <div className="fixed top-[-200vh] left-0 pointer-events-none z-[-99]" aria-hidden="true">
