@@ -16,6 +16,7 @@ import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { Analyzer } from '@/pages/analyzer';
 import { AuditLog } from '@/pages/audit';
+import { UserManagement } from '@/pages/users';
 
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
@@ -71,6 +72,7 @@ function AppRoutes() {
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/analyzer" element={<Analyzer />} />
           <Route path="/audit" element={<AuditLog />} />
+          <Route path="/users" element={<UserManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

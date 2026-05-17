@@ -9,14 +9,13 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  CloudSun,
-  CloudMoon,
   Menu,
   X,
   LogOut,
   ActivitySquare,
   FileText,
-  Printer
+  Printer,
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,22 +24,23 @@ import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
-  { label: 'Dashboard', icon: BarChart3, path: '/' },
-  { label: 'Inventory', icon: Car, path: '/inventory' },
-  { label: 'Parties', icon: Users, path: '/parties' },
-  { label: 'Purchases', icon: ShoppingCart, path: '/purchases' },
-  { label: 'Sales', icon: BadgeDollarSign, path: '/sales' },
-  { label: 'Process Document', icon: FileText, path: '/process-document' },
-  { label: 'Print Quotation', icon: Printer, path: '/quotation' },
-  { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer' },
-  { label: 'Settings', icon: SettingsIcon, path: '/settings' },
-  { label: 'Audit Log', icon: ActivitySquare, path: '/audit' },
+  { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
+  { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk'] },
+  { label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager'] },
+  { label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager'] },
+  { label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin', 'sales_manager'] },
+  { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer', roles: ['admin'] },
+  { label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
+  { label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin'] },
+  { label: 'Audit Log', icon: ActivitySquare, path: '/audit', roles: ['admin'] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { logout, user } = useAuth();
+  const { logout, user, userProfile } = useAuth();
   const location = useLocation();
   const { loading: dataLoading } = useGlobalData();
 
@@ -69,6 +69,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
     return children;
   };
+
+  const currentRole = userProfile?.role || 'user';
+  // Filter nav items by user role
+  const visibleNavItems = navItems.filter(item => item.roles.includes(currentRole));
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] dark:bg-background text-foreground transition-colors duration-300 overflow-hidden">
@@ -103,7 +107,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto sidebar-scrollbar">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <Link
@@ -131,7 +135,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-semibold text-slate-100 truncate">{user?.displayName || 'User'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Administrator</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                   {currentRole.replace('_', ' ')}
+                </p>
               </div>
             </div>
             <Button 

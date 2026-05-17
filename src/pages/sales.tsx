@@ -36,10 +36,15 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock' && !!v.purchaseId);
+  const isAdmin = userProfile?.role === 'admin';
+  const isSalesManager = userProfile?.role === 'sales_manager';
+  const canDelete = isAdmin;
+  const canEdit = isAdmin || isSalesManager;
+  const canCreate = isAdmin || isSalesManager;
   
   const [selectedChassis, setSelectedChassis] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -327,7 +332,7 @@ export function Sales() {
         <Button 
           onClick={handleSaveSale} 
           size="lg" 
-          disabled={!selectedChassis || !selectedCustomer}
+          disabled={!selectedChassis || !selectedCustomer || !canCreate}
           className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold"
         >
           Finalize Transaction
@@ -694,22 +699,26 @@ export function Sales() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm"
-                          onClick={() => openEditSale(sale)}
-                        >
-                          EDIT
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setSaleToDelete(sale)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEdit && (
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm"
+                            onClick={() => openEditSale(sale)}
+                          >
+                            EDIT
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setSaleToDelete(sale)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -28,9 +28,14 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Purchases() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
   const vendors = parties.filter(p => p.type === 'vendor');
+  const isAdmin = userProfile?.role === 'admin';
+  const isClerk = userProfile?.role === 'inventory_clerk';
+  const canDelete = isAdmin;
+  const canEdit = isAdmin || isClerk;
+  const canCreate = isAdmin || isClerk;
 
   const [sortField, setSortField] = useState<'date' | 'invoiceNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -371,6 +376,7 @@ export function Purchases() {
         <Button 
           onClick={handleSavePurchase} 
           size="lg" 
+          disabled={!canCreate}
           className="rounded-xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold"
         >
           Confirm Procurement
@@ -782,22 +788,26 @@ export function Purchases() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm"
-                          onClick={() => openEditPurchase(purchase)}
-                        >
-                          EDIT
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setPurchaseToDelete(purchase)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEdit && (
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm"
+                            onClick={() => openEditPurchase(purchase)}
+                          >
+                            EDIT
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setPurchaseToDelete(purchase)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
