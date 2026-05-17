@@ -12,26 +12,11 @@ import { Popover, PopoverContent, PopoverTrigger, PopoverHeader, PopoverTitle } 
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
-export function Analyzer() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
-  const [parties, setParties] = useState<Party[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
+import { Pagination } from '@/components/Pagination';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
-  useEffect(() => {
-    const unsubVehicles = onSnapshot(query(collection(db, 'vehicles'), orderBy('updatedAt', 'desc')), (s) => setVehicles(s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle))));
-    const unsubCompanies = onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
-    const unsubModels = onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ ...d.data(), id: d.id } as Model))));
-    const unsubParties = onSnapshot(collection(db, 'parties'), (s) => setParties(s.docs.map(d => ({ ...d.data(), id: d.id } as Party))));
-    const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => setPurchases(s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase))));
-    const unsubSales = onSnapshot(collection(db, 'sales'), (s) => setSales(s.docs.map(d => ({ ...d.data(), id: d.id } as Sale))));
-    
-    return () => {
-      unsubVehicles(); unsubCompanies(); unsubModels(); unsubParties(); unsubPurchases(); unsubSales();
-    };
-  }, []);
+export function Analyzer() {
+  const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
 
   const [filterVendor, setFilterVendor] = useState('ALL');
   const [filterChassis, setFilterChassis] = useState('');
@@ -47,6 +32,10 @@ export function Analyzer() {
   type SortKey = 'status' | 'salesDate' | 'fileNo' | 'purchase' | 'vehicle' | 'document' | 'customer';
   const [sortConfig, setSortConfig] = useState<{ key: SortKey, direction: 'asc' | 'desc' } | null>(null);
   const [activePopover, setActivePopover] = useState<SortKey | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
 
   const requestSort = (key: SortKey) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -154,6 +143,15 @@ export function Analyzer() {
     return result;
   }, [vehicles, filterStatus, filterBluebook, filterNaamsari, filterCompany, filterModel, filterColor, filterChassis, filterRegNum, filterVendor, filterCustomer, filterContact, purchases, parties, sales, sortConfig, models]);
 
+  const totalItems = filteredData.length;
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const paginatedData = itemsPerPage === 'all' ? filteredData : filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset to page 1 on filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterBluebook, filterNaamsari, filterCompany, filterModel, filterColor, filterChassis, filterRegNum, filterVendor, filterCustomer, filterContact]);
+
   const renderColumnFilter = (key: SortKey) => {
     switch (key) {
       case 'status':
@@ -161,7 +159,7 @@ export function Analyzer() {
           <div className="space-y-1 p-3 w-[200px]">
             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Status</label>
             <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setActivePopover(null); }}>
-              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -178,7 +176,7 @@ export function Analyzer() {
           <div className="space-y-1 p-3 w-[200px]">
             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
             <Select value={filterVendor} onValueChange={(val) => { setFilterVendor(val); setActivePopover(null); }}>
-              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                 <SelectValue placeholder="All Vendors" />
               </SelectTrigger>
               <SelectContent>
@@ -196,7 +194,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Company</label>
               <Select value={filterCompany} onValueChange={(val) => { setFilterCompany(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Companies" />
                 </SelectTrigger>
                 <SelectContent>
@@ -210,7 +208,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Model</label>
               <Select value={filterModel} onValueChange={(val) => { setFilterModel(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full" disabled={filterCompany === 'ALL' && models.length === 0}>
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={filterCompany === 'ALL' && models.length === 0}>
                   <SelectValue placeholder="All Models" />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,7 +222,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Color</label>
               <Select value={filterColor} onValueChange={(val) => { setFilterColor(val); setActivePopover(null); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Colors" />
                 </SelectTrigger>
                 <SelectContent>
@@ -243,7 +241,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook</label>
               <Select value={filterBluebook} onValueChange={(val) => { setFilterBluebook(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,7 +254,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Namsari</label>
               <Select value={filterNaamsari} onValueChange={(val) => { setFilterNaamsari(val); setActivePopover(null); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -316,33 +314,33 @@ export function Analyzer() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 relative rounded-2xl">
+    <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-slate-900/50 relative rounded-2xl">
       <div className="flex items-center justify-between shrink-0 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
             <ActivitySquare className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Data Analyzer</h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Data Analyzer</h1>
             <p className="text-sm font-semibold text-slate-500">Advanced filtering and vehicle lifecycle reporting</p>
           </div>
         </div>
-        <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200" onClick={exportAnalyzer}>
+        <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800" onClick={exportAnalyzer}>
           <Download className="h-4 w-4 mr-2" />
           Export Records
         </Button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch flex-1 min-h-0 overflow-hidden">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden max-h-[300px] lg:max-h-full lg:h-full">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden max-h-[300px] lg:max-h-full lg:h-full">
           <div className="absolute top-0 right-0 p-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           
           <div className="flex flex-col gap-3 relative z-10">
-            <div className="flex items-center gap-2 text-slate-800">
+            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
               <Filter className="h-5 w-5 text-blue-600" />
               <h2 className="text-lg font-extrabold uppercase tracking-tight">Filter Criteria</h2>
             </div>
-            <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 shadow-sm bg-white">
+            <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 shadow-sm bg-white dark:bg-slate-900">
               <RefreshCcw className="w-3.5 h-3.5 mr-2" /> Reset Filters
             </Button>
           </div>
@@ -350,31 +348,31 @@ export function Analyzer() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5 relative z-10 w-full">
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
-              <Input placeholder="Search chassis..." value={filterChassis} onChange={e => setFilterChassis(e.target.value)} className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search chassis..." value={filterChassis} onChange={e => setFilterChassis(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Reg. Number</label>
-              <Input placeholder="Search reg number..." value={filterRegNum} onChange={e => setFilterRegNum(e.target.value)} className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search reg number..." value={filterRegNum} onChange={e => setFilterRegNum(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Customer Name</label>
-              <Input placeholder="Search customer..." value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search customer..." value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Customer Contact</label>
-              <Input placeholder="Search contact..." value={filterContact} onChange={e => setFilterContact(e.target.value)} className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] w-full" />
+              <Input placeholder="Search contact..." value={filterContact} onChange={e => setFilterContact(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] w-full" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 w-full min-w-0 flex flex-col max-h-[400px] lg:max-h-full lg:h-full">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex-1 w-full min-w-0 flex flex-col max-h-[400px] lg:max-h-full lg:h-full">
           <div className="overflow-auto flex-1 h-full w-full relative rounded-2xl [&_[data-slot=table-container]]:overflow-visible">
           <Table>
-            <TableHeader className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
-              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
+            <TableHeader className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900/50 shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
+              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
                 {(
                   [
                     { label: 'Status', key: 'status' as SortKey, filterable: true, sortable: true },
@@ -388,7 +386,7 @@ export function Analyzer() {
                 ).map(col => (
                   <TableHead 
                     key={col.key}
-                    className={`py-2.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-colors ${col.sortable ? 'hover:text-slate-800 select-none' : ''}`}
+                    className={`py-2.5 px-6 text-[10px] font-black uppercase tracking-widest text-slate-500 transition-colors ${col.sortable ? 'hover:text-slate-800 dark:hover:text-slate-200 select-none' : ''}`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className={`flex items-center gap-1.5 ${col.sortable ? 'cursor-pointer' : ''}`} onClick={() => col.sortable && requestSort(col.key)}>
@@ -396,9 +394,9 @@ export function Analyzer() {
                         {col.sortable && (
                           <div className="flex bg-slate-200/50 rounded p-0.5">
                             {sortConfig?.key === col.key && sortConfig.direction === 'asc' ? (
-                              <ArrowUp className="w-3 h-3 text-slate-800" />
+                              <ArrowUp className="w-3 h-3 text-slate-800 dark:text-slate-200" />
                             ) : sortConfig?.key === col.key && sortConfig.direction === 'desc' ? (
-                              <ArrowDown className="w-3 h-3 text-slate-800" />
+                              <ArrowDown className="w-3 h-3 text-slate-800 dark:text-slate-200" />
                             ) : (
                               <ArrowUpDown className="w-3 h-3 text-slate-400" />
                             )}
@@ -423,7 +421,7 @@ export function Analyzer() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map(v => {
+              {paginatedData.map(v => {
                 const myPurchase = purchases.find(p => p.id === v.purchaseId || (p.chassisNumbers && p.chassisNumbers.includes(v.chassisNumber)));
                 const myVendor = myPurchase ? parties.find(p => p.id === myPurchase.vendorId) : null;
                 
@@ -438,9 +436,9 @@ export function Analyzer() {
                 const isSold = v.status === 'sold';
 
                 return (
-                  <TableRow key={v.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                  <TableRow key={v.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50">
                     <TableCell className="px-6 py-2.5">
-                      {isRtp && <Badge variant="outline" className="bg-slate-100 text-slate-600 border-none font-black text-[9px] uppercase tracking-wider">RtP</Badge>}
+                      {isRtp && <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 text-slate-600 border-none font-black text-[9px] uppercase tracking-wider">RtP</Badge>}
                       {isInStock && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-black text-[9px] uppercase tracking-wider">In-Stock</Badge>}
                       {isSold && <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-black text-[9px] uppercase tracking-wider">Sold</Badge>}
                     </TableCell>
@@ -452,7 +450,7 @@ export function Analyzer() {
                           {sale.date.toDate().toLocaleDateString('en-GB', {year: 'numeric', month: 'short', day: '2-digit'}).replace(/ /g, '-')}
                         </span>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
+                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
                           {isRtp ? 'RtP' : 'In-Stock'}
                         </Badge>
                       )}
@@ -463,7 +461,7 @@ export function Analyzer() {
                       {isSold && sale?.fileNumber ? (
                         <span className="font-bold text-xs text-slate-700 uppercase">#{sale.fileNumber}</span>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
+                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
                           {isRtp ? 'RtP' : 'In-Stock'}
                         </Badge>
                       )}
@@ -472,10 +470,10 @@ export function Analyzer() {
                     {/* PURCHASE DETAILS */}
                     <TableCell className="px-6 py-2.5">
                       {isRtp ? (
-                        <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">RtP</Badge>
+                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">RtP</Badge>
                       ) : (
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-bold text-xs text-slate-800 uppercase">
+                          <span className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase">
                             {myPurchase?.date ? myPurchase.date.toDate().toLocaleDateString('en-GB', {year: 'numeric', month: 'short', day: '2-digit'}).replace(/ /g, '-') : '-'}
                           </span>
                           <span className="font-bold text-[10px] text-slate-500 uppercase">{myVendor?.name || '-'}</span>
@@ -487,7 +485,7 @@ export function Analyzer() {
                     {/* VEHICLE DETAILS */}
                     <TableCell className="px-6 py-2.5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-black text-sm uppercase text-slate-900">{v.chassisNumber}</span>
+                        <span className="font-black text-sm uppercase text-slate-900 dark:text-slate-100">{v.chassisNumber}</span>
                         <span className="font-bold text-[10px] text-slate-500 uppercase">
                           {cComp?.name || '-'} - {cModel?.name || '-'} <span className="text-blue-600">• {v.color || '-'}</span>
                         </span>
@@ -497,15 +495,15 @@ export function Analyzer() {
                     {/* DOCUMENT STATUS */}
                     <TableCell className="px-6 py-2.5">
                       <div className="flex flex-col gap-1">
-                        <span className="font-bold text-xs uppercase text-slate-800 px-1">
+                        <span className="font-bold text-xs uppercase text-slate-800 dark:text-slate-200 px-1">
                           {v.registrationNumber || 'UNREGISTERED'}
                         </span>
                         <div className="flex items-center gap-1 px-1">
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none ${v.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none ${v.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'}`}>
                             {v.bluebookStatus}
                           </Badge>
                           <span className="text-slate-300">-</span>
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none ${v.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : v.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none ${v.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : v.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'}`}>
                             {v.naamsariStatus}
                           </Badge>
                         </div>
@@ -516,11 +514,11 @@ export function Analyzer() {
                     <TableCell className="px-6 py-2.5">
                       {isSold ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-bold text-xs text-slate-800 uppercase">{myCustomer?.name || '-'}</span>
+                          <span className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase">{myCustomer?.name || '-'}</span>
                           <span className="font-bold text-[10px] text-slate-500 uppercase">{myCustomer?.address || '-'} <span className="ml-0.5">• {myCustomer?.contactNumber || '-'}</span></span>
                         </div>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-100 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
+                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 text-slate-400 border-none font-bold text-[9px] uppercase tracking-tighter">
                           {isRtp ? 'RtP' : 'In-Stock'}
                         </Badge>
                       )}
@@ -528,7 +526,7 @@ export function Analyzer() {
                   </TableRow>
                 );
               })}
-              {filteredData.length === 0 && (
+              {paginatedData.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500 space-y-2">
@@ -540,6 +538,14 @@ export function Analyzer() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={totalItems}
+          />
         </div>
       </div>
     </div>

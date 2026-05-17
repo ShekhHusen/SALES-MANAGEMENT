@@ -14,26 +14,14 @@ import { Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { ImportData } from '@/components/ImportData';
 import { ExportData } from '@/components/ExportData';
 
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function Settings() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
+  const { companies, models } = useGlobalData();
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
   const [isBrandExpanded, setIsBrandExpanded] = useState(false);
   const [isVariantExpanded, setIsVariantExpanded] = useState(false);
-
-  useEffect(() => {
-    const unsubCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
-      setCompanies(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Company)));
-    });
-    const unsubModels = onSnapshot(collection(db, 'models'), (snapshot) => {
-      setModels(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Model)));
-    });
-    return () => {
-      unsubCompanies();
-      unsubModels();
-    };
-  }, []);
 
   const addCompany = async () => {
     if (!newCompany.trim()) return;
@@ -107,13 +95,13 @@ export function Settings() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Companies Section */}
-        <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div 
-            className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+            className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setIsBrandExpanded(!isBrandExpanded)}
           >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Brand Directory</h3>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50">
               {isBrandExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
@@ -124,14 +112,14 @@ export function Settings() {
                 placeholder="Manufacturer Name..." 
                 value={newCompany}
                 onChange={(e) => setNewCompany(e.target.value)}
-                className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
               />
               <Button onClick={addCompany} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
                 <Plus className="h-4 w-4 mr-2" /> Register Brand
               </Button>
             </div>
             
-            <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
@@ -143,7 +131,7 @@ export function Settings() {
                   {companies.length > 0 ? (
                     companies.map((company) => (
                       <TableRow key={company.id} className="hover:bg-slate-50/30 border-transparent">
-                        <TableCell className="px-6 py-4 font-extrabold text-slate-900">{company.name}</TableCell>
+                        <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{company.name}</TableCell>
                         <TableCell className="px-6 py-4 text-right">
                           <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
                             <Trash2 className="h-4 w-4" />
@@ -164,13 +152,13 @@ export function Settings() {
         </Card>
 
         {/* Models Section */}
-        <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div 
-            className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+            className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setIsVariantExpanded(!isVariantExpanded)}
           >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Variant Manifest</h3>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50">
               {isVariantExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
@@ -181,10 +169,10 @@ export function Settings() {
                 value={newModel.companyId} 
                 onValueChange={(val) => setNewModel(prev => ({ ...prev, companyId: val }))}
               >
-                <SelectTrigger className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all">
+                <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all">
                   <SelectValue placeholder="Attribute to Brand" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200">
+                <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                   {companies.map((c) => (
                     <SelectItem key={c.id} value={c.id} className="font-medium">{c.name}</SelectItem>
                   ))}
@@ -195,7 +183,7 @@ export function Settings() {
                   placeholder="Variant/Model Name..." 
                   value={newModel.name}
                   onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white"
+                  className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
                 />
                 <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
                   <Plus className="h-4 w-4 mr-2" /> Add Variant
@@ -203,7 +191,7 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
@@ -216,9 +204,9 @@ export function Settings() {
                   {models.length > 0 ? (
                     models.map((model) => (
                       <TableRow key={model.id} className="hover:bg-slate-50/30 border-transparent">
-                        <TableCell className="px-6 py-4 font-extrabold text-slate-900">{model.name}</TableCell>
+                        <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{model.name}</TableCell>
                         <TableCell className="px-6 py-4">
-                          <span className="px-2 py-1 bg-slate-100 rounded-md text-[10px] font-black uppercase tracking-tight text-slate-500">
+                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black uppercase tracking-tight text-slate-500">
                             {companies.find(c => c.id === model.companyId)?.name || 'Orphaned'}
                           </span>
                         </TableCell>
@@ -247,7 +235,7 @@ export function Settings() {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-red-600">Delete Item?</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              This will permanently delete <span className="text-slate-900 font-extrabold">{itemToDelete?.name}</span>.
+              This will permanently delete <span className="text-slate-900 dark:text-slate-100 font-extrabold">{itemToDelete?.name}</span>.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-6">

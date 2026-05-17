@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/' },
@@ -40,8 +41,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { logout, user } = useAuth();
   const location = useLocation();
+  const { loading: dataLoading } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  if (dataLoading) {
+    // Only return a simpler state if we have no user, else let layout render so the user sees the dashboard framework immediately
+    if (!user) {
+      return (
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC] dark:bg-background">
+          <div className="w-16 h-16 border-4 border-[#3B82F6]/20 border-t-[#3B82F6] rounded-full animate-spin mb-4" />
+          <p className="text-slate-600 dark:text-slate-400 font-medium animate-pulse tracking-widest text-sm uppercase">Syncing Database...</p>
+        </div>
+      );
+    }
+  }
+
+  const renderContent = () => {
+    if (dataLoading) {
+      return (
+        <div className="flex-1 w-full h-full flex flex-col items-center justify-center space-y-4">
+           <div className="w-10 h-10 border-4 border-[#3B82F6]/20 border-t-[#3B82F6] rounded-full animate-spin" />
+           <p className="text-slate-600 dark:text-slate-400 font-medium animate-pulse tracking-widest text-xs uppercase">Syncing Workspace...</p>
+        </div>
+      );
+    }
+    return children;
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] dark:bg-background text-foreground transition-colors duration-300 overflow-hidden">
@@ -63,8 +89,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full py-6">
           <div className="px-6 pb-8 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-              <div className="text-xl font-extrabold tracking-tight text-[#3B82F6]">
-                AUTO<span className="text-slate-100 uppercase tracking-widest font-black">Manager</span>
+              <div className="flex flex-col">
+                <div className="text-xl font-extrabold tracking-tight text-[#3B82F6]">
+                  AUTO<span className="text-slate-100 uppercase tracking-widest font-black">Manager</span>
+                </div>
+                <span className="text-[9px] font-black tracking-widest text-[#3B82F6] uppercase ml-1 opacity-80">Version 2.1</span>
               </div>
             </Link>
             <Button variant="ghost" size="icon" className="lg:hidden text-slate-100" onClick={toggleSidebar}>
@@ -148,7 +177,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="mx-auto max-w-[1400px] w-full flex-1 flex flex-col h-full overflow-hidden">
             {/* Professional entry animation placeholder */}
             <div className="animate-in fade-in duration-500 slide-in-from-bottom-2 flex-1 flex flex-col overflow-hidden h-full">
-              {children}
+               {renderContent()}
             </div>
           </div>
         </main>

@@ -21,19 +21,23 @@ import { Plus, Trash2, Search, CarFront, Check, Download, ArrowUp, ArrowDown, Fi
 import { Badge } from '@/components/ui/badge';
 import * as XLSX from 'xlsx';
 
+import { Pagination } from '@/components/Pagination';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function Purchases() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
-  const [vendors, setVendors] = useState<Party[]>([]);
-  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
-  const [purchases, setPurchases] = useState<(Purchase & { id: string })[]>([]);
-  
+  const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
+  const vendors = parties.filter(p => p.type === 'vendor');
+
   const [sortField, setSortField] = useState<'date' | 'invoiceNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [vendorFilter, setVendorFilter] = useState('ALL');
   const [chassisFilter, setChassisFilter] = useState('');
   const [activePopover, setActivePopover] = useState<string | null>(null);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
+  
   const hasActiveFilters = vendorFilter !== 'ALL' || chassisFilter !== '';
 
   const clearFilters = () => {
@@ -78,6 +82,15 @@ export function Purchases() {
       return 0;
     });
 
+  const totalItems = processedPurchases.length;
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const paginatedPurchases = itemsPerPage === 'all' ? processedPurchases : processedPurchases.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset to page 1 on filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [vendorFilter, chassisFilter]);
+
   // Delete Confirmation State
   const [purchaseToDelete, setPurchaseToDelete] = useState<(Purchase & { id: string }) | null>(null);
   
@@ -96,14 +109,6 @@ export function Purchases() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [targetRowIndex, setTargetRowIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
-    onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ ...d.data(), id: d.id } as Model))));
-    onSnapshot(query(collection(db, 'parties'), where('type', '==', 'vendor')), (s) => setVendors(s.docs.map(d => ({ ...d.data(), id: d.id } as Party))));
-    onSnapshot(collection(db, 'vehicles'), (s) => setAllVehicles(s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle))));
-    onSnapshot(query(collection(db, 'purchases'), orderBy('date', 'desc')), (s) => setPurchases(s.docs.map(d => ({ ...d.data(), id: d.id } as (Purchase & { id: string })))));
-  }, []);
 
   const addChassisRow = () => {
     setCurrentChassisEntries([...currentChassisEntries, { 
@@ -238,12 +243,7 @@ export function Purchases() {
 
     try {
       // 1. Check if invoice already exists for this vendor
-      const invoiceCheckQuery = query(
-        collection(db, 'purchases'), 
-        where('vendorId', '==', selectedVendor)
-      );
-      const invoiceCheckSnap = await getDocs(invoiceCheckQuery);
-      if (invoiceCheckSnap.docs.some(d => d.data().invoiceNumber === invoiceNumber)) {
+      if (purchases.some(p => p.vendorId === selectedVendor && p.invoiceNumber === invoiceNumber)) {
         toast.error('An invoice with this number already exists for this vendor');
         return;
       }
@@ -352,8 +352,8 @@ export function Purchases() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-12">
-        <Card className="lg:col-span-4 shadow-sm border-slate-200 rounded-xl overflow-hidden h-fit">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+        <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit">
+          <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Invoice Reference</h3>
           </div>
           <CardContent className="p-6 space-y-6">
@@ -363,7 +363,7 @@ export function Purchases() {
                 type="date" 
                 value={purchaseDate} 
                 onChange={(e) => setPurchaseDate(e.target.value)} 
-                className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all font-medium"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -372,16 +372,16 @@ export function Purchases() {
                 value={invoiceNumber} 
                 onChange={(e) => setInvoiceNumber(e.target.value)} 
                 placeholder="Ex: INV-9902" 
-                className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all font-medium"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Associated Vendor</label>
               <Select value={selectedVendor} onValueChange={setSelectedVendor}>
-                <SelectTrigger className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all">
+                <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all">
                   <SelectValue placeholder="Identify Source..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-slate-200">
+                <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                   {vendors.map(v => (
                     <SelectItem key={v.id} value={v.id} className="font-medium">{v.name}</SelectItem>
                   ))}
@@ -391,10 +391,10 @@ export function Purchases() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-8 shadow-sm border-slate-200 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Chassis Manifest</h3>
-            <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-8 bg-white border-slate-200 font-bold text-xs text-blue-600">
+            <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600">
               <Plus className="h-3.5 w-3.5 mr-1" /> Add Entry Row
             </Button>
           </div>
@@ -402,7 +402,7 @@ export function Purchases() {
             <div className="min-w-full">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent border-b border-slate-100 dark:border-slate-800">
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Chassis Ident</TableHead>
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Company</TableHead>
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Model Line</TableHead>
@@ -419,7 +419,7 @@ export function Purchases() {
                             placeholder="Search VIN/Chassis..." 
                             value={entry.chassisNumber} 
                             readOnly
-                            className="h-10 rounded-lg border-slate-200 font-mono font-bold text-sm bg-slate-50 pr-10 text-slate-500 cursor-not-allowed"
+                            className="h-10 rounded-lg border-slate-200 dark:border-slate-800 font-mono font-bold text-sm bg-slate-50 dark:bg-slate-900/50 pr-10 text-slate-500 cursor-not-allowed"
                           />
                           <Button 
                             variant="ghost" 
@@ -443,10 +443,10 @@ export function Purchases() {
                           }}
                           disabled
                         >
-                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white border-slate-200">
+                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                             <SelectValue placeholder="Brand" />
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-slate-200">
+                          <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                             {companies.map(c => <SelectItem key={c.id} value={c.id} className="font-medium">{c.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -457,10 +457,10 @@ export function Purchases() {
                           onValueChange={(val) => updateRow(index, 'modelId', val)}
                           disabled
                         >
-                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white border-slate-200">
+                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                             <SelectValue placeholder="Variants" />
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-slate-200">
+                          <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                             {models.filter(m => m.companyId === entry.companyId).map(m => (
                               <SelectItem key={m.id} value={m.id} className="font-medium">{m.name}</SelectItem>
                             ))}
@@ -472,10 +472,10 @@ export function Purchases() {
                           value={entry.color} 
                           onValueChange={(val) => updateRow(index, 'color', val)}
                         >
-                          <SelectTrigger className="w-[110px] h-10 rounded-lg bg-white border-slate-200">
+                          <SelectTrigger className="w-[110px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-slate-200">
+                          <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                             {['Blue', 'Green', 'Red', 'Yellow', 'Black', 'White'].map(c => (
                               <SelectItem key={c} value={c} className="font-medium">{c}</SelectItem>
                             ))}
@@ -493,7 +493,7 @@ export function Purchases() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-20 px-6">
                         <div className="flex flex-col items-center gap-3">
-                           <div className="p-4 bg-slate-50 rounded-full">
+                           <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-full">
                               <CarFront className="h-8 w-8 text-slate-300" />
                            </div>
                            <p className="text-slate-400 font-bold text-sm tracking-tight italic">Manifest is empty. Add a row to initiate registration.</p>
@@ -523,13 +523,13 @@ export function Purchases() {
               placeholder="Search chassis, model or company..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold"
+              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100">
+          <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100 dark:border-slate-800">
             <Table>
-              <TableHeader className="bg-slate-50 sticky top-0 z-10">
+              <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Chassis</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Make/Model</TableHead>
@@ -554,7 +554,7 @@ export function Purchases() {
                   .map(vehicle => (
                     <TableRow 
                       key={vehicle.chassisNumber} 
-                      className="cursor-pointer hover:bg-slate-50 group"
+                      className="cursor-pointer hover:bg-slate-50 dark:bg-slate-900/50 group"
                       onClick={() => selectVehicleForRow(vehicle)}
                     >
                       <TableCell className="font-mono font-black text-sm px-4">{vehicle.chassisNumber}</TableCell>
@@ -595,20 +595,20 @@ export function Purchases() {
       </Dialog>
 
       {/* Purchase List History */}
-      <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20">
+      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Purchase History</CardTitle>
             <CardDescription>View and manage previous procurement invoices.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (
-              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900" onClick={clearFilters}>
+              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100" onClick={clearFilters}>
                 <FilterX className="h-4 w-4 mr-2" />
                 Clear Filters
               </Button>
             )}
-            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 bg-white" onClick={exportPurchases}>
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" onClick={exportPurchases}>
               <Download className="h-4 w-4 mr-2" />
               Export Records
             </Button>
@@ -631,7 +631,7 @@ export function Purchases() {
                         <div className="space-y-1 p-3 w-[200px]">
                           <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
                           <Select value={vendorFilter} onValueChange={(val) => { setVendorFilter(val); setActivePopover(null); }}>
-                            <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                            <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                               <SelectValue placeholder="All Vendors" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
@@ -646,7 +646,7 @@ export function Purchases() {
                     </Popover>
                   </div>
                 </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('invoiceNumber')}>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('invoiceNumber')}>
                   <div className="flex items-center gap-1">
                     Invoice No.
                     {sortField === 'invoiceNumber' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
@@ -669,7 +669,7 @@ export function Purchases() {
                               placeholder="Search chassis..." 
                               value={chassisFilter} 
                               onChange={e => setChassisFilter(e.target.value)}
-                              className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                              className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
                             />
                           </div>
                         </div>
@@ -684,7 +684,7 @@ export function Purchases() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {processedPurchases.map((purchase) => {
+              {paginatedPurchases.map((purchase) => {
                 const vendor = vendors.find(v => v.id === purchase.vendorId);
                 const vehiclesForThisPurchase = allVehicles.filter(v => v.purchaseId === purchase.id || (purchase.chassisNumbers && purchase.chassisNumbers.includes(v.chassisNumber)));
 
@@ -692,7 +692,7 @@ export function Purchases() {
                   <TableRow key={purchase.id} className="hover:bg-slate-50/50 border-transparent divide-x divide-slate-100">
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-1">
-                        <span className="font-black text-slate-900 uppercase">{vendor?.name || 'Unknown Vendor'}</span>
+                        <span className="font-black text-slate-900 dark:text-slate-100 uppercase">{vendor?.name || 'Unknown Vendor'}</span>
                         <span className="text-[10px] font-bold text-slate-400">
                           {purchase.date instanceof Timestamp 
                             ? purchase.date.toDate().toLocaleDateString('en-GB') 
@@ -700,8 +700,8 @@ export function Purchases() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 font-black text-slate-900 text-center">
-                      <Badge variant="outline" className="border-slate-200 bg-white font-black">
+                    <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100 text-center">
+                      <Badge variant="outline" className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-black">
                         {purchase.invoiceNumber}
                       </Badge>
                     </TableCell>
@@ -712,7 +712,7 @@ export function Purchases() {
                           const model = models.find(m => m.id === v.modelId);
                           return (
                             <div key={v.chassisNumber} className="px-4 py-2 flex flex-col">
-                              <span className="font-black text-slate-900">{v.chassisNumber}</span>
+                              <span className="font-black text-slate-900 dark:text-slate-100">{v.chassisNumber}</span>
                               <span className="text-[10px] font-bold text-slate-500">
                                 {company?.name}, {model?.name}, {v.color}
                               </span>
@@ -728,7 +728,7 @@ export function Purchases() {
                       <div className="divide-y divide-slate-100 h-full">
                         {vehiclesForThisPurchase.map((v) => (
                           <div key={v.chassisNumber + '_status'} className="px-4 py-2 flex flex-col justify-center gap-0.5">
-                            <span className="font-bold text-xs uppercase text-slate-800">
+                            <span className="font-bold text-xs uppercase text-slate-800 dark:text-slate-200">
                               {v.registrationNumber || 'UNREGISTERED'}
                             </span>
                             <span className="font-bold text-[9px] uppercase tracking-tighter text-slate-500">
@@ -764,7 +764,7 @@ export function Purchases() {
                   </TableRow>
                 );
               })}
-              {purchases.length === 0 && (
+              {paginatedPurchases.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="py-12 text-center text-slate-400 italic font-medium">
                     No purchase records found
@@ -773,6 +773,14 @@ export function Purchases() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={totalItems}
+          />
         </CardContent>
       </Card>
 
@@ -781,7 +789,7 @@ export function Purchases() {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-red-600">Purge Purchase Record?</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              This will permanently delete invoice <span className="text-slate-900 font-extrabold">{purchaseToDelete?.invoiceNumber}</span> and ALL associated inventory chassis that are currently in stock.
+              This will permanently delete invoice <span className="text-slate-900 dark:text-slate-100 font-extrabold">{purchaseToDelete?.invoiceNumber}</span> and ALL associated inventory chassis that are currently in stock.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-6">
@@ -810,7 +818,7 @@ export function Purchases() {
               <Input 
                 value={editInvoiceNumber} 
                 onChange={(e) => setEditInvoiceNumber(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 border-slate-200 font-black"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-black"
               />
             </div>
             <div className="space-y-2">
@@ -819,7 +827,7 @@ export function Purchases() {
                 type="date" 
                 value={editPurchaseDate} 
                 onChange={(e) => setEditPurchaseDate(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 border-slate-200 font-bold"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold"
               />
             </div>
           </div>

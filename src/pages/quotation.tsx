@@ -1,24 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { FileText, Printer, FileDown, Download, Mail, Phone } from 'lucide-react';
-import { collection, query, onSnapshot, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Sale, Vehicle, Party, Company, Model } from '@/types';
-import { handleFirestoreError, OperationType } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { PdfTemplates } from '@/components/PdfTemplates';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Quotation() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [customers, setCustomers] = useState<Party[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
+  const { sales: allSales, vehicles, parties, companies, models } = useGlobalData();
+  const sales = allSales.filter(s => s.documentationCompleted);
+  const customers = parties.filter(p => p.type === 'customer');
   
   const [selectedSaleId, setSelectedSaleId] = useState<string>('');
   const [docType, setDocType] = useState<'quotation' | 'traffic'>('quotation');
@@ -26,40 +22,6 @@ export function Quotation() {
   
   const printWrapperRef = useRef<HTMLDivElement>(null);
   const pdfTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
-
-  useEffect(() => {
-    // Fetch lookup data
-    const fetchLookups = async () => {
-      try {
-        const vehiclesSnap = await getDocs(collection(db, 'vehicles'));
-        setVehicles(vehiclesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle)));
-
-        const partiesSnap = await getDocs(collection(db, 'parties'));
-        setCustomers(partiesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Party)).filter(p => p.type === 'customer'));
-
-        const companiesSnap = await getDocs(collection(db, 'companies'));
-        setCompanies(companiesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Company)));
-
-        const modelsSnap = await getDocs(collection(db, 'models'));
-        setModels(modelsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Model)));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'lookups');
-      }
-    };
-
-    fetchLookups();
-
-    // Subscribe to sales (prefer completed ones)
-    const q = query(collection(db, 'sales'), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sale));
-      setSales(salesData.filter(s => s.documentationCompleted));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'sales');
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -123,7 +85,7 @@ export function Quotation() {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Document Printing</h1>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Document Printing</h1>
           <p className="text-slate-500 font-medium mt-1">Select a completed document process to generate</p>
           <div className="mt-2 text-xs text-amber-600 font-semibold bg-amber-50 inline-block px-2 py-1 rounded">
             Please upload "header.png" and "footer.png" to the public folder using the file explorer for them to appear.
@@ -131,7 +93,7 @@ export function Quotation() {
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={docType} onValueChange={(val: any) => setDocType(val)}>
-            <SelectTrigger className="w-[150px] border-2 border-slate-200">
+            <SelectTrigger className="w-[150px] border-2 border-slate-200 dark:border-slate-800">
               <SelectValue placeholder="Document Type" />
             </SelectTrigger>
             <SelectContent>
@@ -140,7 +102,7 @@ export function Quotation() {
             </SelectContent>
           </Select>
           <Select value={selectedSaleId} onValueChange={setSelectedSaleId}>
-            <SelectTrigger className="w-full sm:w-[300px] border-2 border-slate-200">
+            <SelectTrigger className="w-full sm:w-[300px] border-2 border-slate-200 dark:border-slate-800">
               <SelectValue placeholder="Select a Customer/Chassis" />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +136,7 @@ export function Quotation() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-slate-200/50 rounded-xl p-4 sm:p-8 border border-slate-200 flex justify-center print:bg-white print:p-0 print:border-none print:m-0 print:overflow-visible">
+      <div className="flex-1 overflow-auto bg-slate-200/50 rounded-xl p-4 sm:p-8 border border-slate-200 dark:border-slate-800 flex justify-center print:bg-white print:p-0 print:border-none print:m-0 print:overflow-visible">
         {selectedSale ? (
           <div ref={printWrapperRef} className="flex flex-col gap-10 items-center">
              <PdfTemplates

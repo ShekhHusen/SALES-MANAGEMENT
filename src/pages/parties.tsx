@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, query, where, Timestamp, orderBy, updateDoc, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Party } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +27,18 @@ const partySchema = z.object({
 
 type PartyFormValues = z.infer<typeof partySchema>;
 
+import { Pagination } from '@/components/Pagination';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function Parties() {
-  const [parties, setParties] = useState<Party[]>([]);
+  const { parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
 
@@ -61,14 +69,6 @@ export function Parties() {
       });
     }
   }, [editingParty]);
-
-  useEffect(() => {
-    const q = query(collection(db, 'parties'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setParties(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Party)));
-    });
-    return unsubscribe;
-  }, []);
 
   const onSubmit = async (values: PartyFormValues) => {
     try {
@@ -110,18 +110,16 @@ export function Parties() {
 
   const deleteParty = async (party: Party) => {
     // Check if used in purchases (as vendor)
-    const purchaseQuery = query(collection(db, 'purchases'), where('vendorId', '==', party.id));
-    const purchaseSnap = await getDocs(purchaseQuery);
-    if (!purchaseSnap.empty) {
-      toast.error(`Cannot delete "${party.name}". This vendor is linked to ${purchaseSnap.size} purchase invoices.`);
+    const partyPurchases = purchases.filter(p => p.vendorId === party.id);
+    if (partyPurchases.length > 0) {
+      toast.error(`Cannot delete "${party.name}". This vendor is linked to ${partyPurchases.length} purchase invoices.`);
       return;
     }
 
     // Check if used in sales (as customer)
-    const salesQuery = query(collection(db, 'sales'), where('customerId', '==', party.id));
-    const salesSnap = await getDocs(salesQuery);
-    if (!salesSnap.empty) {
-      toast.error(`Cannot delete "${party.name}". This customer is linked to ${salesSnap.size} sales records.`);
+    const partySales = sales.filter(s => s.customerId === party.id);
+    if (partySales.length > 0) {
+      toast.error(`Cannot delete "${party.name}". This customer is linked to ${partySales.length} sales records.`);
       return;
     }
 
@@ -133,6 +131,15 @@ export function Parties() {
     const matchesType = filterType === 'all' || p.type === filterType;
     return matchesSearch && matchesType;
   });
+
+  const totalItems = filteredParties.length;
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const paginatedParties = itemsPerPage === 'all' ? filteredParties : filteredParties.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset to page 1 on filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterType]);
 
   const exportRecords = () => {
     try {
@@ -188,13 +195,13 @@ export function Parties() {
             
             <form onSubmit={form.handleSubmit(onSubmit)} className="p-8 space-y-6">
               <div className="space-y-6">
-                <div className="flex p-1 bg-slate-100 rounded-xl">
+                <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                   <Button 
                     type="button" 
                     variant="ghost"
                     className={cn(
                       "flex-1 h-10 rounded-lg text-xs font-black uppercase transition-all",
-                      form.watch('type') === 'customer' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                      form.watch('type') === 'customer' ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
                     )}
                     onClick={() => form.setValue('type', 'customer')}
                   >
@@ -205,7 +212,7 @@ export function Parties() {
                     variant="ghost"
                     className={cn(
                       "flex-1 h-10 rounded-lg text-xs font-black uppercase transition-all",
-                      form.watch('type') === 'vendor' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                      form.watch('type') === 'vendor' ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
                     )}
                     onClick={() => form.setValue('type', 'vendor')}
                   >
@@ -216,19 +223,19 @@ export function Parties() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Legal Name / Business Name</label>
-                    <Input {...form.register('name')} placeholder="Identify the person or entity" className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white" />
+                    <Input {...form.register('name')} placeholder="Identify the person or entity" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.name && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.name.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact Line</label>
-                    <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white" />
+                    <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.contactNumber && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.contactNumber.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Residential / Corporate Address</label>
-                    <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white" />
+                    <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.address && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.address.message}</p>}
                   </div>
                 </div>
@@ -248,12 +255,12 @@ export function Parties() {
         </Dialog>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
         <div className="relative flex-1 sm:max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
             placeholder="Search by Name or Contact..." 
-            className="pl-10 h-10 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-lg"
+            className="pl-10 h-10 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -261,25 +268,25 @@ export function Parties() {
         
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <Tabs value={filterType} onValueChange={(val) => setFilterType(val)} className="w-full sm:w-auto">
-            <TabsList className="bg-slate-50 p-1 rounded-lg h-10 border border-slate-100">
-              <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Everything</TabsTrigger>
-              <TabsTrigger value="customer" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Customers</TabsTrigger>
-              <TabsTrigger value="vendor" className="data-[state=active]:bg-white data-[state=active]:text-blue-600 rounded-md text-xs font-bold h-8">Vendors</TabsTrigger>
+            <TabsList className="bg-slate-50 dark:bg-slate-900/50 p-1 rounded-lg h-10 border border-slate-100 dark:border-slate-800">
+              <TabsTrigger value="all" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Everything</TabsTrigger>
+              <TabsTrigger value="customer" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Customers</TabsTrigger>
+              <TabsTrigger value="vendor" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Vendors</TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200" onClick={exportRecords}>
+          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800" onClick={exportRecords}>
             <Download className="h-4 w-4 mr-2" />
             Export Records
           </Button>
         </div>
       </div>
 
-      <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
-                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
                   <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Principal Identity</TableHead>
                   <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-center">Classification</TableHead>
                   <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Contact Line</TableHead>
@@ -289,10 +296,10 @@ export function Parties() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredParties.length > 0 ? (
-                filteredParties.map((party) => (
-                  <TableRow key={party.id} className="hover:bg-slate-50/40 border-b border-slate-100 last:border-0 transition-colors">
-                    <TableCell className="px-6 py-2.5 font-extrabold text-slate-900">{party.name}</TableCell>
+              {paginatedParties.length > 0 ? (
+                paginatedParties.map((party) => (
+                  <TableRow key={party.id} className="hover:bg-slate-50/40 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
+                    <TableCell className="px-6 py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{party.name}</TableCell>
                     <TableCell className="px-6 py-2.5 text-center">
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border",
@@ -347,6 +354,14 @@ export function Parties() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={totalItems}
+          />
         </CardContent>
       </Card>
       
@@ -355,7 +370,7 @@ export function Parties() {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-red-600">Delete Stakeholder?</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              This will permanently delete the stakeholder <span className="text-slate-900 font-extrabold">{partyToDelete?.name}</span>.
+              This will permanently delete the stakeholder <span className="text-slate-900 dark:text-slate-100 font-extrabold">{partyToDelete?.name}</span>.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-6">

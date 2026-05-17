@@ -17,10 +17,11 @@ import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Tra
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
+import { Pagination } from '@/components/Pagination';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function Inventory() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
+  const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   
@@ -33,13 +34,14 @@ export function Inventory() {
   const [filterBluebook, setFilterBluebook] = useState<string>('all');
   const [filterNaamsari, setFilterNaamsari] = useState<string>('all');
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
+  
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [purchaseDetails, setPurchaseDetails] = useState<Purchase | null>(null);
   const [saleDetails, setSaleDetails] = useState<Sale | null>(null);
-  const [parties, setParties] = useState<Party[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
 
   // New Vehicle Form State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -53,18 +55,6 @@ export function Inventory() {
     naamsariStatus: 'Pending' as NaamsariStatus,
     status: 'ready-to-purchase' as 'ready-to-purchase' | 'in-stock' | 'sold',
   });
-
-  useEffect(() => {
-    const q = query(collection(db, 'vehicles'), orderBy('createdAt', 'desc'));
-    const unsubVehicles = onSnapshot(q, (s) => setVehicles(s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle))));
-    onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
-    onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ ...d.data(), id: d.id } as Model))));
-    onSnapshot(collection(db, 'parties'), (s) => setParties(s.docs.map(d => ({ ...d.data(), id: d.id } as Party))));
-    onSnapshot(collection(db, 'purchases'), (s) => setPurchases(s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase))));
-    onSnapshot(collection(db, 'sales'), (s) => setSales(s.docs.map(d => ({ ...d.data(), id: d.id } as Sale))));
-    
-    return () => unsubVehicles();
-  }, []);
 
   // Background Data Integrity Healer
   useEffect(() => {
@@ -227,6 +217,14 @@ export function Inventory() {
   }
 
   const filteredVehicles = processedVehicles;
+  const totalItems = filteredVehicles.length;
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const paginatedVehicles = itemsPerPage === 'all' ? filteredVehicles : filteredVehicles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset to page 1 on filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus, filterCompany, filterModel, filterColor, filterBluebook, filterNaamsari]);
 
   const exportRecords = () => {
     try {
@@ -264,19 +262,19 @@ export function Inventory() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm dark:bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
               placeholder="Search by Chassis or Customer Name..." 
-              className="pl-10 h-10 bg-slate-50 border-slate-200 focus:bg-white transition-all rounded-lg"
+              className="pl-10 h-10 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[160px] h-10 rounded-lg border-slate-200 bg-slate-50">
+            <SelectTrigger className="w-[160px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Status" />
@@ -311,7 +309,7 @@ export function Inventory() {
                     <Input 
                       id="chassis" 
                       placeholder="Enter unique chassis number" 
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.chassisNumber}
                       onChange={(e) => setNewVehicle({ ...newVehicle, chassisNumber: e.target.value.toUpperCase() })}
                       required
@@ -323,7 +321,7 @@ export function Inventory() {
                       value={newVehicle.companyId} 
                       onValueChange={(val) => setNewVehicle({ ...newVehicle, companyId: val, modelId: '' })}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                         <SelectValue placeholder="Select Make" />
                       </SelectTrigger>
                       <SelectContent>
@@ -340,7 +338,7 @@ export function Inventory() {
                       onValueChange={(val) => setNewVehicle({ ...newVehicle, modelId: val })}
                       disabled={!newVehicle.companyId}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                         <SelectValue placeholder="Select Model" />
                       </SelectTrigger>
                       <SelectContent>
@@ -355,7 +353,7 @@ export function Inventory() {
                     <Input 
                       id="color" 
                       placeholder="Vehicle color" 
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.color}
                       onChange={(e) => setNewVehicle({ ...newVehicle, color: e.target.value })}
                     />
@@ -365,7 +363,7 @@ export function Inventory() {
                     <Input 
                       id="reg" 
                       placeholder="Registration info" 
-                      className="h-11 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.registrationNumber}
                       onChange={(e) => setNewVehicle({ ...newVehicle, registrationNumber: e.target.value })}
                     />
@@ -376,7 +374,7 @@ export function Inventory() {
                       value={newVehicle.bluebookStatus} 
                       onValueChange={(val: BluebookStatus) => setNewVehicle({ ...newVehicle, bluebookStatus: val })}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -397,21 +395,21 @@ export function Inventory() {
               </form>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200" onClick={exportRecords}>
+          <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800" onClick={exportRecords}>
             <Download className="h-4 w-4 mr-2" />
             Export Records
           </Button>
         </div>
       </div>
 
-      <Card className="shadow-sm border-slate-200 overflow-hidden rounded-xl flex-1 flex flex-col min-h-0">
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden rounded-xl flex-1 flex flex-col min-h-0">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
+              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
                 <TableHead className="py-2.5 px-6">
                   <div 
-                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
                     onClick={() => {
                       if (sortField === 'chassis') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -427,7 +425,7 @@ export function Inventory() {
                 </TableHead>
                 <TableHead className="py-2.5 px-6">
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
+                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
                       Vehicle Details
                       <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all') && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
@@ -477,7 +475,7 @@ export function Inventory() {
                 <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Inventory Status</TableHead>
                 <TableHead className="py-2.5 px-6">
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
+                    <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
                       Registration Details
                       <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterBluebook !== 'all' || filterNaamsari !== 'all') && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
@@ -516,7 +514,7 @@ export function Inventory() {
                 </TableHead>
                 <TableHead className="py-2.5 px-6">
                   <div 
-                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
                     onClick={() => {
                       if (sortField === 'customer') {
                         setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -534,16 +532,16 @@ export function Inventory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVehicles.map((vehicle) => {
+              {paginatedVehicles.map((vehicle) => {
                 const saleDetails = vehicle.saleId ? sales.find(s => s.id === vehicle.saleId) : null;
                 const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
                 
                 return (
-                <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-50/40 border-b border-slate-100 last:border-0 transition-colors">
+                <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-50/40 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
                   <TableCell className="px-6 py-2.5 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex flex-col">
-                      <span className="font-bold text-slate-900">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
                       <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
                       <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600">{vehicle.color}</span></span>
                     </div>
@@ -583,7 +581,7 @@ export function Inventory() {
                             ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
                             : vehicle.naamsariStatus === 'Names of JBMT'
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-slate-100 text-slate-600 border-slate-200"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-800"
                         )}>
                           NS: {vehicle.naamsariStatus === 'Names of JBMT' ? 'JBMT' : vehicle.naamsariStatus === 'Customer Done' ? 'Customer' : 'Pending'}
                         </span>
@@ -593,7 +591,7 @@ export function Inventory() {
                   <TableCell className="px-6 py-2.5">
                     {customer ? (
                         <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 text-xs">{customer.name}</span>
+                            <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{customer.name}</span>
                             <span className="text-[10px] text-slate-500">{customer.contactNumber}</span>
                             <span className="text-[10px] text-slate-400 line-clamp-1">{customer.address}</span>
                         </div>
@@ -612,7 +610,7 @@ export function Inventory() {
                         <DialogContent showCloseButton={false} className="max-w-5xl xl:max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-0">
                         <div className="p-8 bg-[#0F172A] text-white overflow-hidden relative">
                            <div className="absolute top-0 right-0 p-12 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-                           <DialogClose className="absolute top-4 right-4 z-20 rounded-full p-2 bg-white/10 hover:bg-white/20 transition-colors text-white">
+                           <DialogClose className="absolute top-4 right-4 z-20 rounded-full p-2 bg-white/10 hover:bg-white/20 transition-colors text-white dark:text-slate-100">
                              <X className="h-5 w-5" />
                            </DialogClose>
                            <DialogHeader className="relative z-10 w-11/12">
@@ -630,26 +628,26 @@ export function Inventory() {
                             <h3 className="flex items-center gap-2 font-black text-xs uppercase tracking-widest text-slate-400">
                               Chassis Identity
                             </h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-xl border border-slate-100 p-6 bg-slate-50/50">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-xl border border-slate-100 dark:border-slate-800 p-6 bg-slate-50/50">
                               <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase">Company</p>
-                                <p className="font-extrabold text-slate-900">{companies.find(c => c.id === vehicle.companyId)?.name}</p>
+                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</p>
                               </div>
                               <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase">Model</p>
-                                <p className="font-extrabold text-slate-900">{models.find(m => m.id === vehicle.modelId)?.name}</p>
+                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{models.find(m => m.id === vehicle.modelId)?.name}</p>
                               </div>
                               <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase">Color</p>
-                                <p className="font-extrabold text-slate-900">{vehicle.color}</p>
+                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.color}</p>
                               </div>
                               <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase">Initial Log</p>
-                                <p className="font-extrabold text-slate-900">{vehicle.createdAt.toDate().toLocaleDateString()}</p>
+                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.createdAt.toDate().toLocaleDateString()}</p>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reg. Number</label>
                                 <Input 
@@ -658,7 +656,7 @@ export function Inventory() {
                                     if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, registrationNumber: e.target.value.toUpperCase() });
                                   }}
                                   placeholder="Eg. BA 1 CHA 1234"
-                                  className="h-10 rounded-lg border-slate-200 uppercase"
+                                  className="h-10 rounded-lg border-slate-200 dark:border-slate-800 uppercase"
                                 />
                               </div>
                               <div className="space-y-2">
@@ -669,7 +667,7 @@ export function Inventory() {
                                     if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, bluebookStatus: val });
                                   }}
                                 >
-                                  <SelectTrigger className="h-10 rounded-lg border-slate-200">
+                                  <SelectTrigger className="h-10 rounded-lg border-slate-200 dark:border-slate-800">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -686,7 +684,7 @@ export function Inventory() {
                                     if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, naamsariStatus: val });
                                   }}
                                 >
-                                  <SelectTrigger className="h-10 rounded-lg border-slate-200">
+                                  <SelectTrigger className="h-10 rounded-lg border-slate-200 dark:border-slate-800">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -702,7 +700,7 @@ export function Inventory() {
                             </Button>
                           </div>
 
-                          <Separator className="bg-slate-100" />
+                          <Separator className="bg-slate-100 dark:bg-slate-800" />
 
                           {/* Section 2: Purchase Details */}
                           <div className="space-y-4">
@@ -713,23 +711,23 @@ export function Inventory() {
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 rounded-xl border border-blue-50 p-6 bg-blue-50/30">
                                 <div>
                                   <p className="text-[10px] text-blue-400 font-black uppercase">Date</p>
-                                  <p className="font-extrabold text-slate-900">{purchaseDetails.date.toDate().toLocaleDateString()}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{purchaseDetails.date.toDate().toLocaleDateString()}</p>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-blue-400 font-black uppercase">Invoice #</p>
-                                  <p className="font-extrabold text-slate-900">{purchaseDetails.invoiceNumber}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{purchaseDetails.invoiceNumber}</p>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-blue-400 font-black uppercase">Vendor Partner</p>
-                                  <p className="font-extrabold text-slate-900">{parties.find(p => p.id === purchaseDetails.vendorId)?.name}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{parties.find(p => p.id === purchaseDetails.vendorId)?.name}</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 font-bold uppercase tracking-widest italic">Inventory seed data only</p>
+                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Inventory seed data only</p>
                             )}
                           </div>
 
-                          <Separator className="bg-slate-100" />
+                          <Separator className="bg-slate-100 dark:bg-slate-800" />
 
                           {/* Section 3: Sales Details */}
                           <div className="space-y-4">
@@ -740,7 +738,7 @@ export function Inventory() {
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 rounded-xl border border-emerald-50 p-6 bg-emerald-50/30">
                                 <div>
                                   <p className="text-[10px] text-emerald-400 font-black uppercase">Sale Date</p>
-                                  <p className="font-extrabold text-slate-900">{saleDetails.date.toDate().toLocaleDateString()}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{saleDetails.date.toDate().toLocaleDateString()}</p>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-emerald-400 font-black uppercase">File Reference</p>
@@ -748,11 +746,11 @@ export function Inventory() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-emerald-400 font-black uppercase">End Customer</p>
-                                  <p className="font-extrabold text-slate-900 truncate">{parties.find(p => p.id === saleDetails.customerId)?.name}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100 truncate">{parties.find(p => p.id === saleDetails.customerId)?.name}</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 font-bold uppercase tracking-widest italic">Pending Commercial Completion</p>
+                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Pending Commercial Completion</p>
                             )}
                           </div>
                         </div>
@@ -763,7 +761,7 @@ export function Inventory() {
                         <DialogHeader>
                           <DialogTitle className="text-xl font-black text-red-600">Delete Vehicle Record?</DialogTitle>
                           <DialogDescription className="font-bold text-slate-500">
-                            This will permanently delete the vehicle <span className="text-slate-900 font-extrabold">{vehicleToDelete?.chassisNumber}</span> from your inventory.
+                            This will permanently delete the vehicle <span className="text-slate-900 dark:text-slate-100 font-extrabold">{vehicleToDelete?.chassisNumber}</span> from your inventory.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="flex gap-3 pt-6">
@@ -801,6 +799,14 @@ export function Inventory() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={totalItems}
+          />
         </CardContent>
       </Card>
     </div>

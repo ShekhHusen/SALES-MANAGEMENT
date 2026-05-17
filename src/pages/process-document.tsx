@@ -20,15 +20,13 @@ import { PdfTemplates } from '@/components/PdfTemplates';
 
 type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
 
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function ProcessDocument() {
+  const { sales, parties, vehicles, companies, models } = useGlobalData();
+  const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [customers, setCustomers] = useState<Party[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
@@ -130,42 +128,6 @@ export function ProcessDocument() {
   
   // Form State for Documents (Mocked since Firebase Storage is skipped)
   const [images, setImages] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const q = query(collection(db, 'sales'), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sale));
-      setSales(salesData);
-    });
-
-    const customersQ = query(collection(db, 'parties'));
-    const unsubscribeCustomers = onSnapshot(customersQ, (snapshot) => {
-      const customersData = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Party))
-        .filter(c => c.type === 'customer');
-      setCustomers(customersData);
-    });
-
-    const unsubscribeVehicles = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
-      setVehicles(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Vehicle)));
-    });
-
-    const unsubscribeCompanies = onSnapshot(collection(db, 'companies'), (snapshot) => {
-      setCompanies(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Company)));
-    });
-
-    const unsubscribeModels = onSnapshot(collection(db, 'models'), (snapshot) => {
-      setModels(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Model)));
-    });
-
-    return () => {
-      unsubscribe();
-      unsubscribeCustomers();
-      unsubscribeVehicles();
-      unsubscribeCompanies();
-      unsubscribeModels();
-    };
-  }, []);
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'sold_vehicle', label: 'Sold Vehicle' },
@@ -292,20 +254,20 @@ export function ProcessDocument() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden space-y-4">
-      <div className="flex items-center gap-2 text-slate-800 shrink-0">
+      <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 shrink-0">
         <FileText className="w-5 h-5" />
         <h1 className="text-xl font-bold">Process Document</h1>
       </div>
 
       <div className="flex items-center justify-between shrink-0">
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-auto">
-          <TabsList className="bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
                 disabled={!unlockedTabs[tab.id]}
-                className="data-[state=active]:bg-white data-[state=active]:text-[#1a4731] data-[state=active]:shadow-sm rounded-md font-bold text-sm px-6"
+                className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-[#1a4731] data-[state=active]:shadow-sm rounded-md font-bold text-sm px-6"
               >
                 {tab.label}
               </TabsTrigger>
@@ -319,21 +281,21 @@ export function ProcessDocument() {
             <Input 
               type="text" 
               placeholder="Search by chassis, name..." 
-              className="pl-9 w-64 rounded-lg bg-white border-slate-200 shadow-sm"
+              className="pl-9 w-64 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-10 h-10 p-0 rounded-lg bg-white border-slate-200 shadow-sm">
+          <Button variant="outline" className="w-10 h-10 p-0 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
             <Filter className="w-4 h-4 text-slate-600" />
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 rounded-xl border-slate-200 shadow-sm flex flex-col overflow-hidden bg-white">
+      <Card className="flex-1 rounded-xl border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden bg-white dark:bg-slate-900">
         {activeTab === 'sold_vehicle' && (
           <div className="flex flex-col h-full">
-            <div className="grid grid-cols-3 px-8 py-4 border-b border-slate-200 font-extrabold text-slate-900 bg-slate-50 shrink-0">
+            <div className="grid grid-cols-3 px-8 py-4 border-b border-slate-200 dark:border-slate-800 font-extrabold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/50 shrink-0">
               <div>Chassis Number</div>
               <div>Customer Name</div>
               <div>Contact Number</div>
@@ -353,10 +315,10 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-3 px-8 py-4 cursor-pointer transition-colors ${isSelected ? 'bg-emerald-50' : 'bg-white hover:bg-slate-50'}`}
+                        className={`grid grid-cols-3 px-8 py-4 cursor-pointer transition-colors ${isSelected ? 'bg-emerald-50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50'}`}
                       >
                         <div className="font-mono text-slate-700 font-medium">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 font-semibold">{customer?.name || '---'}</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{customer?.name || '---'}</div>
                         <div className="text-slate-600 tracking-wide">{customer?.contactNumber || '---'}</div>
                       </div>
                     );
@@ -370,7 +332,7 @@ export function ProcessDocument() {
         {activeTab === 'others_details' && (
           <div className="p-8 space-y-8 overflow-y-auto h-full">
             <div>
-              <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6">Financial & Family Details</h2>
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-6">Financial & Family Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-slate-700">Vehicle Price</label>
@@ -378,7 +340,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={vehiclePrice} 
                     onChange={(e) => setVehiclePrice(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -387,7 +349,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={paidAmount} 
                     onChange={(e) => setPaidAmount(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -396,7 +358,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={duesAmount} 
                     readOnly
-                    className="rounded-lg border-slate-200 bg-slate-50 cursor-not-allowed"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-not-allowed"
                   />
                 </div>
                 <div className="space-y-3">
@@ -405,7 +367,7 @@ export function ProcessDocument() {
                     type="text" 
                     value={customerAltNumber} 
                     onChange={(e) => setCustomerAltNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -413,7 +375,7 @@ export function ProcessDocument() {
                   <Input 
                     value={engineNumber} 
                     onChange={(e) => setEngineNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white uppercase"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
                   />
                 </div>
                 <div className="space-y-3">
@@ -421,7 +383,7 @@ export function ProcessDocument() {
                   <Input 
                     value={vehicleNumber} 
                     onChange={(e) => setVehicleNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white uppercase"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
                   />
                 </div>
                 <div className="space-y-3">
@@ -429,7 +391,7 @@ export function ProcessDocument() {
                   <Input 
                     value={citizenshipNumber} 
                     onChange={(e) => setCitizenshipNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white uppercase"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
                   />
                 </div>
                 <div className="space-y-3">
@@ -437,7 +399,7 @@ export function ProcessDocument() {
                   <Input 
                     value={fathersName} 
                     onChange={(e) => setFathersName(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -445,15 +407,15 @@ export function ProcessDocument() {
                   <Input 
                     value={grandFathersName} 
                     onChange={(e) => setGrandFathersName(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
               </div>
             </div>
 
             <div>
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-6">
-                 <h2 className="text-lg font-bold text-slate-800">Battery Details</h2>
+              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 mb-6">
+                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Battery Details</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-3">
@@ -461,7 +423,7 @@ export function ProcessDocument() {
                   <Input 
                     value={batteryType} 
                     onChange={(e) => setBatteryType(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -469,7 +431,7 @@ export function ProcessDocument() {
                   <Input 
                     value={batteryBrand} 
                     onChange={(e) => setBatteryBrand(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -477,7 +439,7 @@ export function ProcessDocument() {
                   <Input 
                     value={bluetoothId} 
                     onChange={(e) => setBluetoothId(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -485,7 +447,7 @@ export function ProcessDocument() {
                   <Input 
                     value={productId} 
                     onChange={(e) => setProductId(e.target.value)}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
                 <div className="space-y-3">
@@ -494,14 +456,14 @@ export function ProcessDocument() {
                     type="number"
                     value={noOfBattery} 
                     onChange={(e) => setNoOfBattery(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 bg-white"
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
               </div>
 
               {serialNumbers.length > 0 && (
-                <div className="mt-6 bg-slate-50/50 p-6 rounded-xl border border-slate-100 shadow-sm">
-                   <h3 className="text-slate-800 font-bold mb-4">Battery Serial Numbers</h3>
+                <div className="mt-6 bg-slate-50/50 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                   <h3 className="text-slate-800 dark:text-slate-200 font-bold mb-4">Battery Serial Numbers</h3>
                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                      {serialNumbers.map((s, idx) => (
                        <div key={idx} className="space-y-2">
@@ -514,7 +476,7 @@ export function ProcessDocument() {
                              setSerialNumbers(nArr);
                            }}
                            placeholder={`Enter SN-${idx + 1}...`}
-                           className="bg-white border-slate-200"
+                           className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
                          />
                        </div>
                      ))}
@@ -527,23 +489,23 @@ export function ProcessDocument() {
 
         {activeTab === 'documents' && (
           <div className="p-8 space-y-6 overflow-y-auto h-full">
-            <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2">Upload Documents</h2>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2">Upload Documents</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
-                  <label key={docName} className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group overflow-hidden">
+                  <label key={docName} className="relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group overflow-hidden">
                     {images[docKey] ? (
                       <>
                         <img src={images[docKey]} alt={docName} className="absolute inset-0 w-full h-full object-cover opacity-50" />
                         <div className="relative z-10 w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
                           <CheckCircle className="w-6 h-6 text-emerald-600" />
                         </div>
-                        <span className="relative z-10 text-sm font-bold text-slate-900 bg-white/80 px-2 rounded text-center">{docName}</span>
+                        <span className="relative z-10 text-sm font-bold text-slate-900 dark:text-slate-100 bg-white/80 px-2 rounded text-center">{docName}</span>
                       </>
                     ) : (
                       <>
-                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                        <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                           <FileText className="w-5 h-5 text-slate-400 group-hover:text-amber-500" />
                         </div>
                         <span className="text-sm font-bold text-slate-600 text-center">{docName}</span>
@@ -588,7 +550,7 @@ export function ProcessDocument() {
               })}
             </div>
             
-            <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mt-8">Generate Documents</h2>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mt-8">Generate Documents</h2>
             <div className="flex gap-4">
                <Button 
                  onClick={() => handleDownloadPDF('quotation', selectedSale!)}
@@ -614,7 +576,7 @@ export function ProcessDocument() {
 
         {activeTab === 'completed' && (
           <div className="flex flex-col h-full">
-            <div className="grid grid-cols-5 px-8 py-4 border-b border-slate-200 font-extrabold text-slate-900 bg-slate-50 shrink-0">
+            <div className="grid grid-cols-5 px-8 py-4 border-b border-slate-200 dark:border-slate-800 font-extrabold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/50 shrink-0">
                <div>SN.</div>
                <div>Chassis Details</div>
                <div>Customer Details</div>
@@ -635,11 +597,11 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-5 px-8 py-4 items-center cursor-pointer transition-colors ${selectedSale?.id === sale.id ? 'bg-emerald-50' : 'bg-white hover:bg-slate-50'}`}
+                        className={`grid grid-cols-5 px-8 py-4 items-center cursor-pointer transition-colors ${selectedSale?.id === sale.id ? 'bg-emerald-50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50'}`}
                       >
                         <div className="font-bold text-slate-500 text-sm">{idx + 1}</div>
                         <div className="font-mono text-slate-700 font-medium">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 font-semibold">{customer?.name || '---'}</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{customer?.name || '---'}</div>
                         <div>
                           <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">Completed</span>
                         </div>
@@ -647,7 +609,7 @@ export function ProcessDocument() {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="font-bold border-slate-200 text-slate-600 hover:text-[#1a4731]" 
+                            className="font-bold border-slate-200 dark:border-slate-800 text-slate-600 hover:text-[#1a4731]" 
                             onClick={(e) => {
                               e.stopPropagation();
                               setViewSale(sale);
@@ -696,7 +658,7 @@ export function ProcessDocument() {
       <Sheet open={viewSheetOpen} onOpenChange={setViewSheetOpen}>
         <SheetContent className="w-full sm:max-w-5xl overflow-y-auto bg-[#F8FAFC]">
           <SheetHeader className="mb-6">
-            <SheetTitle className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-4">
+            <SheetTitle className="text-2xl font-black text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-4">
               Process Document Details
             </SheetTitle>
           </SheetHeader>
@@ -704,8 +666,8 @@ export function ProcessDocument() {
           {viewSale && (
             <div className="space-y-8">
               {/* Inventory Full Details */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <Hash className="w-5 h-5 text-slate-500" /> Inventory Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -717,19 +679,19 @@ export function ProcessDocument() {
                       <>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Chassis Number</p>
-                          <p className="font-mono font-bold text-slate-900">{viewSale.chassisNumber}</p>
+                          <p className="font-mono font-bold text-slate-900 dark:text-slate-100">{viewSale.chassisNumber}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Company</p>
-                          <p className="font-bold text-slate-900">{company?.name || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{company?.name || '---'}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Model</p>
-                          <p className="font-bold text-slate-900">{model?.name || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{model?.name || '---'}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Color</p>
-                          <p className="font-bold text-slate-900">{vehicle?.color || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{vehicle?.color || '---'}</p>
                         </div>
                       </>
                     );
@@ -738,8 +700,8 @@ export function ProcessDocument() {
               </div>
 
               {/* Customer Full Details */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <Info className="w-5 h-5 text-slate-500" /> Customer Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -749,15 +711,15 @@ export function ProcessDocument() {
                       <>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Name</p>
-                          <p className="font-bold text-slate-900">{customer?.name || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{customer?.name || '---'}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Contact Number</p>
-                          <p className="font-bold text-slate-900">{customer?.contactNumber || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{customer?.contactNumber || '---'}</p>
                         </div>
                         <div className="space-y-1 col-span-2">
                           <p className="text-sm text-slate-500 font-medium">Address</p>
-                          <p className="font-bold text-slate-900">{customer?.address || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{customer?.address || '---'}</p>
                         </div>
                       </>
                     );
@@ -766,8 +728,8 @@ export function ProcessDocument() {
               </div>
 
               {/* Bluebook & Namsari */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-slate-500" /> Bluebook and Namsari Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -777,15 +739,15 @@ export function ProcessDocument() {
                       <>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Registration Number</p>
-                          <p className="font-bold text-slate-900">{vehicle?.registrationNumber || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{vehicle?.registrationNumber || '---'}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Bluebook Status</p>
-                          <p className="font-bold text-slate-900">{vehicle?.bluebookStatus || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{vehicle?.bluebookStatus || '---'}</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm text-slate-500 font-medium">Naamsari Status</p>
-                          <p className="font-bold text-slate-900">{vehicle?.naamsariStatus || '---'}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{vehicle?.naamsariStatus || '---'}</p>
                         </div>
                       </>
                     );
@@ -794,14 +756,14 @@ export function ProcessDocument() {
               </div>
 
               {/* Others Details */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-slate-500" /> Financial & Family Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Vehicle Price</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.vehiclePrice !== undefined && viewSale.otherDetails?.vehiclePrice !== '' ? viewSale.otherDetails.vehiclePrice : '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.vehiclePrice !== undefined && viewSale.otherDetails?.vehiclePrice !== '' ? viewSale.otherDetails.vehiclePrice : '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Paid Amount</p>
@@ -813,62 +775,62 @@ export function ProcessDocument() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Customer Alt Number</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.customerAltNumber || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.customerAltNumber || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Engine Number</p>
-                    <p className="font-bold text-slate-900 uppercase">{viewSale.otherDetails?.engineNumber || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 uppercase">{viewSale.otherDetails?.engineNumber || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Vehicle Number</p>
-                    <p className="font-bold text-slate-900 uppercase">{viewSale.otherDetails?.vehicleNumber || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 uppercase">{viewSale.otherDetails?.vehicleNumber || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Citizenship Cert. No.</p>
-                    <p className="font-bold text-slate-900 uppercase">{viewSale.otherDetails?.citizenshipNumber || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 uppercase">{viewSale.otherDetails?.citizenshipNumber || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Father's Name</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.fathersName || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.fathersName || '---'}</p>
                   </div>
                   <div className="space-y-1 col-span-2">
                     <p className="text-sm text-slate-500 font-medium">Grandfather's Name</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.grandFathersName || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.grandFathersName || '---'}</p>
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2 mt-6">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2 mt-6">
                   <Battery className="w-5 h-5 text-slate-500" /> Battery Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Battery Type</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.batteryType || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.batteryType || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Battery Brand</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.batteryBrand || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.batteryBrand || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Bluetooth ID</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.bluetoothId || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.bluetoothId || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">Product ID</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.productId || '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.productId || '---'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500 font-medium">No. of Battery</p>
-                    <p className="font-bold text-slate-900">{viewSale.otherDetails?.noOfBattery !== undefined && viewSale.otherDetails?.noOfBattery !== '' ? viewSale.otherDetails.noOfBattery : '---'}</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.noOfBattery !== undefined && viewSale.otherDetails?.noOfBattery !== '' ? viewSale.otherDetails.noOfBattery : '---'}</p>
                   </div>
                 </div>
 
                 {viewSale.otherDetails?.serialNumbers && viewSale.otherDetails.serialNumbers.length > 0 && (
-                  <div className="mt-4 bg-slate-50 rounded-lg p-4">
+                  <div className="mt-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
                     <p className="text-sm text-slate-500 font-medium mb-2">Battery Serial Numbers</p>
                     <div className="flex flex-wrap gap-2">
                       {viewSale.otherDetails.serialNumbers.map((sn, idx) => (
-                        <span key={idx} className="bg-white border border-slate-200 px-3 py-1 rounded text-sm font-mono text-slate-700 shadow-sm">
+                        <span key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded text-sm font-mono text-slate-700 shadow-sm">
                           {sn || 'N/A'}
                         </span>
                       ))}
@@ -878,8 +840,8 @@ export function ProcessDocument() {
               </div>
 
               {/* Documents */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-slate-500" /> Documents
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -887,7 +849,7 @@ export function ProcessDocument() {
                     const docKey = docName.toLowerCase().replace(/ /g, '_');
                     const hasImage = viewSale.otherDetails?.images?.[docKey];
                     return (
-                      <div key={docName} className="relative border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center space-y-2 bg-slate-50 overflow-hidden h-32">
+                      <div key={docName} className="relative border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex flex-col items-center justify-center space-y-2 bg-slate-50 dark:bg-slate-900/50 overflow-hidden h-32">
                         {hasImage ? (
                           <>
                             <img src={viewSale.otherDetails.images[docKey]} alt={docName} className="absolute inset-0 w-full h-full object-cover" />

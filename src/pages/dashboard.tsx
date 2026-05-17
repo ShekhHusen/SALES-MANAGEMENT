@@ -31,22 +31,12 @@ import {
   UserCheck
 } from 'lucide-react';
 
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function Dashboard() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
-
-  useEffect(() => {
-    onSnapshot(collection(db, 'vehicles'), (s) => setVehicles(s.docs.map(d => d.data() as Vehicle)));
-    onSnapshot(collection(db, 'purchases'), (s) => setPurchases(s.docs.map(d => d.data() as Purchase)));
-    onSnapshot(collection(db, 'sales'), (s) => setSales(s.docs.map(d => d.data() as Sale)));
-    onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ id: d.id, ...d.data() } as Company))));
-    onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ id: d.id, ...d.data() } as Model))));
-  }, []);
+  const { vehicles, purchases, sales, companies, models } = useGlobalData();
 
   const stats = {
     totalInventory: vehicles.length,
@@ -98,28 +88,28 @@ export function Dashboard() {
           value={stats.totalInventory} 
           icon={Car} 
           color="text-blue-500"
-          bg="bg-blue-50"
+          bg="bg-blue-50 dark:bg-blue-500/10"
         />
         <StatCard 
           title="Total Purchases" 
           value={stats.totalProcurement} 
           icon={ShoppingCart} 
           color="text-purple-500"
-          bg="bg-purple-50"
+          bg="bg-purple-50 dark:bg-purple-500/10"
         />
         <StatCard 
           title="In-Stock Units" 
           value={stats.inStock} 
           icon={Package} 
           color="text-indigo-500"
-          bg="bg-indigo-50"
+          bg="bg-indigo-50 dark:bg-indigo-500/10"
         />
         <StatCard 
           title="Sales Recorded" 
           value={stats.totalSales} 
           icon={BadgeDollarSign} 
           color="text-emerald-500"
-          bg="bg-emerald-50"
+          bg="bg-emerald-50 dark:bg-emerald-500/10"
         />
       </div>
 
@@ -129,43 +119,43 @@ export function Dashboard() {
           value={stats.bluebookPending} 
           icon={Clock} 
           color="text-amber-500"
-          bg="bg-amber-50"
+          bg="bg-amber-50 dark:bg-amber-500/10"
         />
         <StatCard 
           title="Doc Received" 
           value={stats.bluebookReceived} 
           icon={CheckCircle2} 
           color="text-teal-500"
-          bg="bg-teal-50"
+          bg="bg-teal-50 dark:bg-teal-500/10"
         />
         <StatCard 
           title="Namsari Pending" 
           value={stats.naamsariPending} 
           icon={AlertCircle} 
           color="text-orange-500"
-          bg="bg-orange-50"
+          bg="bg-orange-50 dark:bg-orange-500/10"
         />
         <StatCard 
           title="Names of JBMT" 
           value={stats.jbmtName} 
           icon={UserCheck} 
           color="text-cyan-500"
-          bg="bg-cyan-50"
+          bg="bg-cyan-50 dark:bg-cyan-500/10"
         />
         <StatCard 
           title="Customer Done" 
           value={stats.customerDone} 
           icon={FileText} 
           color="text-emerald-500"
-          bg="bg-emerald-50"
+          bg="bg-emerald-50 dark:bg-emerald-500/10"
         />
       </div>
 
       {/* Charts Section */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-1 shadow-sm border-slate-200">
+        <Card className="lg:col-span-1 shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-800">Company Distribution</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution</CardTitle>
             <CardDescription className="text-xs">Inventory split by manufacturer</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -185,16 +175,16 @@ export function Dashboard() {
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: 'var(--tw-prose-body)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-sm border-slate-200">
+        <Card className="lg:col-span-2 shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-800">Monthly Performance Trend</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Monthly Performance Trend</CardTitle>
             <CardDescription className="text-xs">Visualizing unit movement over time</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -229,9 +219,9 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-bold text-slate-800">Top 5 Models In-stock</CardTitle>
+          <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models In-stock</CardTitle>
           <CardDescription className="text-xs">Inventory density by vehicle model</CardDescription>
         </CardHeader>
         <CardContent className="h-[300px]">
@@ -250,7 +240,7 @@ export function Dashboard() {
                 tick={{ fontSize: 11, fontWeight: 500, fill: '#64748B' }}
               />
               <Tooltip 
-                cursor={{ fill: '#F1F5F9' }}
+                cursor={{ fill: 'rgba(241, 245, 249, 0.2)' }}
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               />
               <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40} />
@@ -264,15 +254,15 @@ export function Dashboard() {
 
 function StatCard({ title, value, icon: Icon, color, bg }: any) {
   return (
-    <Card className="relative overflow-hidden border-none shadow-md bg-white hover:shadow-xl transition-all duration-300 group rounded-2xl">
+    <Card className="relative overflow-hidden border-none shadow-md bg-white dark:bg-slate-950 hover:shadow-xl transition-all duration-300 group rounded-2xl">
       <div className={cn("absolute inset-0 opacity-0 bg-gradient-to-br transition-opacity duration-300 group-hover:opacity-10", bg, "from-transparent to-current")} />
       <CardContent className="p-4 relative z-10 flex items-center gap-4">
         <div className={cn("p-3 rounded-2xl shadow-sm backdrop-blur-md transition-transform duration-300 group-hover:scale-110 shrink-0", bg, color)}>
           <Icon className="h-6 w-6" strokeWidth={2.5} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1 cursor-default">{value}</span>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 group-hover:text-slate-800 transition-colors truncate cursor-default">{title}</span>
+          <span className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none mb-1 cursor-default">{value}</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-300 transition-colors truncate cursor-default">{title}</span>
         </div>
       </CardContent>
     </Card>

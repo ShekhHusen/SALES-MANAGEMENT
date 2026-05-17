@@ -18,6 +18,7 @@ import { Analyzer } from '@/pages/analyzer';
 
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
+import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 
 function AppRoutes() {
   const { user, loading, login } = useAuth();
@@ -57,20 +58,22 @@ function AppRoutes() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/parties" element={<Parties />} />
-        <Route path="/purchases" element={<Purchases />} />
-        <Route path="/sales" element={<Sales />} />
-        <Route path="/process-document" element={<ProcessDocument />} />
-        <Route path="/quotation" element={<Quotation />} />
-        <Route path="/analyzer" element={<Analyzer />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Layout>
+    <GlobalDataProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/parties" element={<Parties />} />
+          <Route path="/purchases" element={<Purchases />} />
+          <Route path="/sales" element={<Sales />} />
+          <Route path="/process-document" element={<ProcessDocument />} />
+          <Route path="/quotation" element={<Quotation />} />
+          <Route path="/analyzer" element={<Analyzer />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </GlobalDataProvider>
   );
 }
 

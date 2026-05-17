@@ -29,12 +29,13 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
+import { Pagination } from '@/components/Pagination';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+
 export function Sales() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
-  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
-  const [inStockVehicles, setInStockVehicles] = useState<Vehicle[]>([]);
-  const [customers, setCustomers] = useState<Party[]>([]);
+  const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
+  const customers = parties.filter(p => p.type === 'customer');
+  const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock' && !!v.purchaseId);
   
   const [selectedChassis, setSelectedChassis] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -44,7 +45,6 @@ export function Sales() {
   // Selection Dialog State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sales, setSales] = useState<(Sale & { id: string })[]>([]);
 
   // Edit Sale State
   const [editingSale, setEditingSale] = useState<(Sale & { id: string }) | null>(null);
@@ -64,6 +64,10 @@ export function Sales() {
   const [bluebookFilter, setBluebookFilter] = useState('ALL');
   const [activePopover, setActivePopover] = useState<string | null>(null);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
+  
   const uniqueColors = Array.from(new Set(allVehicles.map(v => v.color).filter(Boolean)));
 
   const hasActiveFilters = fileNumberFilter !== '' || customerFilter !== '' || companyFilter !== 'ALL' || modelFilter !== 'ALL' || colorFilter !== 'ALL' || chassisFilter !== '' || statusFilter !== 'ALL' || bluebookFilter !== 'ALL';
@@ -128,20 +132,14 @@ export function Sales() {
       return 0;
     });
 
+  const totalItems = processedSales.length;
+  const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+  const paginatedSales = itemsPerPage === 'all' ? processedSales : processedSales.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset to page 1 on filter
   useEffect(() => {
-    onSnapshot(collection(db, 'companies'), (s) => setCompanies(s.docs.map(d => ({ ...d.data(), id: d.id } as Company))));
-    onSnapshot(collection(db, 'models'), (s) => setModels(s.docs.map(d => ({ ...d.data(), id: d.id } as Model))));
-    onSnapshot(collection(db, 'vehicles'), (s) => setAllVehicles(s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle))));
-    
-    // Listen for in-stock vehicles
-    onSnapshot(query(collection(db, 'vehicles'), where('status', '==', 'in-stock')), (s) => {
-      const vehicles = s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle));
-      setInStockVehicles(vehicles.filter(v => !!v.purchaseId));
-    });
-    
-    onSnapshot(query(collection(db, 'parties'), where('type', '==', 'customer')), (s) => setCustomers(s.docs.map(d => ({ ...d.data(), id: d.id } as Party))));
-    onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc')), (s) => setSales(s.docs.map(d => ({ ...d.data(), id: d.id } as (Sale & { id: string })))));
-  }, []);
+    setCurrentPage(1);
+  }, [fileNumberFilter, customerFilter, companyFilter, modelFilter, colorFilter, chassisFilter, statusFilter, bluebookFilter]);
 
   const openEditSale = (sale: Sale & { id: string }) => {
     setEditingSale(sale);
@@ -215,14 +213,10 @@ export function Sales() {
 
     try {
       // Get next file number for this company
-      const salesQuery = query(
-        collection(db, 'sales'), 
-        where('companyId', '==', currentVehicle.companyId)
-      );
-      const salesSnap = await getDocs(salesQuery);
+      const companySales = sales.filter(s => s.companyId === currentVehicle.companyId);
       let nextFileNumber = 1;
-      if (!salesSnap.empty) {
-        const fileNumbers = salesSnap.docs.map(d => d.data().fileNumber || 0);
+      if (companySales.length > 0) {
+        const fileNumbers = companySales.map(s => s.fileNumber || 0);
         nextFileNumber = Math.max(...fileNumbers) + 1;
       }
 
@@ -304,8 +298,8 @@ export function Sales() {
         {/* Left Column: Selection */}
         <div className="lg:col-span-12 xl:col-span-8 space-y-8">
           <div className="grid gap-8 md:grid-cols-2">
-            <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <Car className="h-4 w-4" /> Vehicle Selection
                 </h3>
@@ -315,10 +309,10 @@ export function Sales() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Chassis</label>
                   <div className="relative flex items-center gap-2">
                     <Select value={selectedChassis} onValueChange={setSelectedChassis}>
-                      <SelectTrigger className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all h-12 flex-1">
+                      <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
                         <SelectValue placeholder="Identify Unit by Chassis Number" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-200">
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                         {inStockVehicles.length > 0 ? (
                           inStockVehicles.map(v => (
                             <SelectItem key={v.chassisNumber} value={v.chassisNumber} className="py-3 items-center">
@@ -338,7 +332,7 @@ export function Sales() {
                     <Button 
                       variant="outline" 
                       size="icon" 
-                      className="h-12 w-12 rounded-xl shrink-0 border-slate-200"
+                      className="h-12 w-12 rounded-xl shrink-0 border-slate-200 dark:border-slate-800"
                       onClick={() => setIsSelectorOpen(true)}
                     >
                       <Search className="h-5 w-5 text-slate-400" />
@@ -347,7 +341,7 @@ export function Sales() {
                 </div>
 
                 {currentVehicle && (
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
                      <div className="flex justify-between items-center pb-3 border-b border-slate-200/50">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Manufacturer</span>
                         <span className="font-extrabold text-blue-600">{companies.find(c => c.id === currentVehicle.companyId)?.name}</span>
@@ -355,7 +349,7 @@ export function Sales() {
                      <div className="space-y-3">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Finish Assignment</label>
                         <Select value={editColor} onValueChange={setEditColor}>
-                          <SelectTrigger className="h-10 rounded-lg bg-white border-slate-200">
+                          <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl">
@@ -371,8 +365,8 @@ export function Sales() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <User className="h-4 w-4" /> Customer Mapping
                 </h3>
@@ -381,10 +375,10 @@ export function Sales() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
                   <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                    <SelectTrigger className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all h-12">
+                    <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12">
                       <SelectValue placeholder="Identify Registered Party" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-200">
+                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
                       {customers.map(c => (
                         <SelectItem key={c.id} value={c.id} className="py-3">
                            <div className="flex flex-col">
@@ -398,12 +392,12 @@ export function Sales() {
                 </div>
                 
                 {selectedCustomer && (
-                  <div className="rounded-xl border-2 border-dashed border-slate-100 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="space-y-1">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Registry Address</p>
                        <p className="text-sm font-bold text-slate-700">{customers.find(c => c.id === selectedCustomer)?.address}</p>
                     </div>
-                    <div className="pt-3 border-t border-slate-100">
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Authorized Contact</p>
                        <p className="text-sm font-black text-blue-600">{customers.find(c => c.id === selectedCustomer)?.contactNumber}</p>
                     </div>
@@ -416,8 +410,8 @@ export function Sales() {
 
         {/* Right Column: Transaction Details */}
         <div className="lg:col-span-12 xl:col-span-4 space-y-8">
-          <Card className="shadow-sm border-slate-200 rounded-xl overflow-hidden">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+          <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <FileText className="h-4 w-4" /> Registry Attributes
               </h3>
@@ -429,7 +423,7 @@ export function Sales() {
                   type="date" 
                   value={saleDate} 
                   onChange={(e) => setSaleDate(e.target.value)} 
-                  className="h-11 rounded-lg bg-slate-50 border-slate-200 focus:bg-white transition-all font-bold"
+                  className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                 />
               </div>
             </CardContent>
@@ -437,20 +431,20 @@ export function Sales() {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden flex flex-col h-[600px]">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0">
+      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px]">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Sales History</CardTitle>
             <CardDescription>Detailed overview of all vehicle sales transactions.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (
-              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900" onClick={clearFilters}>
+              <Button variant="ghost" className="h-10 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100" onClick={clearFilters}>
                 <FilterX className="h-4 w-4 mr-2" />
                 Clear Filters
               </Button>
             )}
-            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 bg-white" onClick={exportSales}>
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" onClick={exportSales}>
               <Download className="h-4 w-4 mr-2" />
               Export Records
             </Button>
@@ -461,14 +455,14 @@ export function Sales() {
             <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
               <TableRow>
                 <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">SN</TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('date')}>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('date')}>
                   <div className="flex items-center gap-1">
                     Sale Dates
                     {sortField === 'date' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                   </div>
                 </TableHead>
                 <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-800" onClick={() => handleSort('fileNumber')}>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200" onClick={() => handleSort('fileNumber')}>
                     File#
                     {sortField === 'fileNumber' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                   </div>
@@ -490,13 +484,13 @@ export function Sales() {
                               placeholder="Search chassis..." 
                               value={chassisFilter} 
                               onChange={e => setChassisFilter(e.target.value)}
-                              className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                              className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Company</label>
                             <Select value={companyFilter} onValueChange={(val) => { setCompanyFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Companies" />
                               </SelectTrigger>
                               <SelectContent>
@@ -510,7 +504,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Model</label>
                             <Select value={modelFilter} onValueChange={(val) => { setModelFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full" disabled={companyFilter === 'ALL' && models.length === 0}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={companyFilter === 'ALL' && models.length === 0}>
                                 <SelectValue placeholder="All Models" />
                               </SelectTrigger>
                               <SelectContent>
@@ -524,7 +518,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Color</label>
                             <Select value={colorFilter} onValueChange={(val) => { setColorFilter(val); setActivePopover(null); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Colors" />
                               </SelectTrigger>
                               <SelectContent>
@@ -565,7 +559,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook Status</label>
                             <Select value={bluebookFilter} onValueChange={(val) => { setBluebookFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -578,7 +572,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Naamsari Status</label>
                             <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setActivePopover(null); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 border-slate-200 font-bold text-[10px] shadow-sm hover:bg-white transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -598,7 +592,7 @@ export function Sales() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {processedSales.map((sale, index) => {
+              {paginatedSales.map((sale, index) => {
                 const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
                 const customer = customers.find(c => c.id === sale.customerId);
                 const company = companies.find(c => c.id === sale.companyId);
@@ -612,12 +606,12 @@ export function Sales() {
                         ? sale.date.toDate().toLocaleDateString('en-GB') 
                         : String(sale.date)}
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 font-black text-slate-900">
+                    <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100">
                       #{sale.fileNumber}
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-black text-sm uppercase text-slate-900">{sale.chassisNumber}</span>
+                        <span className="font-black text-sm uppercase text-slate-900 dark:text-slate-100">{sale.chassisNumber}</span>
                         <span className="text-[11px] font-bold text-slate-500">
                           {company?.name} - {model?.name} <span className="text-blue-600 uppercase ml-1">• {vehicle?.color}</span>
                         </span>
@@ -625,7 +619,7 @@ export function Sales() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-black text-sm uppercase text-slate-900">{customer?.name}</span>
+                        <span className="font-black text-sm uppercase text-slate-900 dark:text-slate-100">{customer?.name}</span>
                         <span className="text-[11px] font-bold text-slate-500 uppercase">
                           {customer?.address} <span className="ml-1">• {customer?.contactNumber}</span>
                         </span>
@@ -633,15 +627,15 @@ export function Sales() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col justify-center gap-1.5">
-                        <span className="font-bold text-xs uppercase text-slate-800 px-1">
+                        <span className="font-bold text-xs uppercase text-slate-800 dark:text-slate-200 px-1">
                           {vehicle?.registrationNumber || 'UNREGISTERED'}
                         </span>
                         <div className="flex items-center gap-1 px-1">
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : ''}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 dark:bg-slate-800 text-slate-600 ${vehicle?.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : ''}`}>
                             {vehicle?.bluebookStatus || 'NOT RECEIVED'}
                           </Badge>
                           <span className="text-slate-300">-</span>
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 text-slate-600 ${vehicle?.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : vehicle?.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : ''}`}>
+                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 dark:bg-slate-800 text-slate-600 ${vehicle?.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : vehicle?.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : ''}`}>
                             {vehicle?.naamsariStatus || 'PENDING'}
                           </Badge>
                         </div>
@@ -670,7 +664,7 @@ export function Sales() {
                   </TableRow>
                 );
               })}
-              {sales.length === 0 && (
+              {paginatedSales.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-12 text-center text-slate-400 italic font-medium">
                     No sales records logged yet
@@ -679,6 +673,14 @@ export function Sales() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={totalItems}
+          />
         </CardContent>
       </Card>
 
@@ -698,7 +700,7 @@ export function Sales() {
                 type="number" 
                 value={editFileNumber} 
                 onChange={(e) => setEditFileNumber(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 border-slate-200 font-black"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-black"
               />
             </div>
             <div className="space-y-2">
@@ -707,7 +709,7 @@ export function Sales() {
                 type="date" 
                 value={editSaleDate} 
                 onChange={(e) => setEditSaleDate(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 border-slate-200 font-bold"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold"
               />
             </div>
           </div>
@@ -727,7 +729,7 @@ export function Sales() {
           <DialogHeader>
             <DialogTitle className="text-xl font-black text-red-600">Revert Transaction?</DialogTitle>
             <DialogDescription className="font-bold text-slate-500">
-              This will delete the sale record for chassis <span className="text-slate-900 font-extrabold">{saleToDelete?.chassisNumber}</span> and revert the vehicle status to "In-Stock".
+              This will delete the sale record for chassis <span className="text-slate-900 dark:text-slate-100 font-extrabold">{saleToDelete?.chassisNumber}</span> and revert the vehicle status to "In-Stock".
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-6">
@@ -756,13 +758,13 @@ export function Sales() {
               placeholder="Filter by chassis, model or make..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all font-bold"
+              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100">
+          <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100 dark:border-slate-800">
             <Table>
-              <TableHeader className="bg-slate-50 sticky top-0 z-10">
+              <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Chassis</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Details</TableHead>
@@ -778,7 +780,7 @@ export function Sales() {
                   .map(vehicle => (
                     <TableRow 
                       key={vehicle.chassisNumber} 
-                      className="cursor-pointer hover:bg-slate-50 group"
+                      className="cursor-pointer hover:bg-slate-50 dark:bg-slate-900/50 group"
                       onClick={() => {
                         setSelectedChassis(vehicle.chassisNumber);
                         setIsSelectorOpen(false);
