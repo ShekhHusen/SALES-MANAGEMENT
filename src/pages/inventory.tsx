@@ -46,6 +46,20 @@ export function Inventory() {
   const [purchaseDetails, setPurchaseDetails] = useState<Purchase | null>(null);
   const [saleDetails, setSaleDetails] = useState<Sale | null>(null);
 
+  const hasActiveFilters = search !== '' || filterStatus !== 'all' || filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all' || filterBluebook !== 'all' || filterNaamsari !== 'all' || sortField !== null;
+
+  const clearFilters = () => {
+    setSearch('');
+    setFilterStatus('all');
+    setFilterCompany('all');
+    setFilterModel('all');
+    setFilterColor('all');
+    setFilterBluebook('all');
+    setFilterNaamsari('all');
+    setSortField(null);
+    setSortOrder('asc');
+  };
+
   // New Vehicle Form State
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
@@ -305,6 +319,16 @@ export function Inventory() {
               <SelectItem value="sold">Sold Units</SelectItem>
             </SelectContent>
           </Select>
+          {hasActiveFilters && (
+            <Button 
+              variant="ghost" 
+              onClick={clearFilters}
+              className="h-10 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear Filters
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

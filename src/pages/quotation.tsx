@@ -10,8 +10,16 @@ import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { PdfTemplates } from '@/components/PdfTemplates';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useAuth } from '@/hooks/use-auth';
+import { Navigate } from 'react-router-dom';
 
 export function Quotation() {
+  const { userProfile } = useAuth();
+
+  if (userProfile?.role === 'sales_manager') {
+    return <Navigate to="/" replace />;
+  }
+
   const { sales: allSales, vehicles, parties, companies, models } = useGlobalData();
   const sales = allSales.filter(s => s.documentationCompleted);
   const customers = parties.filter(p => p.type === 'customer');

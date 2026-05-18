@@ -5,7 +5,7 @@ export async function logAction(
   userId: string,
   userEmail: string,
   action: 'CREATE' | 'UPDATE' | 'DELETE',
-  entityType: 'Vehicle' | 'Purchase' | 'Sale' | 'Document' | 'Party',
+  entityType: 'Vehicle' | 'Purchase' | 'Sale' | 'Document' | 'Party' | 'User',
   entityId: string,
   details: any
 ) {

@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from 'sonner';
 
-export type UserRole = 'admin' | 'sales_manager' | 'inventory_clerk';
+export type UserRole = 'admin' | 'sales_manager' | 'inventory_clerk' | 'pending';
 
 export interface UserProfile {
   uid: string;
@@ -39,17 +39,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
+            const data = userDoc.data() as UserProfile;
+            if (currentUser.email === 'husnailalam06@gmail.com' && data.role !== 'admin') {
+              data.role = 'admin';
+              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+            }
+            setUserProfile(data);
           } else {
             // Check if this is the first user (make them admin) or a subsequent user
             // In a real app we'd use a server to do this securely, but for now we'll 
             // make the first ever created user an admin, or just default to admin for simplicity in dev.
+            const newRole: UserRole = currentUser.email === 'husnailalam06@gmail.com' ? 'admin' : 'pending';
             const newProfile: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email,
               displayName: currentUser.displayName,
               photoURL: currentUser.photoURL,
-              role: 'admin', // Default to admin for easier testing. In production -> 'inventory_clerk'
+              role: newRole,
               createdAt: serverTimestamp(),
             };
             await setDoc(userDocRef, newProfile);

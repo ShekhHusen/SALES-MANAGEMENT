@@ -216,7 +216,8 @@ export const PdfTemplates = React.forwardRef(({ sale, vehicle, customer, company
                </div>
 
                <h4 className="font-bold underline mb-4 capitalize text-base">Note:</h4>
-               <div className="h-32 mb-10 border border-transparent rounded-lg bg-transparent p-4">
+               <div className="min-h-32 mb-10 whitespace-pre-line font-medium text-black">
+                 {details.notes || ''}
                </div>
 
                <h4 className="font-bold underline mb-16 capitalize text-base">Sign. & Chhap</h4>

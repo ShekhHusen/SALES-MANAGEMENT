@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { collection, query, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -26,7 +27,7 @@ type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function ProcessDocument() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { sales, parties, vehicles, companies, models } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
@@ -61,6 +62,7 @@ export function ProcessDocument() {
   const [batteryBrand, setBatteryBrand] = useState('');
   const [bluetoothId, setBluetoothId] = useState('');
   const [productId, setProductId] = useState('');
+  const [notes, setNotes] = useState('');
   const [noOfBattery, setNoOfBattery] = useState<number | ''>('');
   const [serialNumbers, setSerialNumbers] = useState<string[]>([]);
 
@@ -161,6 +163,7 @@ export function ProcessDocument() {
       setBatteryBrand(selectedSale.otherDetails?.batteryBrand ?? '');
       setBluetoothId(selectedSale.otherDetails?.bluetoothId ?? '');
       setProductId(selectedSale.otherDetails?.productId ?? '');
+      setNotes(selectedSale.otherDetails?.notes ?? '');
       setNoOfBattery(selectedSale.otherDetails?.noOfBattery ?? '');
       setSerialNumbers(selectedSale.otherDetails?.serialNumbers ?? []);
       setImages(selectedSale.otherDetails?.images ?? {});
@@ -215,6 +218,7 @@ export function ProcessDocument() {
           batteryBrand,
           bluetoothId,
           productId,
+          notes,
           noOfBattery,
           serialNumbers,
           images
@@ -245,6 +249,7 @@ export function ProcessDocument() {
       setBatteryBrand('');
       setBluetoothId('');
       setProductId('');
+      setNotes('');
       setNoOfBattery('');
       setSerialNumbers([]);
       setImages({});
@@ -422,6 +427,15 @@ export function ProcessDocument() {
                     value={grandFathersName} 
                     onChange={(e) => setGrandFathersName(e.target.value)}
                     className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                  />
+                </div>
+                <div className="space-y-3 md:col-span-2">
+                  <label className="text-sm font-bold text-slate-700">Notes (Printed on Quotation)</label>
+                  <Textarea 
+                    value={notes} 
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Enter any additional notes..."
+                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 min-h-[100px]"
                   />
                 </div>
               </div>
@@ -849,6 +863,10 @@ export function ProcessDocument() {
                     <p className="text-sm text-slate-500 font-medium">Grandfather's Name</p>
                     <p className="font-bold text-slate-900 dark:text-slate-100">{viewSale.otherDetails?.grandFathersName || '---'}</p>
                   </div>
+                  <div className="space-y-1 col-span-2">
+                    <p className="text-sm text-slate-500 font-medium">Notes</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 whitespace-pre-line">{viewSale.otherDetails?.notes || '---'}</p>
+                  </div>
                 </div>
 
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-4 flex items-center gap-2 mt-6">
@@ -953,7 +971,7 @@ export function ProcessDocument() {
               tempDetails={{
                 vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
                 engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
-                productId, noOfBattery, serialNumbers
+                productId, notes, noOfBattery, serialNumbers
               }}
             />
             <PdfTemplates
@@ -967,7 +985,7 @@ export function ProcessDocument() {
               tempDetails={{
                 vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
                 engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
-                productId, noOfBattery, serialNumbers
+                productId, notes, noOfBattery, serialNumbers
               }}
             />
           </>

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
-import { Plus, Search, UserPlus, Trash2, Download } from 'lucide-react';
+import { Plus, Search, UserPlus, Trash2, Download, ArrowUpDown } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -34,6 +34,8 @@ export function Parties() {
   const { parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,6 +133,26 @@ export function Parties() {
     const matchesType = filterType === 'all' || p.type === filterType;
     return matchesSearch && matchesType;
   });
+
+  if (sortField) {
+    filteredParties.sort((a, b) => {
+      let valA: any = a[sortField];
+      let valB: any = b[sortField];
+
+      if (sortField === 'createdAt') {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+
+      const strA = String(valA || '').toLowerCase();
+      const strB = String(valB || '').toLowerCase();
+      
+      if (strA < strB) return sortOrder === 'asc' ? -1 : 1;
+      if (strA > strB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
   const totalItems = filteredParties.length;
   const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
@@ -287,11 +309,66 @@ export function Parties() {
           <Table>
             <TableHeader>
                 <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
-                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Principal Identity</TableHead>
-                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-center">Classification</TableHead>
-                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Contact Line</TableHead>
-                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Registry Address</TableHead>
-                  <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Onboarding Date</TableHead>
+                    <TableHead className="py-2.5 px-6">
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                      onClick={() => {
+                        if (sortField === 'name') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        else { setSortField('name'); setSortOrder('asc'); }
+                      }}
+                    >
+                      Principal Identity
+                      <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'name' && "opacity-100 text-[#1a4731]")} />
+                    </div>
+                  </TableHead>
+                  <TableHead className="py-2.5 px-6 text-center">
+                    <div 
+                      className="flex items-center justify-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                      onClick={() => {
+                        if (sortField === 'type') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        else { setSortField('type'); setSortOrder('asc'); }
+                      }}
+                    >
+                      Classification
+                      <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'type' && "opacity-100 text-[#1a4731]")} />
+                    </div>
+                  </TableHead>
+                  <TableHead className="py-2.5 px-6">
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                      onClick={() => {
+                        if (sortField === 'contactNumber') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        else { setSortField('contactNumber'); setSortOrder('asc'); }
+                      }}
+                    >
+                      Contact Line
+                      <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'contactNumber' && "opacity-100 text-[#1a4731]")} />
+                    </div>
+                  </TableHead>
+                  <TableHead className="py-2.5 px-6">
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                      onClick={() => {
+                        if (sortField === 'address') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        else { setSortField('address'); setSortOrder('asc'); }
+                      }}
+                    >
+                      Registry Address
+                      <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'address' && "opacity-100 text-[#1a4731]")} />
+                    </div>
+                  </TableHead>
+                  <TableHead className="py-2.5 px-6">
+                    <div 
+                      className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
+                      onClick={() => {
+                        if (sortField === 'createdAt') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                        else { setSortField('createdAt'); setSortOrder('asc'); }
+                      }}
+                    >
+                      Onboarding Date
+                      <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'createdAt' && "opacity-100 text-[#1a4731]")} />
+                    </div>
+                  </TableHead>
                   <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
