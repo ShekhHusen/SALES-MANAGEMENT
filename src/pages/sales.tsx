@@ -655,7 +655,7 @@ export function Sales() {
                 const model = models.find(m => m.id === vehicle?.modelId);
 
                 return (
-                  <TableRow key={sale.id} className="hover:bg-slate-50/50 border-transparent divide-x divide-slate-100">
+                  <TableRow key={sale.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent divide-x divide-slate-100">
                     <TableCell className="px-4 py-2.5 text-center font-bold text-slate-500">{index + 1}</TableCell>
                     <TableCell className="px-4 py-2.5 font-bold text-slate-700">
                       {sale.date instanceof Timestamp 

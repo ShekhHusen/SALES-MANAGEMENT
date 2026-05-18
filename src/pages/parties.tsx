@@ -375,7 +375,7 @@ export function Parties() {
             <TableBody>
               {paginatedParties.length > 0 ? (
                 paginatedParties.map((party) => (
-                  <TableRow key={party.id} className="hover:bg-slate-50/40 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
+                  <TableRow key={party.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
                     <TableCell className="px-6 py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{party.name}</TableCell>
                     <TableCell className="px-6 py-2.5 text-center">
                       <span className={cn(

@@ -159,7 +159,7 @@ export function UserManagement() {
                   </TableRow>
                 ) : (
                   filteredUsers.map((u) => (
-                    <TableRow key={u.uid} className="hover:bg-slate-50/50">
+                    <TableRow key={u.uid} className="hover:bg-slate-200 dark:hover:bg-slate-800">
                       <TableCell className="px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
                         {u.displayName || 'Unknown'}
                       </TableCell>

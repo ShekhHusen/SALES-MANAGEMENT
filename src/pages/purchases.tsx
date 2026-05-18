@@ -457,7 +457,7 @@ export function Purchases() {
                 </TableHeader>
                 <TableBody>
                   {currentChassisEntries.map((entry, index) => (
-                    <TableRow key={index} className="hover:bg-slate-50/50 border-transparent">
+                    <TableRow key={index} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                       <TableCell className="px-6 py-2.5">
                         <div className="relative flex items-center">
                           <Input 
@@ -734,7 +734,7 @@ export function Purchases() {
                 const vehiclesForThisPurchase = allVehicles.filter(v => v.purchaseId === purchase.id || (purchase.chassisNumbers && purchase.chassisNumbers.includes(v.chassisNumber)));
 
                 return (
-                  <TableRow key={purchase.id} className="hover:bg-slate-50/50 border-transparent divide-x divide-slate-100">
+                  <TableRow key={purchase.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent divide-x divide-slate-100">
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-1">
                         <span className="font-black text-slate-900 dark:text-slate-100 uppercase">{vendor?.name || 'Unknown Vendor'}</span>

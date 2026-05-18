@@ -579,7 +579,7 @@ export function Inventory() {
                 const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
                 
                 return (
-                <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-50/40 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
+                <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
                   <TableCell className="px-6 py-2.5 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex flex-col">

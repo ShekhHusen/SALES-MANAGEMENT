@@ -276,7 +276,7 @@ export function AuditLog() {
                   </TableRow>
                 ) : (
                   filteredLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-slate-50/50">
+                    <TableRow key={log.id} className="hover:bg-slate-200 dark:hover:bg-slate-800">
                       <TableCell className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-600">
                         {log.timestamp?.toDate ? format(log.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A'}
                       </TableCell>

@@ -130,7 +130,7 @@ export function Settings() {
                 <TableBody>
                   {companies.length > 0 ? (
                     companies.map((company) => (
-                      <TableRow key={company.id} className="hover:bg-slate-50/30 border-transparent">
+                      <TableRow key={company.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                         <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{company.name}</TableCell>
                         <TableCell className="px-6 py-4 text-right">
                           <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
@@ -203,7 +203,7 @@ export function Settings() {
                 <TableBody>
                   {models.length > 0 ? (
                     models.map((model) => (
-                      <TableRow key={model.id} className="hover:bg-slate-50/30 border-transparent">
+                      <TableRow key={model.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                         <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{model.name}</TableCell>
                         <TableCell className="px-6 py-4">
                           <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black uppercase tracking-tight text-slate-500">
