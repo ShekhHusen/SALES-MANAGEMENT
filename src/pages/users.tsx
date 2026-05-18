@@ -105,13 +105,7 @@ export function UserManagement() {
   if (authLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" /></div>;
 
   if (userProfile?.role !== 'admin') {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center h-[50vh]">
-        <ShieldAlert className="w-16 h-16 text-red-500 mb-4" />
-        <h2 className="text-2xl font-black text-slate-800">Access Denied</h2>
-        <p className="text-slate-500 font-medium">You need Administrator privileges to view this page.</p>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   return (
