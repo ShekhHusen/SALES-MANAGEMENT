@@ -13,6 +13,7 @@ import { Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { ImportData } from '@/components/ImportData';
 import { ExportData } from '@/components/ExportData';
+import { BackupRestore } from '@/components/BackupRestore';
 
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
@@ -251,6 +252,7 @@ export function Settings() {
 
       <ImportData />
       <ExportData />
+      <BackupRestore />
 
       {/* Danger Zone */}
       <Card className="shadow-sm border-red-200 dark:border-red-900 rounded-xl overflow-hidden mt-8">
