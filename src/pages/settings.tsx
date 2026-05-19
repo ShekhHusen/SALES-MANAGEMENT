@@ -282,7 +282,7 @@ export function Settings() {
                         const chassis = d.data().chassisNumber;
                         if (chassis) {
                           try {
-                            await handleFirestoreError(OperationType.UPDATE, updateDoc(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null }));
+                            await updateDoc(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
                           } catch(e) {} // ignore if vehicle doesn't exist
                         }
                         await deleteDoc(d.ref);
