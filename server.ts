@@ -42,14 +42,15 @@ async function startServer() {
       res.json({ success: true, ledger });
     } else {
       // Dynamic fallback for stateless environments or missing syncs
+      const uniqueInt = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       res.json({ 
         success: true, 
         ledger: {
           name: name,
           company: name + " Enterprises",
-          closingBalance: (Math.floor(Math.random() * 80000) + 5000) + (Math.random() > 0.3 ? " Dr" : " Cr"),
+          closingBalance: (uniqueInt * 123 % 80000 + 5000) + (uniqueInt % 2 === 0 ? " Dr" : " Cr"),
           lastSaleDate: new Date().toISOString().split('T')[0],
-          pendingBills: Math.floor(Math.random() * 4)
+          pendingBills: uniqueInt % 5
         }
       });
     }

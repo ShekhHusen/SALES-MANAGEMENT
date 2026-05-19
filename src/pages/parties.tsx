@@ -23,6 +23,7 @@ const partySchema = z.object({
   address: z.string().min(2, 'Address is required'),
   contactNumber: z.string().min(7, 'Invalid contact number'),
   type: z.enum(['vendor', 'customer']),
+  tallyLedgerName: z.string().optional(),
 });
 
 type PartyFormValues = z.infer<typeof partySchema>;
@@ -53,8 +54,12 @@ export function Parties() {
     setLoadingTally(party.id);
     setTallyLedgerData(null);
     setIsTallyDialogOpen(true);
+    
+    // Explicitly fallback to party.name if tallyLedgerName is not provided or empty
+    const lookupName = party.tallyLedgerName?.trim() ? party.tallyLedgerName.trim() : party.name.trim();
+
     try {
-      const response = await fetch(`/api/tally/ledger?name=${encodeURIComponent(party.name)}`);
+      const response = await fetch(`/api/tally/ledger?name=${encodeURIComponent(lookupName)}`);
       const data = await response.json();
       if (data.success && data.ledger) {
         setTallyLedgerData(data.ledger);
@@ -74,6 +79,7 @@ export function Parties() {
       address: '',
       contactNumber: '',
       type: 'customer',
+      tallyLedgerName: '',
     },
   });
 
@@ -84,6 +90,7 @@ export function Parties() {
         address: editingParty.address,
         contactNumber: editingParty.contactNumber,
         type: editingParty.type,
+        tallyLedgerName: editingParty.tallyLedgerName || '',
       });
     } else {
       form.reset({
@@ -91,6 +98,7 @@ export function Parties() {
         address: '',
         contactNumber: '',
         type: 'customer',
+        tallyLedgerName: '',
       });
     }
   }, [editingParty]);
@@ -283,6 +291,17 @@ export function Parties() {
                     <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.address && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.address.message}</p>}
                   </div>
+
+                  {form.watch('type') === 'customer' && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
+                        <Database className="w-3 h-3" /> Linked Tally Ledger Name (Optional)
+                      </label>
+                      <Input {...form.register('tallyLedgerName')} placeholder="Exact name in Tally Prime (e.g. Rahul Enterprises)" className="h-11 rounded-lg border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/10 dark:border-emerald-900 focus:bg-white focus:border-emerald-500" />
+                      <p className="text-[10px] font-medium text-slate-500">Leave empty to use the Legal Name above.</p>
+                      {form.formState.errors.tallyLedgerName && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.tallyLedgerName.message}</p>}
+                    </div>
+                  )}
                 </div>
               </div>
               
