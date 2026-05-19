@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function ProcessDocument() {
+  const location = useLocation();
   const { user, userProfile } = useAuth();
   const { sales, parties, vehicles, companies, models } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
@@ -76,11 +78,7 @@ export function ProcessDocument() {
     if (!templateRef.current || !templateRef.current.printRef1.current) return;
     setIsGeneratingPdf(true);
     try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
 
       const scaleConfig = { 
@@ -111,6 +109,67 @@ export function ProcessDocument() {
     }
   };
 
+  const handleDownloadCitizenshipA4 = () => {
+    const frontImg = images['citizenship_front'];
+    const backImg = images['citizenship_back'];
+
+    if (!frontImg && !backImg) {
+      toast.error('Please upload at least Citizenship Front or Back');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    try {
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'in',
+        format: [11.69, 8.27]
+      });
+
+      // A4 Size: 11.69 x 8.27 inches
+      const w = 4.5;
+      const h = 2.8;
+      
+      const x1 = 0.5;
+      const x2 = 11.69 - w - 0.5;
+  
+      const y1 = 1.5;
+      const y2 = 4.5;
+
+      if (frontImg) {
+        pdf.addImage(frontImg, 'JPEG', x1, y1, w, h);
+        pdf.addImage(frontImg, 'JPEG', x2, y1, w, h);
+      }
+      
+      if (backImg) {
+        pdf.addImage(backImg, 'JPEG', x1, y2, w, h);
+        pdf.addImage(backImg, 'JPEG', x2, y2, w, h);
+      }
+
+      pdf.save(`Citizenship-A4-${selectedSale?.chassisNumber || 'Document'}.pdf`);
+      toast.success('Citizenship A4 generated successfully!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate Citizenship A4 PDF');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  useEffect(() => {
+    if (location.state && location.state.saleId) {
+      const saleId = location.state.saleId;
+      const tSale = sales.find(s => s.id === saleId);
+      if (tSale) {
+        setSelectedSale(tSale);
+        if (location.state.tab === 'others_details') {
+          setActiveTab('others_details');
+          setUnlockedTabs(prev => ({ ...prev, others_details: true }));
+        }
+      }
+    }
+  }, [location.state, sales]);
+
   useEffect(() => {
     if (vehiclePrice !== '' && paidAmount !== '') {
       setDuesAmount(Number(vehiclePrice) - Number(paidAmount));
@@ -132,6 +191,8 @@ export function ProcessDocument() {
     }
   }, [noOfBattery]);
   
+  const [showCrossCheckModal, setShowCrossCheckModal] = useState(false);
+
   // Form State for Documents (Mocked since Firebase Storage is skipped)
   const [images, setImages] = useState<Record<string, string>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -190,11 +251,16 @@ export function ProcessDocument() {
       setUnlockedTabs(prev => ({ ...prev, others_details: true }));
       setActiveTab('others_details');
     } else if (activeTab === 'others_details') {
-      setUnlockedTabs(prev => ({ ...prev, documents: true }));
-      setActiveTab('documents');
+      setShowCrossCheckModal(true);
     } else if (activeTab === 'documents') {
       handleComplete();
     }
+  };
+
+  const handleConfirmCrossCheck = () => {
+    setShowCrossCheckModal(false);
+    setUnlockedTabs(prev => ({ ...prev, documents: true }));
+    setActiveTab('documents');
   };
 
   const handleComplete = async () => {
@@ -517,9 +583,43 @@ export function ProcessDocument() {
 
         {activeTab === 'documents' && (
           <div className="p-8 space-y-6 overflow-y-auto h-full">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2">Upload Documents</h2>
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Upload Documents</h2>
+              <div className="flex gap-2">
+                 <Button 
+                   onClick={() => handleDownloadPDF('quotation', selectedSale!)}
+                   disabled={isGeneratingPdf}
+                   variant="outline"
+                   size="sm"
+                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                 >
+                   <Download className="w-4 h-4 mr-1" />
+                   {isGeneratingPdf ? 'Wait...' : 'Quotation'}
+                 </Button>
+                 <Button 
+                   onClick={() => handleDownloadPDF('traffic', selectedSale!)}
+                   disabled={isGeneratingPdf}
+                   variant="outline"
+                   size="sm"
+                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                 >
+                   <Download className="w-4 h-4 mr-1" />
+                   {isGeneratingPdf ? 'Wait...' : 'Traffic Letter'}
+                 </Button>
+                 <Button 
+                   onClick={handleDownloadCitizenshipA4}
+                   disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
+                   variant="outline"
+                   size="sm"
+                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                 >
+                   <Download className="w-4 h-4 mr-1" />
+                   {isGeneratingPdf ? 'Wait...' : 'Citizenship A4'}
+                 </Button>
+              </div>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo'].map((docName) => {
+              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
                   <div key={docName} className="relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group overflow-hidden">
@@ -616,27 +716,7 @@ export function ProcessDocument() {
               })}
             </div>
             
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mt-8">Generate Documents</h2>
-            <div className="flex gap-4">
-               <Button 
-                 onClick={() => handleDownloadPDF('quotation', selectedSale!)}
-                 disabled={isGeneratingPdf}
-                 variant="outline"
-                 className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 h-14 px-6 text-base font-bold"
-               >
-                 <Download className="w-5 h-5 mr-2" />
-                 {isGeneratingPdf ? 'Generating...' : 'Download Quotation'}
-               </Button>
-               <Button 
-                 onClick={() => handleDownloadPDF('traffic', selectedSale!)}
-                 disabled={isGeneratingPdf}
-                 variant="outline"
-                 className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 h-14 px-6 text-base font-bold"
-               >
-                 <Download className="w-5 h-5 mr-2" />
-                 {isGeneratingPdf ? 'Generating...' : 'Download Traffic Letter'}
-               </Button>
-            </div>
+            {/* Generate Documents buttons moved to header */}
           </div>
         )}
 
@@ -915,7 +995,7 @@ export function ProcessDocument() {
                   <ImageIcon className="w-5 h-5 text-slate-500" /> Documents
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo'].map((docName) => {
+                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                     const docKey = docName.toLowerCase().replace(/ /g, '_');
                     const hasImage = viewSale.otherDetails?.images?.[docKey];
                     return (
@@ -952,6 +1032,80 @@ export function ProcessDocument() {
             {previewImage && (
               <img src={previewImage} alt="Preview" className="max-w-full max-h-[90vh] object-contain" />
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cross Check Dialog */}
+      <Dialog open={showCrossCheckModal} onOpenChange={setShowCrossCheckModal}>
+        <DialogContent className="sm:max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900 border-b pb-2">Cross Check Form Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-2">
+              <p className="font-bold text-slate-700 underline text-sm uppercase">Financial Details</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="font-medium text-slate-500">Vehicle Price:</span>
+                <span className="font-bold text-slate-900">{vehiclePrice || '---'}</span>
+                
+                <span className="font-medium text-slate-500">Paid Amount:</span>
+                <span className="font-bold text-emerald-600">{paidAmount || '---'}</span>
+                
+                <span className="font-medium text-slate-500">Dues Amount:</span>
+                <span className="font-bold text-rose-600">{duesAmount || '---'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="font-bold text-slate-700 underline text-sm uppercase mt-4">Personal Details</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="font-medium text-slate-500">Father's Name:</span>
+                <span className="font-bold text-slate-900">{fathersName || '---'}</span>
+
+                <span className="font-medium text-slate-500">Grandfather's Name:</span>
+                <span className="font-bold text-slate-900">{grandFathersName || '---'}</span>
+
+                <span className="font-medium text-slate-500">Alt Contact Number:</span>
+                <span className="font-bold text-slate-900">{customerAltNumber || '---'}</span>
+
+                <span className="font-medium text-slate-500">Citizenship No:</span>
+                <span className="font-bold text-slate-900">{citizenshipNumber || '---'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="font-bold text-slate-700 underline text-sm uppercase mt-4">Battery Information</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="font-medium text-slate-500">Battery Type:</span>
+                <span className="font-bold text-slate-900">{batteryType || '---'}</span>
+
+                <span className="font-medium text-slate-500">No. of Battery:</span>
+                <span className="font-bold text-slate-900">{noOfBattery || '---'}</span>
+              </div>
+              
+              {serialNumbers.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium text-slate-500 text-sm">Serial Numbers:</span>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {serialNumbers.map((sn, idx) => (
+                      <span key={idx} className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs font-mono text-slate-700 dark:text-slate-300">
+                        {sn || 'N/A'}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowCrossCheckModal(false)}>Edit Details</Button>
+            <Button 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              onClick={handleConfirmCrossCheck}
+            >
+              Confirm and Proceed to Documents
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
@@ -36,6 +37,7 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
+  const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
@@ -48,6 +50,8 @@ export function Sales() {
   
   const [selectedChassis, setSelectedChassis] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [editColor, setEditColor] = useState('');
   
@@ -71,6 +75,7 @@ export function Sales() {
   const [chassisFilter, setChassisFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // Naamsari
   const [bluebookFilter, setBluebookFilter] = useState('ALL');
+  const [successModalData, setSuccessModalData] = useState<{fileNumber: number, customerName: string, saleId: string, chassisNumber: string} | null>(null);
   const [activePopover, setActivePopover] = useState<string | null>(null);
 
   // Pagination State
@@ -289,6 +294,14 @@ export function Sales() {
         });
       }
 
+      const cName = customers.find(c => c.id === selectedCustomer)?.name || 'Unknown';
+      setSuccessModalData({
+        fileNumber: nextFileNumber,
+        customerName: cName,
+        saleId: saleRef.id,
+        chassisNumber: selectedChassis,
+      });
+
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
       
       // Reset
@@ -426,21 +439,50 @@ export function Sales() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
                   <div className="flex gap-2 items-center">
-                    <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                      <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
-                        <SelectValue placeholder="Identify Registered Party" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
-                        {customers.map(c => (
-                          <SelectItem key={c.id} value={c.id} className="py-3">
-                             <div className="flex flex-col">
-                                <span className="font-bold text-sm">{c.name}</span>
+                    <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="justify-start text-left font-bold rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 transition-all h-12 flex-1 hover:bg-white dark:hover:bg-slate-900 overflow-hidden">
+                          <div className="flex flex-col truncate w-full pt-1">
+                            {selectedCustomer ? (
+                              <>
+                                <span className="font-bold text-sm truncate">{customers.find(c => c.id === selectedCustomer)?.name || 'Unknown'}</span>
+                                <span className="text-[10px] uppercase font-black text-slate-400 tracking-tight truncate">{customers.find(c => c.id === selectedCustomer)?.contactNumber}</span>
+                              </>
+                            ) : (
+                              <span className="text-slate-500 font-normal">Identify Registered Party</span>
+                            )}
+                          </div>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-2 border-slate-200 dark:border-slate-800 rounded-xl" align="start">
+                        <input
+                          placeholder="Search customer..."
+                          className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-3 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={customerSearchQuery}
+                          onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                        />
+                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                          {customers.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || c.contactNumber.includes(customerSearchQuery)).length === 0 ? (
+                            <p className="text-sm p-4 text-center text-slate-500 font-bold">No customer found.</p>
+                          ) : (
+                            customers.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || c.contactNumber.includes(customerSearchQuery)).map(c => (
+                              <div
+                                key={c.id}
+                                className={`flex flex-col px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedCustomer === c.id ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                                onClick={() => {
+                                  setSelectedCustomer(c.id);
+                                  setCustomerPopoverOpen(false);
+                                  setCustomerSearchQuery('');
+                                }}
+                              >
+                                <span className="font-bold text-sm truncate">{c.name}</span>
                                 <span className="text-[10px] uppercase font-black text-slate-400 tracking-tight">{c.contactNumber}</span>
-                             </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <div className="flex-shrink-0">
                       <QuickAddParty type="customer" onAdded={setSelectedCustomer} />
                     </div>
@@ -878,6 +920,38 @@ export function Sales() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Modal */}
+      <Dialog open={!!successModalData} onOpenChange={(open) => !open && setSuccessModalData(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+             <DialogTitle className="text-xl font-black text-emerald-600 flex items-center gap-2">
+               <Check className="w-5 h-5" /> Sale Finalized
+             </DialogTitle>
+          </DialogHeader>
+          {successModalData && (
+            <div className="space-y-4 py-4">
+              <div className="bg-slate-50 border p-4 rounded-xl space-y-2">
+                 <p className="font-bold text-slate-800">You have created file number: <span className="text-xl text-emerald-600">{successModalData.fileNumber}</span></p>
+                 <p className="text-sm font-medium text-slate-600">Customer: {successModalData.customerName}</p>
+                 <p className="text-sm font-medium text-slate-600">Chassis Number: {successModalData.chassisNumber}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 mt-2">
+             <Button variant="outline" onClick={() => setSuccessModalData(null)}>Close</Button>
+             <Button 
+               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+               onClick={() => {
+                 navigate('/process-document', { state: { saleId: successModalData?.saleId, tab: 'others_details' } });
+                 setSuccessModalData(null);
+               }}
+             >
+               Proceed to Document Process
+             </Button>
           </div>
         </DialogContent>
       </Dialog>
