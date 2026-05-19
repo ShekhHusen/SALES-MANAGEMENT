@@ -312,8 +312,13 @@ export function Settings() {
                   if (window.confirm("Are you sure you want to clear purchases? Purchases having sold vehicles will be skipped.")) {
                     try {
                       const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                      const salesSnap = await getDocs(query(collection(db, 'sales')));
                       const vehSnap = await getDocs(query(collection(db, 'vehicles')));
-                      const soldChassis = new Set(vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber));
+                      
+                      const soldChassis = new Set([
+                        ...vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber),
+                        ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                      ]);
                       
                       let deleted = 0;
                       let skipped = 0;
@@ -348,27 +353,40 @@ export function Settings() {
               <div>
                 <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Inventory (Vehicles)</h4>
                 <p className="text-sm text-slate-500 mt-1">
-                  Deletes all inventory. Sold vehicles will be skipped.
+                  Deletes all inventory not linked to any purchase or sale.
                 </p>
               </div>
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear all in-stock inventory? Sold vehicles will be preserved.")) {
+                  if (window.confirm("Are you sure you want to clear standalone inventory? Vehicles linked to purchases or sales will be preserved.")) {
                     try {
                       const vehSnap = await getDocs(query(collection(db, 'vehicles')));
+                      const salesSnap = await getDocs(query(collection(db, 'sales')));
+                      const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                      
+                      const usedChassis = new Set([
+                        ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                      ]);
+                      
+                      for (const p of purchSnap.docs) {
+                        const arr = p.data().chassisNumbers || [];
+                        for (const c of arr) if (c) usedChassis.add(c);
+                      }
+
                       let deleted = 0;
                       let skipped = 0;
                       for (const d of vehSnap.docs) {
-                        if (d.data().status === 'sold' || d.data().saleId) {
+                        const data = d.data();
+                        if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
                           skipped++;
                         } else {
                           await deleteDoc(d.ref);
                           deleted++;
                         }
                       }
-                      toast.success(`Cleared ${deleted} vehicles. Skipped ${skipped} sold vehicles.`);
+                      toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
                     } catch (err) {
                       toast.error('Failed to clear inventory.');
                     }
