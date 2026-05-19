@@ -71,7 +71,7 @@ export function ImportData() {
       try {
         setIsUploading(true);
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
@@ -244,9 +244,13 @@ export function ImportData() {
           const dateStr = row['Date (YYYY-MM-DD)'];
           let date = Timestamp.now();
           if (dateStr) {
-             const parsed = new Date(dateStr);
-             if (!isNaN(parsed.getTime())) {
-               date = Timestamp.fromDate(parsed);
+             if (dateStr instanceof Date) {
+               date = Timestamp.fromDate(dateStr);
+             } else {
+               const parsed = new Date(dateStr);
+               if (!isNaN(parsed.getTime())) {
+                 date = Timestamp.fromDate(parsed);
+               }
              }
           }
 
@@ -319,9 +323,13 @@ export function ImportData() {
            const dateStr = row['Date (YYYY-MM-DD)'];
            let date = Timestamp.now();
            if (dateStr) {
-              const parsed = new Date(dateStr);
-              if (!isNaN(parsed.getTime())) {
-                date = Timestamp.fromDate(parsed);
+              if (dateStr instanceof Date) {
+                date = Timestamp.fromDate(dateStr);
+              } else {
+                const parsed = new Date(dateStr);
+                if (!isNaN(parsed.getTime())) {
+                  date = Timestamp.fromDate(parsed);
+                }
               }
            }
 
