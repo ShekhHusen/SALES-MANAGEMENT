@@ -19,7 +19,7 @@ const https = require('https');
 // Configuration
 const TALLY_URL = 'http://localhost:9000'; // Default Tally Port
 // Change this to your live applet URL where you want to sync the data:
-const APP_SYNC_URL = 'https://ais-pre-nuz5zjin6ffrrk7npnltt5-775513762626.asia-southeast1.run.app/api/tally/sync'; 
+const APP_SYNC_URL = 'https://sales-management-nu.vercel.app/api/tally/sync'; 
 const SYNC_INTERVAL_MS = 60000; // Sync every 1 minute
 
 console.log("==========================================");
