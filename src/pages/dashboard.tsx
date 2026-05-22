@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Vehicle, Purchase, Sale, Company, Model } from '@/types';
@@ -17,7 +16,6 @@ import {
   Cell,
   LineChart,
   Line,
-  Legend
 } from 'recharts';
 import { 
   Car, 
@@ -30,6 +28,7 @@ import {
   FileText,
   UserCheck
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
@@ -77,7 +76,7 @@ export function Dashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dashboard Overview</h1>
         <p className="text-sm text-slate-500 font-medium active:text-slate-600 transition-colors cursor-default">
-          Comprehensive summary of vehicle inventory and document workflow.
+          Comprehensive summary of vehicle inventory, document workflow, and recent Tally Daybook entries.
         </p>
       </div>
 

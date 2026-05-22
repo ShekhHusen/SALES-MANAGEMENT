@@ -23,7 +23,6 @@ const partySchema = z.object({
   address: z.string().min(2, 'Address is required'),
   contactNumber: z.string().min(7, 'Invalid contact number'),
   type: z.enum(['vendor', 'customer']),
-  tallyLedgerName: z.string().optional(),
 });
 
 type PartyFormValues = z.infer<typeof partySchema>;
@@ -44,33 +43,6 @@ export function Parties() {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
-  
-  // Tally Sync States
-  const [tallyLedgerData, setTallyLedgerData] = useState<any>(null);
-  const [isTallyDialogOpen, setIsTallyDialogOpen] = useState(false);
-  const [loadingTally, setLoadingTally] = useState('');
-
-  const handleViewTallyLedger = async (party: Party) => {
-    setLoadingTally(party.id);
-    setTallyLedgerData(null);
-    setIsTallyDialogOpen(true);
-    
-    // Explicitly fallback to party.name if tallyLedgerName is not provided or empty
-    const lookupName = party.tallyLedgerName?.trim() ? party.tallyLedgerName.trim() : party.name.trim();
-
-    try {
-      const response = await fetch(`/api/tally/ledger?name=${encodeURIComponent(lookupName)}`);
-      const data = await response.json();
-      if (data.success && data.ledger) {
-        setTallyLedgerData(data.ledger);
-      } else {
-        setTallyLedgerData({ notFound: true, message: data.suggestion || "Ensure local tally-connector script is running." });
-      }
-    } catch (e) {
-      setTallyLedgerData({ notFound: true, message: "Server connection failed." });
-    }
-    setLoadingTally('');
-  };
 
   const form = useForm<PartyFormValues>({
     resolver: zodResolver(partySchema),
@@ -79,7 +51,6 @@ export function Parties() {
       address: '',
       contactNumber: '',
       type: 'customer',
-      tallyLedgerName: '',
     },
   });
 
@@ -90,7 +61,6 @@ export function Parties() {
         address: editingParty.address,
         contactNumber: editingParty.contactNumber,
         type: editingParty.type,
-        tallyLedgerName: editingParty.tallyLedgerName || '',
       });
     } else {
       form.reset({
@@ -98,7 +68,6 @@ export function Parties() {
         address: '',
         contactNumber: '',
         type: 'customer',
-        tallyLedgerName: '',
       });
     }
   }, [editingParty]);
@@ -291,17 +260,6 @@ export function Parties() {
                     <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.address && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.address.message}</p>}
                   </div>
-
-                  {form.watch('type') === 'customer' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
-                        <Database className="w-3 h-3" /> Linked Tally Ledger Name (Optional)
-                      </label>
-                      <Input {...form.register('tallyLedgerName')} placeholder="Exact name in Tally Prime (e.g. Rahul Enterprises)" className="h-11 rounded-lg border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/10 dark:border-emerald-900 focus:bg-white focus:border-emerald-500" />
-                      <p className="text-[10px] font-medium text-slate-500">Leave empty to use the Legal Name above.</p>
-                      {form.formState.errors.tallyLedgerName && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.tallyLedgerName.message}</p>}
-                    </div>
-                  )}
                 </div>
               </div>
               
@@ -436,17 +394,6 @@ export function Parties() {
                     </TableCell>
                     <TableCell className="px-6 py-2.5 text-right">
                       <div className="flex justify-end gap-2">
-                        {party.type === 'customer' && (
-                          <Button
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            onClick={() => handleViewTallyLedger(party)}
-                            title="Tally Prime Sync"
-                          >
-                            {loadingTally === party.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                          </Button>
-                        )}
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -510,60 +457,6 @@ export function Parties() {
             <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeleteParty}>
               Confirm Delete
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isTallyDialogOpen} onOpenChange={setIsTallyDialogOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl overflow-hidden p-0 border-none">
-          <div className="bg-emerald-900 p-6 flex items-center justify-between">
-            <div className="flex flex-col">
-              <h3 className="text-xl font-black text-white flex items-center gap-2">
-                <Database className="w-5 h-5 text-emerald-400" /> Tally Prime Data
-              </h3>
-              <p className="text-emerald-200/80 text-xs font-bold uppercase tracking-widest mt-1">Real-time sync connector</p>
-            </div>
-          </div>
-          <div className="p-6 bg-slate-50 dark:bg-slate-900">
-            {tallyLedgerData?.notFound ? (
-              <div className="text-center py-6">
-                <div className="bg-amber-100 text-amber-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                  <Database className="w-6 h-6" />
-                </div>
-                <h4 className="text-slate-800 dark:text-white font-bold text-lg mb-1">Ledger Not Found</h4>
-                <p className="text-slate-500 font-medium text-sm max-w-[260px] mx-auto leading-relaxed">{tallyLedgerData.message}</p>
-                <div className="mt-4 p-3 bg-slate-200/50 dark:bg-slate-800 rounded-lg text-left">
-                  <p className="text-xs font-black uppercase text-slate-500 mb-1">How to fix:</p>
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Run the custom Tally connector script on your local PC: <br/><code className="bg-slate-300 dark:bg-slate-700 px-1 py-0.5 rounded text-blue-600 dark:text-blue-400 mt-1 inline-block">node scripts/tally-connector.js</code></p>
-                </div>
-              </div>
-            ) : tallyLedgerData ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Ledger Name</p>
-                    <p className="font-extrabold text-slate-800 dark:text-slate-200">{tallyLedgerData.name}</p>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Outstanding Balance</p>
-                    <p className={cn("font-extrabold text-xl", (tallyLedgerData.closingBalance || '').includes('Dr') ? "text-red-500" : "text-emerald-500")}>
-                      {tallyLedgerData.closingBalance || '0.00'}
-                    </p>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Business</p>
-                    <p className="font-extrabold text-slate-800 dark:text-slate-200">{tallyLedgerData.company || 'N/A'}</p>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Last Sale</p>
-                    <p className="font-extrabold text-slate-800 dark:text-slate-200">{tallyLedgerData.lastSaleDate || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="mt-6 flex justify-end">
-                   <Button onClick={() => setIsTallyDialogOpen(false)} variant="outline" className="font-bold">Close</Button>
-                </div>
-              </div>
-            ) : null}
           </div>
         </DialogContent>
       </Dialog>

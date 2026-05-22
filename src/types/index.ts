@@ -22,7 +22,6 @@ export interface Party {
   address: string;
   contactNumber: string;
   type: PartyType;
-  tallyLedgerName?: string;
   createdAt: Timestamp;
 }
 

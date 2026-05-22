@@ -9,8 +9,8 @@ import {
   Settings as SettingsIcon,
   Sun,
   Moon,
-  Menu,
   X,
+  Menu,
   LogOut,
   ActivitySquare,
   FileText,
@@ -25,6 +25,8 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Daybook', icon: FileText, path: '/daybook', roles: ['admin', 'sales_manager'] },
+  { label: 'Accounts', icon: ActivitySquare, path: '/accounts', roles: ['admin', 'sales_manager'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
@@ -79,17 +81,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden" 
+          className="fixed inset-0 z-40 bg-black/50 lg:bg-transparent" 
           onClick={toggleSidebar}
         />
       )}
 
+      {/* Left Edge Hover Trigger */}
+      {!sidebarOpen && (
+        <div 
+          className="fixed inset-y-0 left-0 w-6 z-40" 
+          onMouseEnter={() => setSidebarOpen(true)}
+          onTouchStart={() => setSidebarOpen(true)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F172A] text-slate-400 transition-transform duration-300 outline-none flex flex-col shadow-2xl",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:-translate-x-full lg:hover:translate-x-0",
-        "lg:after:content-[''] lg:after:absolute lg:after:top-0 lg:after:-right-8 lg:after:w-8 lg:after:h-full lg:after:bg-transparent lg:after:cursor-pointer"
+      <aside 
+        onMouseLeave={() => {
+          if (window.innerWidth >= 1024) setSidebarOpen(false);
+        }}
+        className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F172A] text-slate-400 transition-transform duration-300 outline-none flex flex-col shadow-2xl lg:shadow-none lg:border-r lg:border-slate-800",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full py-6">
           <div className="px-6 pb-8 flex items-center justify-between">
@@ -157,9 +170,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Floating Menu & Theme Controls */}
         <div className="fixed top-4 left-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-          <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8 rounded-xl" onClick={toggleSidebar}>
-            <Menu className="h-4 w-4" />
-          </Button>
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
               variant="ghost" 
