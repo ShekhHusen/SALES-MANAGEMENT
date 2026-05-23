@@ -76,7 +76,7 @@ export function Dashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dashboard Overview</h1>
         <p className="text-sm text-slate-500 font-medium active:text-slate-600 transition-colors cursor-default">
-          Comprehensive summary of vehicle inventory, document workflow, and recent Tally Daybook entries.
+          Comprehensive summary of vehicle inventory, document workflow, and recent system activities.
         </p>
       </div>
 

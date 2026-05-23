@@ -7,8 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Layout } from '@/components/layout';
 import { Dashboard } from '@/pages/dashboard';
-import { Daybook } from '@/pages/daybook';
-import { Accounts } from '@/pages/accounts';
 import { Inventory } from '@/pages/inventory';
 import { Parties } from '@/pages/parties';
 import { Purchases } from '@/pages/purchases';
@@ -88,8 +86,6 @@ function AppRoutes() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/daybook" element={<Daybook />} />
-          <Route path="/accounts" element={<Accounts />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/parties" element={<Parties />} />
           <Route path="/purchases" element={<Purchases />} />

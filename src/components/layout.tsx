@@ -25,8 +25,6 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { label: 'Daybook', icon: FileText, path: '/daybook', roles: ['admin', 'sales_manager'] },
-  { label: 'Accounts', icon: ActivitySquare, path: '/accounts', roles: ['admin', 'sales_manager'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
