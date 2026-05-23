@@ -170,6 +170,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Floating Menu & Theme Controls */}
         <div className="fixed top-4 left-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden h-8 w-8 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            onClick={toggleSidebar}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
               variant="ghost" 
