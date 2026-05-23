@@ -74,10 +74,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dashboard Overview</h1>
-        <p className="text-sm text-slate-500 font-medium active:text-slate-600 transition-colors cursor-default">
-          Comprehensive summary of vehicle inventory, document workflow, and recent system activities.
-        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
       </div>
 
       {/* Stats Grid */}
@@ -155,7 +152,6 @@ export function Dashboard() {
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution</CardTitle>
-            <CardDescription className="text-xs">Inventory split by manufacturer</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -184,7 +180,6 @@ export function Dashboard() {
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Monthly Performance Trend</CardTitle>
-            <CardDescription className="text-xs">Visualizing unit movement over time</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -219,7 +214,6 @@ export function Dashboard() {
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models In-stock</CardTitle>
-            <CardDescription className="text-xs">Inventory density by vehicle model</CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">

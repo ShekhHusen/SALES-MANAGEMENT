@@ -340,7 +340,6 @@ export function Sales() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Sales Desk</h1>
-          <p className="text-sm text-slate-500 font-medium">Coordinate vehicle sales, execute documentation, and finalize registries.</p>
         </div>
         <Button 
           onClick={handleSaveSale} 
@@ -533,7 +532,6 @@ export function Sales() {
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Sales History</CardTitle>
-            <CardDescription>Detailed overview of all vehicle sales transactions.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (

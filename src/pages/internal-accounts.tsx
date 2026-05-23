@@ -290,39 +290,38 @@ export function InternalAccounts() {
     }, [statementOpening, statementTransactions]);
 
     return (
-        <div className="flex flex-col gap-4 h-full p-4 overflow-hidden">
+        <div className="flex flex-col gap-6 h-full p-4 md:p-6 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Internal Accounts</h1>
-                    <p className="text-sm text-slate-500 font-medium">Manage opening balances and internal transactions</p>
+                    <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 drop-shadow-sm">Internal Accounts</h1>
                 </div>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <TabsList className="w-fit">
-                    <TabsTrigger value="opening">Account Opening</TabsTrigger>
-                    <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                    <TabsTrigger value="statement">Account Statement</TabsTrigger>
+                <TabsList className="w-fit bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 p-1 rounded-xl shadow-sm">
+                    <TabsTrigger value="opening" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Opening</TabsTrigger>
+                    <TabsTrigger value="transactions" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Transactions</TabsTrigger>
+                    <TabsTrigger value="statement" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Statement</TabsTrigger>
                 </TabsList>
 
                 {/* --- ACCOUNT OPENING --- */}
-                <TabsContent value="opening" className="flex-1 mt-4 flex flex-col min-h-0">
-                    <Card className="flex-1 flex flex-col min-h-0">
-                        <CardHeader className="flex flex-row items-center justify-between pb-4">
-                            <CardTitle>Opening Balances</CardTitle>
-                            <div className="flex items-center gap-2">
-                                <Button onClick={downloadOpeningTemplate} variant="outline" size="sm" className="h-9">
-                                    <Download className="w-4 h-4 mr-2" />
+                <TabsContent value="opening" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Opening Balances</CardTitle>
+                            <div className="flex items-center gap-3">
+                                <Button onClick={downloadOpeningTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                                    <Download className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                                     Template
                                 </Button>
-                                <label className="cursor-pointer h-9 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 rounded-md text-sm font-medium flex items-center gap-2 hover:opacity-90">
+                                <label className="cursor-pointer h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0.5">
                                     <FileSpreadsheet className="w-4 h-4" />
                                     Import Excel
                                     <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportOpenings} />
                                 </label>
                             </div>
                         </CardHeader>
-                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden">
+                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
@@ -376,23 +375,23 @@ export function InternalAccounts() {
                 </TabsContent>
 
                 {/* --- TRANSACTIONS --- */}
-                <TabsContent value="transactions" className="flex-1 mt-4 flex flex-col min-h-0">
-                    <Card className="flex-1 flex flex-col min-h-0">
-                        <CardHeader className="flex flex-row items-center justify-between pb-4">
-                            <CardTitle>Transactions</CardTitle>
-                            <div className="flex items-center gap-2">
-                                <Button onClick={downloadTransactionTemplate} variant="outline" size="sm" className="h-9">
-                                    <Download className="w-4 h-4 mr-2" />
+                <TabsContent value="transactions" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Transactions</CardTitle>
+                            <div className="flex items-center gap-3">
+                                <Button onClick={downloadTransactionTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                                    <Download className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                                     Template
                                 </Button>
-                                <label className="cursor-pointer h-9 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 rounded-md text-sm font-medium flex items-center gap-2 hover:opacity-90">
+                                <label className="cursor-pointer h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0.5">
                                     <FileSpreadsheet className="w-4 h-4" />
                                     Import Excel
                                     <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportTransactions} />
                                 </label>
                             </div>
                         </CardHeader>
-                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden">
+                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
@@ -456,24 +455,29 @@ export function InternalAccounts() {
                 </TabsContent>
 
                 {/* --- ACCOUNT STATEMENT --- */}
-                <TabsContent value="statement" className="flex-1 mt-4 flex flex-col min-h-0 space-y-4">
-                    <Card className="flex-1 flex flex-col min-h-0">
-                        <CardHeader className="pb-4">
-                            <div className="flex flex-col md:flex-row items-center gap-4">
-                                <CardTitle className="whitespace-nowrap">Account Statement</CardTitle>
-                                <select 
-                                    className="w-full md:w-80 h-10 px-3 rounded-md border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={selectedAccount}
-                                    onChange={(e) => setSelectedAccount(e.target.value)}
-                                >
-                                    <option value="" disabled>Select an account...</option>
-                                    {allAccountNames.map(name => (
-                                        <option key={name} value={name}>{name}</option>
-                                    ))}
-                                </select>
+                <TabsContent value="statement" className="flex-1 mt-6 flex flex-col min-h-0 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Account Statement</CardTitle>
+                                <div className="relative w-full md:w-96">
+                                    <select 
+                                        className="w-full h-11 px-4 pr-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none shadow-sm transition-all"
+                                        value={selectedAccount}
+                                        onChange={(e) => setSelectedAccount(e.target.value)}
+                                    >
+                                        <option value="" disabled>Select an account...</option>
+                                        {allAccountNames.map(name => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                        <ArrowUpDown className="h-4 w-4" />
+                                    </div>
+                                </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden">
+                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
                             {!selectedAccount ? (
                                 <div className="p-8 text-center text-slate-500">
                                     Please select an account to view its statement.

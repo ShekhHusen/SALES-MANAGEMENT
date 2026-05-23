@@ -322,7 +322,6 @@ export function Analyzer() {
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Data Analyzer</h1>
-            <p className="text-sm font-semibold text-slate-500">Advanced filtering and vehicle lifecycle reporting</p>
           </div>
         </div>
         <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800" onClick={exportAnalyzer}>

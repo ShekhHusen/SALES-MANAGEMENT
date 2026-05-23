@@ -644,7 +644,6 @@ export function Purchases() {
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Purchase History</CardTitle>
-            <CardDescription>View and manage previous procurement invoices.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (

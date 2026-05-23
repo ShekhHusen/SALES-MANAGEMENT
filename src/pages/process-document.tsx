@@ -338,21 +338,23 @@ export function ProcessDocument() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden space-y-4">
-      <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 shrink-0">
-        <FileText className="w-5 h-5" />
-        <h1 className="text-xl font-bold">Process Document</h1>
+    <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden space-y-6 md:p-2">
+      <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200 shrink-0">
+        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2 rounded-xl shadow-lg shadow-emerald-500/20">
+            <FileText className="w-6 h-6 text-white" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 drop-shadow-sm">Process Document</h1>
       </div>
 
-      <div className="flex items-center justify-between shrink-0">
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-auto">
-          <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-full md:w-auto">
+          <TabsList className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm flex flex-wrap h-auto gap-1">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
                 disabled={!unlockedTabs[tab.id]}
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-[#1a4731] data-[state=active]:shadow-sm rounded-md font-bold text-sm px-6"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-2 transition-all"
               >
                 {tab.label}
               </TabsTrigger>
@@ -361,26 +363,26 @@ export function ProcessDocument() {
         </Tabs>
 
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
             <Input 
               type="text" 
               placeholder="Search by chassis, name..." 
-              className="pl-9 w-64 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm"
+              className="pl-9 w-full md:w-72 h-11 rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm focus:ring-emerald-500/50 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-10 h-10 p-0 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-            <Filter className="w-4 h-4 text-slate-600" />
+          <Button variant="outline" className="w-11 h-11 p-0 rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:border-emerald-500/50 hover:bg-emerald-50/50 transition-all">
+            <Filter className="w-4 h-4 text-slate-600 dark:text-slate-400" />
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 rounded-xl border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden bg-white dark:bg-slate-900">
+      <Card className="flex-1 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl">
         {activeTab === 'sold_vehicle' && (
-          <div className="flex flex-col h-full">
-            <div className="grid grid-cols-3 px-8 py-4 border-b border-slate-200 dark:border-slate-800 font-extrabold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/50 shrink-0">
+          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-3 px-8 py-5 border-b border-slate-200/60 dark:border-slate-800/60 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 shrink-0 text-sm tracking-wider uppercase">
               <div>Chassis Number</div>
               <div>Customer Name</div>
               <div>Contact Number</div>
@@ -392,7 +394,7 @@ export function ProcessDocument() {
                   <div className="text-slate-500 font-medium">No Data Available</div>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60 p-2">
                   {filteredSales.map(sale => {
                     const customer = customers.find(c => c.id === sale.customerId);
                     const isSelected = selectedSale?.id === sale.id;
@@ -400,11 +402,11 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-3 px-8 py-4 cursor-pointer transition-colors ${isSelected ? 'bg-emerald-50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50'}`}
+                        className={`grid grid-cols-3 px-6 py-4 cursor-pointer transition-all rounded-xl mx-2 my-1 ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
-                        <div className="font-mono text-slate-700 font-medium">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{customer?.name || '---'}</div>
-                        <div className="text-slate-600 tracking-wide">{customer?.contactNumber || '---'}</div>
+                        <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
+                        <div className="text-slate-500 dark:text-slate-400 font-medium">{customer?.contactNumber || '---'}</div>
                       </div>
                     );
                   })}
@@ -415,153 +417,151 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'others_details' && (
-          <div className="p-8 space-y-8 overflow-y-auto h-full">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-2 mb-6">Financial & Family Details</h2>
+          <div className="p-8 space-y-10 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-slate-50/50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400 pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">Financial & Family Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Vehicle Price</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Price</label>
                   <Input 
                     type="number" 
                     value={vehiclePrice} 
                     onChange={(e) => setVehiclePrice(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Paid Amount</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
                   <Input 
                     type="number" 
                     value={paidAmount} 
                     onChange={(e) => setPaidAmount(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 shadow-sm focus:ring-emerald-500/50 transition-all font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Dues Amount</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dues Amount</label>
                   <Input 
                     type="number" 
                     value={duesAmount} 
                     readOnly
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-not-allowed"
+                    className="h-12 rounded-xl border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400 cursor-not-allowed shadow-sm font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Customer Alt Number</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Customer Alt Number</label>
                   <Input 
                     type="text" 
                     value={customerAltNumber} 
                     onChange={(e) => setCustomerAltNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 hover:border-emerald-300 transition-all"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Engine No</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Engine No</label>
                   <Input 
                     value={engineNumber} 
                     onChange={(e) => setEngineNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Vehicle Number</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Number</label>
                   <Input 
                     value={vehicleNumber} 
                     onChange={(e) => setVehicleNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Citizenship Certificate No.</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Citizenship Certificate No.</label>
                   <Input 
                     value={citizenshipNumber} 
                     onChange={(e) => setCitizenshipNumber(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 uppercase"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Father's Name</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Father's Name</label>
                   <Input 
                     value={fathersName} 
                     onChange={(e) => setFathersName(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Grandfather's Name</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grandfather's Name</label>
                   <Input 
                     value={grandFathersName} 
                     onChange={(e) => setGrandFathersName(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3 md:col-span-2">
-                  <label className="text-sm font-bold text-slate-700">Notes (Printed on Quotation)</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes (Printed on Quotation)</label>
                   <Textarea 
                     value={notes} 
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Enter any additional notes..."
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 min-h-[100px]"
+                    className="rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 min-h-[100px] p-4 transition-all"
                   />
                 </div>
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 mb-6">
-                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Battery Details</h2>
-              </div>
+            <div className="bg-slate-50/50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500 dark:from-teal-400 dark:to-emerald-300 pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">Battery Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Battery Type</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Battery Type</label>
                   <Input 
                     value={batteryType} 
                     onChange={(e) => setBatteryType(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Battery Brand</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Battery Brand</label>
                   <Input 
                     value={batteryBrand} 
                     onChange={(e) => setBatteryBrand(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Bluetooth ID</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bluetooth ID</label>
                   <Input 
                     value={bluetoothId} 
                     onChange={(e) => setBluetoothId(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">Product ID</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Product ID</label>
                   <Input 
                     value={productId} 
                     onChange={(e) => setProductId(e.target.value)}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-700">No. of Battery (pcs)</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">No. of Battery (pcs)</label>
                   <Input 
                     type="number"
                     value={noOfBattery} 
                     onChange={(e) => setNoOfBattery(e.target.value ? Number(e.target.value) : '')}
-                    className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm focus:ring-emerald-500/50 font-black text-emerald-600 dark:text-emerald-400 transition-all"
                   />
                 </div>
               </div>
 
               {serialNumbers.length > 0 && (
-                <div className="mt-6 bg-slate-50/50 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                   <h3 className="text-slate-800 dark:text-slate-200 font-bold mb-4">Battery Serial Numbers</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="mt-8 bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner">
+                   <h3 className="text-slate-700 dark:text-slate-300 font-bold mb-4 flex items-center gap-2"><Hash className="w-5 h-5 text-emerald-500" /> Battery Serial Numbers</h3>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                      {serialNumbers.map((s, idx) => (
                        <div key={idx} className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">Serial No. {idx + 1}</label>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full inline-block">S.N. {idx + 1}</label>
                          <Input 
                            value={s}
                            onChange={(e) => {
@@ -569,8 +569,8 @@ export function ProcessDocument() {
                              nArr[idx] = e.target.value;
                              setSerialNumbers(nArr);
                            }}
-                           placeholder={`Enter SN-${idx + 1}...`}
-                           className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                           placeholder={`SN-${idx + 1}...`}
+                           className="h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-mono text-sm font-semibold shadow-sm focus:ring-emerald-500/50"
                          />
                        </div>
                      ))}
@@ -582,57 +582,55 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'documents' && (
-          <div className="p-8 space-y-6 overflow-y-auto h-full">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Upload Documents</h2>
-              <div className="flex gap-2">
+          <div className="p-8 space-y-6 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Upload Documents</h2>
+              <div className="flex flex-wrap gap-3">
                  <Button 
                    onClick={() => handleDownloadPDF('quotation', selectedSale!)}
                    disabled={isGeneratingPdf}
                    variant="outline"
-                   size="sm"
-                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                   className="border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all rounded-xl"
                  >
-                   <Download className="w-4 h-4 mr-1" />
+                   <Download className="w-4 h-4 mr-2" />
                    {isGeneratingPdf ? 'Wait...' : 'Quotation'}
                  </Button>
                  <Button 
                    onClick={() => handleDownloadPDF('traffic', selectedSale!)}
                    disabled={isGeneratingPdf}
                    variant="outline"
-                   size="sm"
-                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                   className="border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all rounded-xl"
                  >
-                   <Download className="w-4 h-4 mr-1" />
+                   <Download className="w-4 h-4 mr-2" />
                    {isGeneratingPdf ? 'Wait...' : 'Traffic Letter'}
                  </Button>
                  <Button 
                    onClick={handleDownloadCitizenshipA4}
                    disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
                    variant="outline"
-                   size="sm"
-                   className="border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 shrink-0 font-bold h-9"
+                   className="border-teal-200/60 text-teal-700 bg-teal-50/50 hover:bg-teal-100 hover:border-teal-300 shadow-sm font-bold h-10 transition-all rounded-xl"
                  >
-                   <Download className="w-4 h-4 mr-1" />
+                   <Download className="w-4 h-4 mr-2" />
                    {isGeneratingPdf ? 'Wait...' : 'Citizenship A4'}
                  </Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
               {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
-                  <div key={docName} className="relative border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 h-40 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group overflow-hidden">
+                  <div key={docName} className="relative border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 h-44 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 hover:border-emerald-400 transition-all group overflow-hidden shadow-sm hover:shadow-md cursor-pointer">
                     {images[docKey] ? (
                       <>
-                        <img src={images[docKey]} alt={docName} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-                        <div className="relative z-10 w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
-                          <CheckCircle className="w-6 h-6 text-emerald-600" />
+                        <img src={images[docKey]} alt={docName} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
+                        <div className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-emerald-500/90 flex items-center justify-center shadow-lg backdrop-blur-sm">
+                          <CheckCircle className="w-5 h-5 text-white" />
                         </div>
-                        <span className="relative z-10 text-sm font-bold text-slate-900 dark:text-slate-100 bg-white/80 px-2 rounded text-center">{docName}</span>
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20">
-                           <Button variant="secondary" size="sm" onClick={() => setPreviewImage(images[docKey])}>Preview</Button>
-                           <Button variant="destructive" size="sm" onClick={() => {
+                        <span className="absolute bottom-3 left-0 right-0 z-10 text-[10px] font-black text-white px-3 tracking-widest uppercase text-center">{docName}</span>
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 z-20 backdrop-blur-sm">
+                           <Button variant="secondary" size="sm" className="w-24 h-8 rounded-full font-bold shadow-lg" onClick={() => setPreviewImage(images[docKey])}>Preview</Button>
+                           <Button variant="destructive" size="sm" className="w-24 h-8 rounded-full font-bold shadow-lg" onClick={() => {
                              const n = {...images};
                              delete n[docKey];
                              setImages(n);
@@ -640,18 +638,18 @@ export function ProcessDocument() {
                         </div>
                       </>
                     ) : uploadProgress[docKey] !== undefined ? (
-                      <div className="flex flex-col items-center justify-center w-full space-y-2">
-                        <div className="w-full bg-slate-200 rounded-full h-2.5 dark:bg-slate-700">
-                          <div className="bg-[#1a4731] h-2.5 rounded-full transition-all duration-200" style={{ width: `${uploadProgress[docKey]}%` }}></div>
+                      <div className="flex flex-col items-center justify-center w-full space-y-3 px-4">
+                        <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                          <div className="bg-emerald-500 h-full rounded-full transition-all duration-300" style={{ width: `${uploadProgress[docKey]}%` }}></div>
                         </div>
-                        <span className="text-xs font-bold text-slate-600">Uploading {uploadProgress[docKey]}%</span>
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Uploading {uploadProgress[docKey]}%</span>
                       </div>
                     ) : (
                       <label className="cursor-pointer w-full h-full flex flex-col items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform mb-2">
-                          <FileText className="w-5 h-5 text-slate-400 group-hover:text-amber-500" />
+                        <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm group-hover:-translate-y-1 transition-all duration-300 mb-3 border border-slate-100 dark:border-slate-800 group-hover:border-emerald-200">
+                          <FileText className="w-6 h-6 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 transition-colors" />
                         </div>
-                        <span className="text-sm font-bold text-slate-600 text-center">{docName}</span>
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 dark:group-hover:text-slate-200 text-center uppercase tracking-wider">{docName}</span>
                         <input 
                           type="file" 
                           accept="image/*"
@@ -715,14 +713,12 @@ export function ProcessDocument() {
                 );
               })}
             </div>
-            
-            {/* Generate Documents buttons moved to header */}
           </div>
         )}
 
         {activeTab === 'completed' && (
-          <div className="flex flex-col h-full">
-            <div className="grid grid-cols-5 px-8 py-4 border-b border-slate-200 dark:border-slate-800 font-extrabold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900/50 shrink-0">
+          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-5 px-8 py-5 border-b border-slate-200/60 dark:border-slate-800/60 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 shrink-0 text-sm tracking-wider uppercase">
                <div>SN.</div>
                <div>Chassis Details</div>
                <div>Customer Details</div>
@@ -730,39 +726,39 @@ export function ProcessDocument() {
                <div>Action</div>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-2">
               {sales.filter(s => s.documentationCompleted).length === 0 ? (
                 <div className="h-full flex items-center justify-center p-8">
-                  <div className="text-slate-500 font-medium">No Completed Documents Found</div>
+                  <div className="text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60">
                   {sales.filter(s => s.documentationCompleted).map((sale, idx) => {
                     const customer = customers.find(c => c.id === sale.customerId);
                     return (
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-5 px-8 py-4 items-center cursor-pointer transition-colors ${selectedSale?.id === sale.id ? 'bg-emerald-50' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50'}`}
+                        className={`grid grid-cols-5 px-6 py-4 items-center cursor-pointer transition-all rounded-xl mx-2 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
-                        <div className="font-bold text-slate-500 text-sm">{idx + 1}</div>
-                        <div className="font-mono text-slate-700 font-medium">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 dark:text-slate-200 font-semibold">{customer?.name || '---'}</div>
+                        <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
+                        <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
+                        <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
                         <div>
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">Completed</span>
+                          <span className="px-3 py-1 rounded-md text-[10px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white uppercase tracking-widest shadow-sm shadow-emerald-500/20">Completed</span>
                         </div>
                         <div>
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="font-bold border-slate-200 dark:border-slate-800 text-slate-600 hover:text-[#1a4731]" 
+                            className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
                             onClick={(e) => {
                               e.stopPropagation();
                               setViewSale(sale);
                               setViewSheetOpen(true);
                             }}
                           >
-                            View
+                            View Document
                           </Button>
                         </div>
                       </div>
@@ -775,14 +771,14 @@ export function ProcessDocument() {
         )}
       </Card>
 
-      <div className="flex justify-between items-center pt-2 shrink-0">
+      <div className="flex justify-between items-center pt-2 shrink-0 px-2 pb-4">
         <div>
           {(activeTab === 'documents' || activeTab === 'others_details' || activeTab === 'completed') && (
             <Button
               variant="outline"
               disabled={loading || (activeTab === 'completed' && !selectedSale) || (activeTab === 'others_details' && selectedSale?.documentationCompleted)}
               onClick={handlePrevious}
-              className={`border-[#1a4731] text-[#1a4731] hover:bg-emerald-50 rounded-full px-10 py-6 font-bold text-sm tracking-widest shadow-sm transition-colors ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-white/50 dark:bg-slate-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-2xl px-12 py-7 font-black text-xs tracking-widest shadow-sm hover:shadow transition-all ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
             >
               {'<< BACK'}
             </Button>
@@ -793,7 +789,7 @@ export function ProcessDocument() {
           <Button 
             disabled={loading || (activeTab === 'sold_vehicle' && !selectedSale)}
             onClick={handleNext}
-            className="bg-[#1a4731] hover:bg-[#133524] text-white rounded-full px-10 py-6 font-bold text-sm tracking-widest shadow-md transition-colors"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl px-12 py-7 font-black text-xs tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 transition-all"
           >
             {activeTab === 'documents' ? 'SAVE & COMPLETE' : 'SAVE & NEXT >>'}
           </Button>

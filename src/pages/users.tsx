@@ -112,7 +112,6 @@ export function UserManagement() {
     <div className="space-y-6 pb-10">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">User Management</h1>
-        <p className="text-sm text-slate-500 font-medium">Control access and assigned roles for platform users.</p>
       </div>
 
       <Card className="rounded-xl border-slate-200 dark:border-slate-800 shadow-sm">

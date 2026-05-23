@@ -94,10 +94,6 @@ export function Quotation() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Document Printing</h1>
-          <p className="text-slate-500 font-medium mt-1">Select a completed document process to generate</p>
-          <div className="mt-2 text-xs text-amber-600 font-semibold bg-amber-50 inline-block px-2 py-1 rounded">
-            Please upload "header.png" and "footer.png" to the public folder using the file explorer for them to appear.
-          </div>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={docType} onValueChange={(val: any) => setDocType(val)}>
