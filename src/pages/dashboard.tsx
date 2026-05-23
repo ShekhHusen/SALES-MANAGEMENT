@@ -152,7 +152,7 @@ export function Dashboard() {
 
       {/* Charts Section */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-1 shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution</CardTitle>
             <CardDescription className="text-xs">Inventory split by manufacturer</CardDescription>
@@ -181,7 +181,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Monthly Performance Trend</CardTitle>
             <CardDescription className="text-xs">Visualizing unit movement over time</CardDescription>
@@ -216,37 +216,36 @@ export function Dashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models In-stock</CardTitle>
+            <CardDescription className="text-xs">Inventory density by vehicle model</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={modelSplit}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fontWeight: 500, fill: '#64748B' }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fontWeight: 500, fill: '#64748B' }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(241, 245, 249, 0.2)' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models In-stock</CardTitle>
-          <CardDescription className="text-xs">Inventory density by vehicle model</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={modelSplit}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 11, fontWeight: 500, fill: '#64748B' }}
-              />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 11, fontWeight: 500, fill: '#64748B' }}
-              />
-              <Tooltip 
-                cursor={{ fill: 'rgba(241, 245, 249, 0.2)' }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              />
-              <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 }

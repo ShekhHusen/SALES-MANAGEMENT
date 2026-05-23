@@ -15,7 +15,8 @@ import {
   ActivitySquare,
   FileText,
   Printer,
-  Shield
+  Shield,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,6 +26,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Internal Accounts', icon: BookOpen, path: '/internal-accounts', roles: ['admin', 'sales_manager'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },

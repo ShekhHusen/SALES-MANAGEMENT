@@ -443,6 +443,68 @@ export function Settings() {
               </Button>
             </div>
 
+            {/* Clear Internal Openings */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear Internal Openings</h4>
+                <p className="text-sm text-slate-500 mt-1">
+                  Deletes all opening balances in Internal Accounts.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to clear all internal account openings?")) {
+                    try {
+                      const res = await fetch('/api/internal-accounts/clear', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'openings' })
+                      });
+                      if (!res.ok) throw new Error('Server error');
+                      toast.success("Successfully cleared internal account openings.");
+                    } catch (err) {
+                      toast.error("Failed to clear internal account openings.");
+                    }
+                  }
+                }}
+              >
+                Clear Openings
+              </Button>
+            </div>
+
+            {/* Clear Internal Transactions */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear Internal Transactions</h4>
+                <p className="text-sm text-slate-500 mt-1">
+                  Deletes all transactions in Internal Accounts.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to clear all internal account transactions?")) {
+                    try {
+                      const res = await fetch('/api/internal-accounts/clear', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'transactions' })
+                      });
+                      if (!res.ok) throw new Error('Server error');
+                      toast.success("Successfully cleared internal account transactions.");
+                    } catch (err) {
+                      toast.error("Failed to clear internal account transactions.");
+                    }
+                  }
+                }}
+              >
+                Clear Transactions
+              </Button>
+            </div>
+
           </div>
 
           <div className="mt-8 pt-6 border-t font-mono border-red-200 dark:border-red-900/50">
