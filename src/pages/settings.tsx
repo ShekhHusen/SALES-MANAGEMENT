@@ -24,6 +24,15 @@ export function Settings() {
   const [isBrandExpanded, setIsBrandExpanded] = useState(false);
   const [isVariantExpanded, setIsVariantExpanded] = useState(false);
 
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    actionLabel: string;
+    expectedText?: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [confirmInput, setConfirmInput] = useState('');
+
   const addCompany = async () => {
     if (!newCompany.trim()) return;
     try {
@@ -91,7 +100,6 @@ export function Settings() {
     <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Configuration</h1>
-        <p className="text-sm text-slate-500 font-medium">Maintain authoritative catalogs of manufacturers and specific model variants.</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -250,6 +258,57 @@ export function Settings() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!confirmAction} onOpenChange={(open) => {
+        if (!open) {
+            setConfirmAction(null);
+            setConfirmInput('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-red-200 dark:border-red-900/50">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-red-600 dark:text-red-500">{confirmAction?.title}</DialogTitle>
+            <DialogDescription className="font-medium text-slate-600 dark:text-slate-400">
+              {confirmAction?.description}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmAction?.expectedText && (
+            <div className="pt-4 pb-2">
+               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                  Copy this text: <span className="text-red-600 select-all">{confirmAction.expectedText}</span>
+               </label>
+               <Input 
+                 autoFocus
+                 value={confirmInput} 
+                 onChange={e => setConfirmInput(e.target.value)} 
+                 className="h-10 font-mono text-center font-bold"
+                 placeholder={confirmAction.expectedText} 
+               />
+            </div>
+          )}
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => {
+              setConfirmAction(null);
+              setConfirmInput('');
+            }}>
+              Cancel
+            </Button>
+            <Button 
+               disabled={confirmAction?.expectedText ? confirmInput !== confirmAction.expectedText : false}
+               className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700 text-white" 
+               onClick={() => {
+                  if (confirmAction) {
+                      confirmAction.onConfirm();
+                      setConfirmAction(null);
+                      setConfirmInput('');
+                  }
+               }}
+            >
+              {confirmAction?.actionLabel}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ImportData />
       <ExportData />
       <BackupRestore />
@@ -273,26 +332,31 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear ALL sales? This will reset all sold vehicles to 'in-stock'.")) {
-                    try {
-                      const salesSnap = await getDocs(query(collection(db, 'sales')));
-                      let count = 0;
-                      for (const d of salesSnap.docs) {
-                        const chassis = d.data().chassisNumber;
-                        if (chassis) {
-                          try {
-                            await updateDoc(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
-                          } catch(e) {} // ignore if vehicle doesn't exist
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear All Sales?",
+                    description: "Are you sure you want to clear ALL sales? This will reset all sold vehicles to 'in-stock'.",
+                    actionLabel: "Clear Sales",
+                    onConfirm: async () => {
+                      try {
+                        const salesSnap = await getDocs(query(collection(db, 'sales')));
+                        let count = 0;
+                        for (const d of salesSnap.docs) {
+                          const chassis = d.data().chassisNumber;
+                          if (chassis) {
+                            try {
+                              await updateDoc(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
+                            } catch(e) {} // ignore if vehicle doesn't exist
+                          }
+                          await deleteDoc(d.ref);
+                          count++;
                         }
-                        await deleteDoc(d.ref);
-                        count++;
+                        toast.success(`Successfully cleared ${count} sales records.`);
+                      } catch (err) {
+                        toast.error('Failed to clear sales.');
                       }
-                      toast.success(`Successfully cleared ${count} sales records.`);
-                    } catch (err) {
-                      toast.error('Failed to clear sales.');
                     }
-                  }
+                  });
                 }}
               >
                 Clear Sales
@@ -310,40 +374,45 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear purchases? Purchases having sold vehicles will be skipped.")) {
-                    try {
-                      const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                      const salesSnap = await getDocs(query(collection(db, 'sales')));
-                      const vehSnap = await getDocs(query(collection(db, 'vehicles')));
-                      
-                      const soldChassis = new Set([
-                        ...vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber),
-                        ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
-                      ]);
-                      
-                      let deleted = 0;
-                      let skipped = 0;
-                      for (const d of purchSnap.docs) {
-                        const chassisArr = d.data().chassisNumbers || [];
-                        const hasSold = chassisArr.some((c: string) => soldChassis.has(c));
-                        if (hasSold) {
-                          skipped++;
-                        } else {
-                          for (const c of chassisArr) {
-                            try {
-                              await deleteDoc(doc(db, 'vehicles', c));
-                            } catch(e) {}
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear All Purchases?",
+                    description: "Are you sure you want to clear ALL purchases? Purchases having sold vehicles will be skipped.",
+                    actionLabel: "Clear Purchases",
+                    onConfirm: async () => {
+                      try {
+                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                        const salesSnap = await getDocs(query(collection(db, 'sales')));
+                        const vehSnap = await getDocs(query(collection(db, 'vehicles')));
+                        
+                        const soldChassis = new Set([
+                          ...vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber),
+                          ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                        ]);
+                        
+                        let deleted = 0;
+                        let skipped = 0;
+                        for (const d of purchSnap.docs) {
+                          const chassisArr = d.data().chassisNumbers || [];
+                          const hasSold = chassisArr.some((c: string) => soldChassis.has(c));
+                          if (hasSold) {
+                            skipped++;
+                          } else {
+                            for (const c of chassisArr) {
+                              try {
+                                await deleteDoc(doc(db, 'vehicles', c));
+                              } catch(e) {}
+                            }
+                            await deleteDoc(d.ref);
+                            deleted++;
                           }
-                          await deleteDoc(d.ref);
-                          deleted++;
                         }
+                        toast.success(`Cleared ${deleted} purchases. Skipped ${skipped} linked to sales.`);
+                      } catch (err) {
+                        toast.error('Failed to clear purchases.');
                       }
-                      toast.success(`Cleared ${deleted} purchases. Skipped ${skipped} linked to sales.`);
-                    } catch (err) {
-                      toast.error('Failed to clear purchases.');
                     }
-                  }
+                  });
                 }}
               >
                 Clear Purchases
@@ -361,38 +430,43 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear standalone inventory? Vehicles linked to purchases or sales will be preserved.")) {
-                    try {
-                      const vehSnap = await getDocs(query(collection(db, 'vehicles')));
-                      const salesSnap = await getDocs(query(collection(db, 'sales')));
-                      const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                      
-                      const usedChassis = new Set([
-                        ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
-                      ]);
-                      
-                      for (const p of purchSnap.docs) {
-                        const arr = p.data().chassisNumbers || [];
-                        for (const c of arr) if (c) usedChassis.add(c);
-                      }
-
-                      let deleted = 0;
-                      let skipped = 0;
-                      for (const d of vehSnap.docs) {
-                        const data = d.data();
-                        if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
-                          skipped++;
-                        } else {
-                          await deleteDoc(d.ref);
-                          deleted++;
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear Standalone Inventory?",
+                    description: "Are you sure you want to clear standalone inventory? Vehicles linked to purchases or sales will be preserved.",
+                    actionLabel: "Clear Vehicles",
+                    onConfirm: async () => {
+                      try {
+                        const vehSnap = await getDocs(query(collection(db, 'vehicles')));
+                        const salesSnap = await getDocs(query(collection(db, 'sales')));
+                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                        
+                        const usedChassis = new Set([
+                          ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                        ]);
+                        
+                        for (const p of purchSnap.docs) {
+                          const arr = p.data().chassisNumbers || [];
+                          for (const c of arr) if (c) usedChassis.add(c);
                         }
+
+                        let deleted = 0;
+                        let skipped = 0;
+                        for (const d of vehSnap.docs) {
+                          const data = d.data();
+                          if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
+                            skipped++;
+                          } else {
+                            await deleteDoc(d.ref);
+                            deleted++;
+                          }
+                        }
+                        toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
+                      } catch (err) {
+                        toast.error('Failed to clear inventory.');
                       }
-                      toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
-                    } catch (err) {
-                      toast.error('Failed to clear inventory.');
                     }
-                  }
+                  });
                 }}
               >
                 Clear Vehicles
@@ -410,33 +484,38 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear parties? Linked parties will be kept.")) {
-                    try {
-                      const partiesSnap = await getDocs(query(collection(db, 'parties')));
-                      const salesSnap = await getDocs(query(collection(db, 'sales')));
-                      const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                      
-                      const usedIds = new Set([
-                        ...salesSnap.docs.map(s => s.data().customerId).filter(Boolean),
-                        ...purchSnap.docs.map(p => p.data().vendorId).filter(Boolean)
-                      ]);
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear All Parties?",
+                    description: "Are you sure you want to clear parties? Linked parties will be kept.",
+                    actionLabel: "Clear Parties",
+                    onConfirm: async () => {
+                      try {
+                        const partiesSnap = await getDocs(query(collection(db, 'parties')));
+                        const salesSnap = await getDocs(query(collection(db, 'sales')));
+                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                        
+                        const usedIds = new Set([
+                          ...salesSnap.docs.map(s => s.data().customerId).filter(Boolean),
+                          ...purchSnap.docs.map(p => p.data().vendorId).filter(Boolean)
+                        ]);
 
-                      let deleted = 0;
-                      let skipped = 0;
-                      for (const p of partiesSnap.docs) {
-                        if (usedIds.has(p.id)) {
-                          skipped++;
-                        } else {
-                          await deleteDoc(p.ref);
-                          deleted++;
+                        let deleted = 0;
+                        let skipped = 0;
+                        for (const p of partiesSnap.docs) {
+                          if (usedIds.has(p.id)) {
+                            skipped++;
+                          } else {
+                            await deleteDoc(p.ref);
+                            deleted++;
+                          }
                         }
+                        toast.success(`Cleared ${deleted} parties. Skipped ${skipped} linked parties.`);
+                      } catch (err) {
+                        toast.error('Failed to clear parties.');
                       }
-                      toast.success(`Cleared ${deleted} parties. Skipped ${skipped} linked parties.`);
-                    } catch (err) {
-                      toast.error('Failed to clear parties.');
                     }
-                  }
+                  });
                 }}
               >
                 Clear Parties
@@ -454,20 +533,26 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear all internal account openings?")) {
-                    try {
-                      const res = await fetch('/api/internal-accounts/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'openings' })
-                      });
-                      if (!res.ok) throw new Error('Server error');
-                      toast.success("Successfully cleared internal account openings.");
-                    } catch (err) {
-                      toast.error("Failed to clear internal account openings.");
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear Internal Openings?",
+                    description: "Are you sure you want to clear all internal account openings? Openings linked to transactions will be preserved.",
+                    actionLabel: "Clear Openings",
+                    onConfirm: async () => {
+                      try {
+                        const res = await fetch('/api/internal-accounts/clear', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'openings' })
+                        });
+                        if (!res.ok) throw new Error('Server error');
+                        const data = await res.json();
+                        toast.success(`Cleared ${data.deleted} openings. Skipped ${data.skipped} linked openings.`);
+                      } catch (err) {
+                        toast.error("Failed to clear internal account openings.");
+                      }
                     }
-                  }
+                  });
                 }}
               >
                 Clear Openings
@@ -485,20 +570,26 @@ export function Settings() {
               <Button 
                 variant="outline" 
                 className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to clear all internal account transactions?")) {
-                    try {
-                      const res = await fetch('/api/internal-accounts/clear', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'transactions' })
-                      });
-                      if (!res.ok) throw new Error('Server error');
-                      toast.success("Successfully cleared internal account transactions.");
-                    } catch (err) {
-                      toast.error("Failed to clear internal account transactions.");
+                onClick={() => {
+                  setConfirmAction({
+                    title: "Clear Internal Transactions?",
+                    description: "Are you sure you want to clear all internal account transactions?",
+                    actionLabel: "Clear Transactions",
+                    onConfirm: async () => {
+                      try {
+                        const res = await fetch('/api/internal-accounts/clear', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'transactions' })
+                        });
+                        if (!res.ok) throw new Error('Server error');
+                        const data = await res.json();
+                        toast.success(`Successfully cleared ${data.deleted} internal transactions.`);
+                      } catch (err) {
+                        toast.error("Failed to clear internal account transactions.");
+                      }
                     }
-                  }
+                  });
                 }}
               >
                 Clear Transactions
@@ -519,9 +610,12 @@ export function Settings() {
                 variant="destructive" 
                 className="font-bold shrink-0 bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => {
-                  const conf = window.prompt("Type 'DELETE ALL' to confirm wiping all system data:");
-                  if (conf === 'DELETE ALL') {
-                    const clearData = async () => {
+                  setConfirmAction({
+                    title: "Master Reset",
+                    description: "Permanently delete everything (Vehicles, Purchases, Sales, Parties, Brands, Models). This action is highly destructive and cannot be undone.",
+                    actionLabel: "Clear Everything",
+                    expectedText: "DELETE ALL",
+                    onConfirm: async () => {
                       const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models'];
                       try {
                         for (const colName of collections) {
@@ -535,11 +629,8 @@ export function Settings() {
                         console.error("Error clearing data:", err);
                         toast.error('Failed to clear all data.');
                       }
-                    };
-                    clearData();
-                  } else if (conf !== null) {
-                    toast.error("Confirmation text did not match. Data was not deleted.");
-                  }
+                    }
+                  });
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />

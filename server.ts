@@ -61,7 +61,7 @@ async function startServer() {
 
   app.post('/api/internal-accounts/clear', (req, res) => {
      try {
-       let data = { openings: [], transactions: [] };
+       let data: any = { openings: [], transactions: [] };
        if (fs.existsSync(INTERNAL_ACCOUNTS_FILE)) {
          const content = fs.readFileSync(INTERNAL_ACCOUNTS_FILE, 'utf8');
          if (content) {
@@ -70,13 +70,29 @@ async function startServer() {
              } catch(e) {}
          }
        }
+       
+       let deletedCount = 0;
+       let skippedCount = 0;
+
        if (req.body.type === 'openings') {
-         data.openings = [];
+         const usedAccounts = new Set((data.transactions || []).map((t: any) => (t.particulars || '').toLowerCase().trim()));
+         const newOpenings = [];
+         for (const o of (data.openings || [])) {
+             if (usedAccounts.has((o.accountName || '').toLowerCase().trim())) {
+                 newOpenings.push(o);
+                 skippedCount++;
+             } else {
+                 deletedCount++;
+             }
+         }
+         data.openings = newOpenings;
        } else if (req.body.type === 'transactions') {
+         deletedCount = (data.transactions || []).length;
          data.transactions = [];
        }
+       
        fs.writeFileSync(INTERNAL_ACCOUNTS_FILE, JSON.stringify(data), 'utf8');
-       res.json({ success: true });
+       res.json({ success: true, deleted: deletedCount, skipped: skippedCount });
      } catch (e: any) {
        res.status(500).json({ error: e.message });
      }
