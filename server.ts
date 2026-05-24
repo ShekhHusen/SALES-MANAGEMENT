@@ -43,11 +43,11 @@ async function startServer() {
              const content = fs.readFileSync(INTERNAL_ACCOUNTS_FILE, 'utf8');
              if (content) {
                  const data = JSON.parse(content);
-                 return res.json(data);
+                 return res.json({ openings: data.openings || [], transactions: data.transactions || [], mappings: data.mappings || {} });
              }
          } catch(e) {}
      }
-     res.json({ openings: [], transactions: [] });
+     res.json({ openings: [], transactions: [], mappings: {} });
   });
 
   app.post('/api/internal-accounts', (req, res) => {

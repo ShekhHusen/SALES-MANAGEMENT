@@ -3,8 +3,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+
 
 // Data Types
 interface OpeningBalance {
@@ -29,6 +37,19 @@ interface Transaction {
 export function InternalAccounts() {
     const [openings, setOpenings] = useState<OpeningBalance[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [mappings, setMappings] = useState<Record<string, string>>({});
+    const [parties, setParties] = useState<Party[]>([]);
+    const [sales, setSales] = useState<Sale[]>([]);
+    const [otherDetails, setOtherDetails] = useState<OtherDetails[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [models, setModels] = useState<Model[]>([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [followups, setFollowups] = useState<FollowUp[]>([]);
+    const [isFollowupOpen, setIsFollowupOpen] = useState(false);
+    const [newFollowupMsg, setNewFollowupMsg] = useState('');
+    const [newFollowupDate, setNewFollowupDate] = useState('');
+    const [newFollowupTime, setNewFollowupTime] = useState('');
+    const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     
     // Pagination states
@@ -56,6 +77,16 @@ export function InternalAccounts() {
     // Fetch data on load
     useEffect(() => {
         fetchData();
+        const unsubs = [
+            onSnapshot(collection(db, 'parties'), (snap) => setParties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Party)))),
+            onSnapshot(collection(db, 'sales'), (snap) => setSales(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale)))),
+            onSnapshot(collection(db, 'otherDetails'), (snap) => setOtherDetails(snap.docs.map(d => ({ id: d.id, ...d.data() } as OtherDetails)))),
+            onSnapshot(collection(db, 'vehicles'), (snap) => setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle)))),
+            onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model)))),
+            onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company)))),
+            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp))))
+        ];
+        return () => unsubs.forEach(u => u());
     }, []);
 
     const fetchData = async () => {
@@ -66,6 +97,7 @@ export function InternalAccounts() {
             if (data) {
                 setOpenings(data.openings || []);
                 setTransactions(data.transactions || []);
+                setMappings(data.mappings || {});
             }
         } catch (e) {
             console.error("Failed to load data", e);
@@ -74,12 +106,12 @@ export function InternalAccounts() {
         }
     };
 
-    const saveData = async (newOpenings = openings, newTransactions = transactions) => {
+    const saveData = async (newOpenings = openings, newTransactions = transactions, newMappings = mappings) => {
         try {
             const res = await fetch('/api/internal-accounts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ openings: newOpenings, transactions: newTransactions })
+                body: JSON.stringify({ openings: newOpenings, transactions: newTransactions, mappings: newMappings })
             });
             if (!res.ok) throw new Error("Failed to save.");
             toast.success("Saved successfully");
@@ -272,6 +304,78 @@ export function InternalAccounts() {
         return statementTransactions.slice(start, start + ITEMS_PER_PAGE);
     }, [statementTransactions, statementPage]);
 
+    const handleMapCustomer = async (partyId: string) => {
+        if (!selectedAccount) return;
+        const newMappings = { ...mappings, [selectedAccount]: partyId };
+        setMappings(newMappings);
+        await saveData(openings, transactions, newMappings);
+    };
+
+    const handleUnmapCustomer = async () => {
+        if (!selectedAccount) return;
+        const newMappings = { ...mappings };
+        delete newMappings[selectedAccount];
+        setMappings(newMappings);
+        await saveData(openings, transactions, newMappings);
+        setIsUnlinkConfirmOpen(false);
+    };
+
+    const linkedParty = useMemo(() => {
+        if (!selectedAccount || !mappings[selectedAccount]) return null;
+        return parties.find(p => p.id === mappings[selectedAccount]);
+    }, [selectedAccount, mappings, parties]);
+    
+    useEffect(() => {
+        if (isFollowupOpen) {
+            const now = new Date();
+            setNewFollowupDate(now.toLocaleDateString('en-CA'));
+            setNewFollowupTime(now.toTimeString().slice(0, 5));
+            setNewFollowupMsg('');
+        }
+    }, [isFollowupOpen]);
+
+    const handleSaveFollowup = async () => {
+        if (!linkedParty) return;
+        if (!newFollowupMsg.trim()) {
+            toast.error('Please enter a message');
+            return;
+        }
+
+        let nextDate = null;
+        if (newFollowupDate) {
+            const timeStr = newFollowupTime || '09:00';
+            nextDate = new Date(`${newFollowupDate}T${timeStr}`);
+        }
+
+        try {
+            await addDoc(collection(db, 'followups'), {
+                partyId: linkedParty.id,
+                message: newFollowupMsg,
+                nextFollowUpDate: nextDate,
+                createdAt: serverTimestamp()
+            });
+
+            toast.success('Follow-up added successfully');
+            setNewFollowupMsg('');
+            const now = new Date();
+            setNewFollowupDate(now.toLocaleDateString('en-CA'));
+            setNewFollowupTime(now.toTimeString().slice(0, 5));
+        } catch (error) {
+            console.error('Error saving follow-up:', error);
+            toast.error('Failed to add follow-up');
+        }
+    };
+
+    const linkedPartyFollowups = useMemo(() => {
+        if (!linkedParty) return [];
+        return followups.filter(f => f.partyId === linkedParty.id);
+    }, [linkedParty, followups]);
+
+    const linkedSales = useMemo(() => {
+        if (!linkedParty) return [];
+        return sales.filter(s => s.customerId === linkedParty.id);
+    }, [linkedParty, sales]);
+
     const totals = useMemo(() => {
         const opDb = statementOpening?.debit || 0;
         const opCr = statementOpening?.credit || 0;
@@ -302,6 +406,7 @@ export function InternalAccounts() {
                     <TabsTrigger value="opening" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Opening</TabsTrigger>
                     <TabsTrigger value="transactions" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Transactions</TabsTrigger>
                     <TabsTrigger value="statement" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Statement</TabsTrigger>
+                    <TabsTrigger value="mapping" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Customer Mapping</TabsTrigger>
                 </TabsList>
 
                 {/* --- ACCOUNT OPENING --- */}
@@ -484,6 +589,183 @@ export function InternalAccounts() {
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col h-full overflow-hidden">
+                                    {/* MAPPING SECTION */}
+                                    <div className="bg-slate-50/50 dark:bg-slate-900/50 p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shrink-0">
+                                        <div className="flex items-center gap-3 w-full xl:w-auto">
+                                            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
+                                                <Link className="h-5 w-5" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Customer Mapping</p>
+                                                {linkedParty ? (
+                                                    <p className="text-xs text-slate-500">Linked to: <span className="font-semibold text-slate-800 dark:text-slate-300">{linkedParty.name}</span></p>
+                                                ) : (
+                                                    <p className="text-xs text-slate-400">Not linked to any party from stakeholder management.</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 w-full xl:w-auto">
+                                            {!linkedParty ? (
+                                                <select 
+                                                    className="flex-1 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    onChange={(e) => {
+                                                        if (e.target.value) handleMapCustomer(e.target.value);
+                                                    }}
+                                                    value=""
+                                                >
+                                                    <option value="" disabled>Link to a Party...</option>
+                                                    {parties.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name} ({p.contactNumber || 'No contact'})</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <Dialog open={isFollowupOpen} onOpenChange={setIsFollowupOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="h-9 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20">
+                                                                <History className="w-4 h-4 mr-2" /> Follow-up History
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
+                                                            <DialogHeader className="shrink-0">
+                                                                <DialogTitle>Follow-up History - {linkedParty?.name}</DialogTitle>
+                                                            </DialogHeader>
+                                                            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                                                                {/* Add Follow-up Form */}
+                                                                <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-3">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Message / Notes</Label>
+                                                                        <Textarea 
+                                                                            value={newFollowupMsg} 
+                                                                            onChange={(e) => setNewFollowupMsg(e.target.value)} 
+                                                                            placeholder="Enter follow-up notes..."
+                                                                            className="resize-none"
+                                                                            rows={3}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-4">
+                                                                        <div className="space-y-2">
+                                                                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5" /> Next Date</Label>
+                                                                            <Input type="date" value={newFollowupDate} onChange={(e) => setNewFollowupDate(e.target.value)} />
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Time</Label>
+                                                                            <Input type="time" value={newFollowupTime} onChange={(e) => setNewFollowupTime(e.target.value)} />
+                                                                        </div>
+                                                                    </div>
+                                                                    <Button onClick={handleSaveFollowup} className="w-full">Save Follow-up</Button>
+                                                                </div>
+
+                                                                {/* History List */}
+                                                                <div className="space-y-3">
+                                                                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Previous Follow-ups</h4>
+                                                                    {linkedPartyFollowups.length === 0 ? (
+                                                                        <p className="text-sm text-center text-slate-500 py-4">No history available.</p>
+                                                                    ) : (
+                                                                        linkedPartyFollowups.map(f => (
+                                                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+                                                                                <div className="flex justify-between items-start mb-2">
+                                                                                    <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{f.message}</p>
+                                                                                </div>
+                                                                                <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                                                                                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                                                        <span className="font-semibold">Added:</span> {(f.createdAt as any)?.toDate?.().toLocaleString() || 'Just now'}
+                                                                                    </div>
+                                                                                    {f.nextFollowUpDate && (
+                                                                                        <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 font-medium">
+                                                                                            <span className="font-semibold text-amber-700 dark:text-amber-400">Next Action:</span> {(f.nextFollowUpDate as any)?.toDate?.().toLocaleString() || new Date(f.nextFollowUpDate as any).toLocaleString()}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+
+                                                    <Dialog open={isUnlinkConfirmOpen} onOpenChange={setIsUnlinkConfirmOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20">
+                                                                Unlink Party
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Confirm Unlink</DialogTitle>
+                                                            </DialogHeader>
+                                                            <p className="text-sm flex-1 text-slate-500">Are you sure you want to unlink <span className="font-bold text-slate-800 dark:text-slate-200">{linkedParty.name}</span> from <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAccount}</span>? The customer linkage will be removed.</p>
+                                                            <DialogFooter className="mt-4">
+                                                                <Button variant="ghost" onClick={() => setIsUnlinkConfirmOpen(false)}>Cancel</Button>
+                                                                <Button variant="destructive" onClick={handleUnmapCustomer}>Confirm Unlink</Button>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* VEHICLE DETAILS SECTION */}
+                                    {linkedParty && linkedSales.length > 0 && (
+                                        <div className="bg-[#F8FAFC] dark:bg-[#111827] px-6 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0 border-l-4 border-l-blue-500 shadow-inner">
+                                            <h3 className="text-sm font-black text-slate-700 dark:text-slate-300 mb-3 tracking-wide uppercase">Linked Vehicle Details</h3>
+                                            <div className="flex flex-col gap-4">
+                                                {linkedSales.map(sale => {
+                                                    const details = otherDetails.find(d => d.saleId === sale.id);
+                                                    const vehicle = vehicles.find(v => v.chassisNumber === sale.chassisNumber);
+                                                    const company = companies.find(c => c.id === vehicle?.companyId);
+                                                    const model = models.find(m => m.id === vehicle?.modelId);
+                                                    
+                                                    return (
+                                                        <div key={sale.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-3">
+                                                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/60">
+                                                                <span className="font-mono text-xs font-bold text-slate-500">{sale.chassisNumber}</span>
+                                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-widest">File #{sale.fileNumber}</span>
+                                                            </div>
+
+                                                            <div className="flex flex-wrap md:flex-nowrap items-center gap-6 justify-between pt-1">
+                                                                <div className="flex-1 min-w-[150px]">
+                                                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Customer Details</p>
+                                                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{linkedParty.name}</p>
+                                                                    <p className="text-xs font-medium text-slate-500">{linkedParty.contactNumber || 'No Contact'}</p>
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-[150px]">
+                                                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Vehicle Details</p>
+                                                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{company?.name || 'Unknown'} - {model?.name || 'Unknown'}</p>
+                                                                    {vehicle?.color && <p className="text-xs font-medium text-slate-500">Color: {vehicle.color}</p>}
+                                                                    {vehicle?.registrationNumber && <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mt-0.5">Reg: {vehicle.registrationNumber}</p>}
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-[100px]">
+                                                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Sales Date</p>
+                                                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{(sale.date as any)?.toDate?.()?.toLocaleDateString() || String(sale.date).split('T')[0]}</p>
+                                                                </div>
+
+                                                                {details && (
+                                                                    <div className="flex-1 min-w-[100px]">
+                                                                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Price</p>
+                                                                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">₹{details.price.toLocaleString()}</p>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="flex-none md:text-right min-w-[120px]">
+                                                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 md:text-right">Document Status</p>
+                                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${sale.documentationCompleted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                                                                        {sale.documentationCompleted ? 'Completed' : 'Pending'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="flex-1 overflow-y-auto px-6">
                                         <table className="w-full text-sm text-left">
                                             <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
@@ -583,6 +865,147 @@ export function InternalAccounts() {
                                     </div>
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* --- MAPPING TAB --- */}
+                <TabsContent value="mapping" className="flex-1 mt-6 flex flex-col min-h-0 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                            <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Customer Mapping</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                                        <span>Unlinked Accounts (Internal)</span>
+                                        <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full text-xs font-black">{allAccountNames.filter(name => !mappings[name]).length}</span>
+                                    </h3>
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800/60 space-y-3">
+                                        {allAccountNames.filter(name => !mappings[name]).map(name => (
+                                            <div key={name} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:shadow-md">
+                                                <span className="font-medium text-slate-700 dark:text-slate-300">{name}</span>
+                                                <select 
+                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                                    value=""
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            const newMappings = { ...mappings, [name]: e.target.value };
+                                                            setMappings(newMappings);
+                                                            saveData(openings, transactions, newMappings);
+                                                        }
+                                                    }}
+                                                >
+                                                    <option value="" disabled>Link to Party...</option>
+                                                    {parties.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                        {allAccountNames.filter(name => !mappings[name]).length === 0 && (
+                                            <div className="text-center py-8">
+                                                <div className="bg-emerald-100 dark:bg-emerald-900/30 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                    <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                                </div>
+                                                <p className="text-sm text-slate-500 font-medium">All accounts are linked!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                                        <span>Pending Parties (Unlinked)</span>
+                                        <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full text-xs font-black">{parties.filter(p => !Object.values(mappings).includes(p.id)).length}</span>
+                                    </h3>
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800/60 space-y-3">
+                                        {parties.filter(p => !Object.values(mappings).includes(p.id)).map(party => (
+                                            <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:shadow-md">
+                                                <div>
+                                                    <p className="font-bold text-slate-700 dark:text-slate-300">{party.name}</p>
+                                                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{party.contactNumber || 'No contact'}</p>
+                                                </div>
+                                                <select 
+                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                                    value=""
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            const newMappings = { ...mappings, [e.target.value]: party.id };
+                                                            setMappings(newMappings);
+                                                            saveData(openings, transactions, newMappings);
+                                                        }
+                                                    }}
+                                                >
+                                                    <option value="" disabled>Link Account...</option>
+                                                    {allAccountNames.map(name => (
+                                                        <option key={name} value={name}>{name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                        {parties.filter(p => !Object.values(mappings).includes(p.id)).length === 0 && (
+                                            <div className="text-center py-8">
+                                                <div className="bg-emerald-100 dark:bg-emerald-900/30 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                    <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                                </div>
+                                                <p className="text-sm text-slate-500 font-medium">All parties are linked!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg flex items-center gap-2">
+                                    <Link className="w-5 h-5 text-blue-500" /> Linked Mappings
+                                    <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full text-xs font-black">{Object.keys(mappings).length}</span>
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    {Object.entries(mappings).map(([accountName, partyId]) => {
+                                        const party = parties.find(p => p.id === partyId);
+                                        if (!party) return null;
+                                        return (
+                                            <div key={accountName} className="flex flex-col bg-white dark:bg-slate-900 p-4 xl:p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 transition-all hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900/50">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div> Active Link
+                                                    </div>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        onClick={() => {
+                                                            const newMappings = { ...mappings };
+                                                            delete newMappings[accountName];
+                                                            setMappings(newMappings);
+                                                            saveData(openings, transactions, newMappings);
+                                                        }} 
+                                                        className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                                    >
+                                                        Unlink
+                                                    </Button>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Internal Account</p>
+                                                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{accountName}</p>
+                                                    </div>
+                                                    <div className="flex justify-center -my-1 relative z-10 w-full">
+                                                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1.5 rounded-full text-slate-400 shadow-sm relative -mt-3 -mb-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                                                            <ArrowUpDown className="w-3 h-3" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                                        <p className="text-[10px] font-extrabold text-blue-400 dark:text-blue-500 uppercase tracking-wider mb-1">Party (Customer)</p>
+                                                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{party.name}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

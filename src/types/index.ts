@@ -91,3 +91,11 @@ export interface DocumentUpload {
   bikrinamaUrl?: string;
   createdAt: Timestamp;
 }
+
+export interface FollowUp {
+  id: string;
+  partyId: string;
+  message: string;
+  nextFollowUpDate: Timestamp | null;
+  createdAt: Timestamp;
+}
