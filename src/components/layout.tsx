@@ -16,7 +16,8 @@ import {
   FileText,
   Printer,
   Shield,
-  BookOpen
+  BookOpen,
+  BellRing
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -24,8 +25,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
+import { FollowUpNotifier } from '@/components/FollowUpNotifier';
+
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Follow-ups', icon: BellRing, path: '/follow-ups', roles: ['admin', 'sales_manager'] },
   { label: 'Internal Accounts', icon: BookOpen, path: '/internal-accounts', roles: ['admin', 'sales_manager'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
@@ -169,7 +173,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Floating Menu & Theme Controls */}
-        <div className="fixed top-4 left-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="fixed top-4 right-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -178,6 +182,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </Button>
+          <FollowUpNotifier />
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
               variant="ghost" 

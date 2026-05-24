@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -12,7 +13,70 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useAuth, UserProfile } from '@/hooks/use-auth';
 
+const SearchableSelect = ({ options, value, onChange, placeholder }: { options: string[], value: string, onChange: (val: string) => void, placeholder: string }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filtered = useMemo(() => {
+         return options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+    }, [options, search]);
+
+    return (
+        <div className="relative flex-1 w-full" ref={containerRef}>
+            <div 
+                className="w-full h-11 px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-medium flex items-center justify-between cursor-pointer shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <div className="truncate flex-1 max-w-full text-slate-700 dark:text-slate-300 pr-2">
+                    {value || <span className="text-slate-500">{placeholder}</span>}
+                </div>
+                <ArrowUpDown className="h-4 w-4 ml-1 shrink-0 text-slate-500" />
+            </div>
+            {isOpen && (
+                <div className="absolute top-full mt-1.5 left-0 right-0 max-h-64 overflow-y-auto bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 flex flex-col p-1.5">
+                    <div className="sticky top-0 bg-white dark:bg-slate-950 z-10 pb-1.5 border-b border-slate-100 dark:border-slate-800/60 shadow-[0_4px_6px_-6px_rgba(0,0,0,0.1)]">
+                        <Input 
+                            autoFocus
+                            placeholder="Type to search..." 
+                            value={search} 
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="h-9 text-sm"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="mt-1.5 flex flex-col gap-0.5">
+                        {filtered.map(opt => (
+                            <div 
+                                key={opt} 
+                                className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${value === opt ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900/30 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
+                                onClick={() => {
+                                    onChange(opt);
+                                    setIsOpen(false);
+                                    setSearch('');
+                                }}
+                            >
+                                {opt}
+                            </div>
+                        ))}
+                        {filtered.length === 0 && <div className="p-3 text-sm text-slate-500 text-center">No results found.</div>}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 // Data Types
 interface OpeningBalance {
@@ -35,6 +99,7 @@ interface Transaction {
 }
 
 export function InternalAccounts() {
+    const { userProfile } = useAuth();
     const [openings, setOpenings] = useState<OpeningBalance[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [mappings, setMappings] = useState<Record<string, string>>({});
@@ -46,9 +111,12 @@ export function InternalAccounts() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [isFollowupOpen, setIsFollowupOpen] = useState(false);
+    const [isQuickFollowupOpen, setIsQuickFollowupOpen] = useState(false);
     const [newFollowupMsg, setNewFollowupMsg] = useState('');
     const [newFollowupDate, setNewFollowupDate] = useState('');
     const [newFollowupTime, setNewFollowupTime] = useState('');
+    const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
+    const [users, setUsers] = useState<UserProfile[]>([]);
     const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     
@@ -68,11 +136,31 @@ export function InternalAccounts() {
         setSort({ key, direction });
     };
 
+    const location = useLocation();
+    const passedState = location.state as { selectedPartyId?: string, activeTab?: string };
+
     // Tab state
     const [activeTab, setActiveTab] = useState('opening');
     
     // Statement state
     const [selectedAccount, setSelectedAccount] = useState<string>('');
+
+    useEffect(() => {
+        if (passedState?.activeTab) {
+            setActiveTab(passedState.activeTab);
+        } else if (userProfile && userProfile.role !== 'admin') {
+            setActiveTab('statement');
+        }
+    }, [passedState?.activeTab, userProfile]);
+
+    useEffect(() => {
+        if (passedState?.selectedPartyId && Object.keys(mappings).length > 0) {
+            const accName = Object.keys(mappings).find(key => mappings[key] === passedState.selectedPartyId);
+            if (accName) {
+                setSelectedAccount(accName);
+            }
+        }
+    }, [passedState?.selectedPartyId, mappings]);
 
     // Fetch data on load
     useEffect(() => {
@@ -84,6 +172,7 @@ export function InternalAccounts() {
             onSnapshot(collection(db, 'vehicles'), (snap) => setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle)))),
             onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model)))),
             onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company)))),
+            onSnapshot(collection(db, 'users'), (snap) => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })))),
             onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp))))
         ];
         return () => unsubs.forEach(u => u());
@@ -326,16 +415,21 @@ export function InternalAccounts() {
     }, [selectedAccount, mappings, parties]);
     
     useEffect(() => {
-        if (isFollowupOpen) {
+        if (isFollowupOpen || isQuickFollowupOpen) {
             const now = new Date();
             setNewFollowupDate(now.toLocaleDateString('en-CA'));
             setNewFollowupTime(now.toTimeString().slice(0, 5));
             setNewFollowupMsg('');
+            setNewFollowupAssignedTo('unassigned');
         }
-    }, [isFollowupOpen]);
+    }, [isFollowupOpen, isQuickFollowupOpen]);
 
     const handleSaveFollowup = async () => {
-        if (!linkedParty) return;
+        const targetPartyId = linkedParty?.id || selectedAccount;
+        if (!targetPartyId) {
+            toast.error('Please select an account first');
+            return;
+        }
         if (!newFollowupMsg.trim()) {
             toast.error('Please enter a message');
             return;
@@ -347,12 +441,26 @@ export function InternalAccounts() {
             nextDate = new Date(`${newFollowupDate}T${timeStr}`);
         }
 
+        let assignedToId = null;
+        let assignedToName = null;
+        if (newFollowupAssignedTo && newFollowupAssignedTo !== 'unassigned') {
+            const assignedUser = users.find(u => u.uid === newFollowupAssignedTo);
+            if (assignedUser) {
+                assignedToId = assignedUser.uid;
+                assignedToName = assignedUser.displayName || assignedUser.email;
+            }
+        }
+
         try {
             await addDoc(collection(db, 'followups'), {
-                partyId: linkedParty.id,
+                partyId: targetPartyId,
                 message: newFollowupMsg,
                 nextFollowUpDate: nextDate,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
+                createdByUid: userProfile?.uid || null,
+                createdByName: userProfile?.displayName || userProfile?.email || 'Unknown User',
+                assignedToId,
+                assignedToName
             });
 
             toast.success('Follow-up added successfully');
@@ -360,6 +468,8 @@ export function InternalAccounts() {
             const now = new Date();
             setNewFollowupDate(now.toLocaleDateString('en-CA'));
             setNewFollowupTime(now.toTimeString().slice(0, 5));
+            setNewFollowupAssignedTo('unassigned');
+            setIsQuickFollowupOpen(false);
         } catch (error) {
             console.error('Error saving follow-up:', error);
             toast.error('Failed to add follow-up');
@@ -367,9 +477,10 @@ export function InternalAccounts() {
     };
 
     const linkedPartyFollowups = useMemo(() => {
-        if (!linkedParty) return [];
-        return followups.filter(f => f.partyId === linkedParty.id);
-    }, [linkedParty, followups]);
+        const targetPartyId = linkedParty?.id || selectedAccount;
+        if (!targetPartyId) return [];
+        return followups.filter(f => f.partyId === targetPartyId);
+    }, [linkedParty, selectedAccount, followups]);
 
     const linkedSales = useMemo(() => {
         if (!linkedParty) return [];
@@ -403,10 +514,10 @@ export function InternalAccounts() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                 <TabsList className="w-fit bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 p-1 rounded-xl shadow-sm">
-                    <TabsTrigger value="opening" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Opening</TabsTrigger>
-                    <TabsTrigger value="transactions" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Transactions</TabsTrigger>
+                    {userProfile?.role === 'admin' && <TabsTrigger value="opening" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Opening</TabsTrigger>}
+                    {userProfile?.role === 'admin' && <TabsTrigger value="transactions" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Transactions</TabsTrigger>}
                     <TabsTrigger value="statement" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Statement</TabsTrigger>
-                    <TabsTrigger value="mapping" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Customer Mapping</TabsTrigger>
+                    {userProfile?.role === 'admin' && <TabsTrigger value="mapping" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Customer Mapping</TabsTrigger>}
                 </TabsList>
 
                 {/* --- ACCOUNT OPENING --- */}
@@ -564,21 +675,22 @@ export function InternalAccounts() {
                     <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
                         <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Account Statement</CardTitle>
-                                <div className="relative w-full md:w-96">
-                                    <select 
-                                        className="w-full h-11 px-4 pr-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none shadow-sm transition-all"
-                                        value={selectedAccount}
-                                        onChange={(e) => setSelectedAccount(e.target.value)}
-                                    >
-                                        <option value="" disabled>Select an account...</option>
-                                        {allAccountNames.map(name => (
-                                            <option key={name} value={name}>{name}</option>
-                                        ))}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                                        <ArrowUpDown className="h-4 w-4" />
-                                    </div>
+                                <div>
+                                    <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Account Statement</CardTitle>
+                                    {linkedParty && (
+                                        <div className="text-xs text-slate-500 font-medium mt-1">
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{linkedParty.name}</span>
+                                            {linkedParty.contactNumber && ` • ${linkedParty.contactNumber}`}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="relative w-full md:w-96 flex">
+                                    <SearchableSelect 
+                                        options={allAccountNames} 
+                                        value={selectedAccount} 
+                                        onChange={setSelectedAccount} 
+                                        placeholder="Select an account..." 
+                                    />
                                 </div>
                             </div>
                         </CardHeader>
@@ -605,10 +717,10 @@ export function InternalAccounts() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2 w-full xl:w-auto">
-                                            {!linkedParty ? (
+                                        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+                                            {!linkedParty && userProfile?.role === 'admin' && (
                                                 <select 
-                                                    className="flex-1 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-full sm:w-auto h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     onChange={(e) => {
                                                         if (e.target.value) handleMapCustomer(e.target.value);
                                                     }}
@@ -619,8 +731,62 @@ export function InternalAccounts() {
                                                         <option key={p.id} value={p.id}>{p.name} ({p.contactNumber || 'No contact'})</option>
                                                     ))}
                                                 </select>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
+                                            )}
+                                            
+                                            <div className="flex items-center gap-2">
+                                                <Dialog open={isQuickFollowupOpen} onOpenChange={setIsQuickFollowupOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="default" size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                                                                <Clock className="w-4 h-4 mr-2" /> Quick Update
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="sm:max-w-[425px]">
+                                                            <DialogHeader>
+                                                                <DialogTitle>Quick Follow-up Update</DialogTitle>
+                                                            </DialogHeader>
+                                                            <div className="space-y-4 pt-2">
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Message / Notes</Label>
+                                                                    <Textarea 
+                                                                        value={newFollowupMsg} 
+                                                                        onChange={(e) => setNewFollowupMsg(e.target.value)} 
+                                                                        placeholder="Enter brief follow-up notes..."
+                                                                        className="resize-none"
+                                                                        rows={3}
+                                                                        autoFocus
+                                                                    />
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5" /> Next Date</Label>
+                                                                        <Input type="date" value={newFollowupDate} onChange={(e) => setNewFollowupDate(e.target.value)} />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Time</Label>
+                                                                        <Input type="time" value={newFollowupTime} onChange={(e) => setNewFollowupTime(e.target.value)} />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
+                                                                    <select 
+                                                                        value={newFollowupAssignedTo}
+                                                                        onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
+                                                                        className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus:ring-slate-300"
+                                                                    >
+                                                                        <option value="unassigned">Anyone (Global)</option>
+                                                                        {users.map(u => (
+                                                                            <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter className="mt-4">
+                                                                <Button variant="ghost" onClick={() => setIsQuickFollowupOpen(false)}>Cancel</Button>
+                                                                <Button onClick={handleSaveFollowup}>Save Update</Button>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
+
                                                     <Dialog open={isFollowupOpen} onOpenChange={setIsFollowupOpen}>
                                                         <DialogTrigger asChild>
                                                             <Button variant="outline" size="sm" className="h-9 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20">
@@ -628,8 +794,22 @@ export function InternalAccounts() {
                                                             </Button>
                                                         </DialogTrigger>
                                                         <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
-                                                            <DialogHeader className="shrink-0">
-                                                                <DialogTitle>Follow-up History - {linkedParty?.name}</DialogTitle>
+                                                            <DialogHeader className="shrink-0 space-y-3">
+                                                                <DialogTitle>Follow-up History - {linkedParty?.name || selectedAccount}</DialogTitle>
+                                                                {linkedParty?.contactNumber && (
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        <Button variant="outline" size="sm" asChild className="flex-1 h-9 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                                                                            <a href={`tel:${linkedParty.contactNumber}`}>
+                                                                                <Phone className="w-4 h-4 mr-2" /> Call {linkedParty.contactNumber}
+                                                                            </a>
+                                                                        </Button>
+                                                                        <Button variant="outline" size="sm" asChild className="flex-1 h-9 bg-green-50 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
+                                                                            <a href={`https://wa.me/${linkedParty.contactNumber.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                                                                                <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+                                                                            </a>
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
                                                             </DialogHeader>
                                                             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                                                                 {/* Add Follow-up Form */}
@@ -654,6 +834,19 @@ export function InternalAccounts() {
                                                                             <Input type="time" value={newFollowupTime} onChange={(e) => setNewFollowupTime(e.target.value)} />
                                                                         </div>
                                                                     </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
+                                                                        <select 
+                                                                            value={newFollowupAssignedTo}
+                                                                            onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
+                                                                            className="flex h-9 w-full items-center justify-between rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus:ring-slate-300"
+                                                                        >
+                                                                            <option value="unassigned">Anyone (Global)</option>
+                                                                            {users.map(u => (
+                                                                                <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
                                                                     <Button onClick={handleSaveFollowup} className="w-full">Save Follow-up</Button>
                                                                 </div>
 
@@ -669,11 +862,18 @@ export function InternalAccounts() {
                                                                                     <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{f.message}</p>
                                                                                 </div>
                                                                                 <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                                                                                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                                                                        <span className="font-semibold">Added:</span> {(f.createdAt as any)?.toDate?.().toLocaleString() || 'Just now'}
+                                                                                    <div className="flex flex-col gap-1 text-xs text-slate-500">
+                                                                                        <div className="flex items-center gap-1.5">
+                                                                                            <span className="font-semibold">Added:</span> {(f.createdAt as any)?.toDate?.().toLocaleString() || 'Just now'}
+                                                                                        </div>
+                                                                                        {f.createdByName && (
+                                                                                            <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                                                                                                <span className="font-semibold text-slate-500">By:</span> {f.createdByName}
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
                                                                                     {f.nextFollowUpDate && (
-                                                                                        <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 font-medium">
+                                                                                        <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 font-medium ml-auto">
                                                                                             <span className="font-semibold text-amber-700 dark:text-amber-400">Next Action:</span> {(f.nextFollowUpDate as any)?.toDate?.().toLocaleString() || new Date(f.nextFollowUpDate as any).toLocaleString()}
                                                                                         </div>
                                                                                     )}
@@ -686,26 +886,27 @@ export function InternalAccounts() {
                                                         </DialogContent>
                                                     </Dialog>
 
-                                                    <Dialog open={isUnlinkConfirmOpen} onOpenChange={setIsUnlinkConfirmOpen}>
-                                                        <DialogTrigger asChild>
-                                                            <Button variant="outline" size="sm" className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20">
-                                                                Unlink Party
-                                                            </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>Confirm Unlink</DialogTitle>
-                                                            </DialogHeader>
-                                                            <p className="text-sm flex-1 text-slate-500">Are you sure you want to unlink <span className="font-bold text-slate-800 dark:text-slate-200">{linkedParty.name}</span> from <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAccount}</span>? The customer linkage will be removed.</p>
-                                                            <DialogFooter className="mt-4">
-                                                                <Button variant="ghost" onClick={() => setIsUnlinkConfirmOpen(false)}>Cancel</Button>
-                                                                <Button variant="destructive" onClick={handleUnmapCustomer}>Confirm Unlink</Button>
-                                                            </DialogFooter>
-                                                        </DialogContent>
-                                                    </Dialog>
+                                                    {linkedParty && userProfile?.role === 'admin' && (
+                                                        <Dialog open={isUnlinkConfirmOpen} onOpenChange={setIsUnlinkConfirmOpen}>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="outline" size="sm" className="h-9 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20">
+                                                                    Unlink Party
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent>
+                                                                <DialogHeader>
+                                                                    <DialogTitle>Confirm Unlink</DialogTitle>
+                                                                </DialogHeader>
+                                                                <p className="text-sm flex-1 text-slate-500">Are you sure you want to unlink <span className="font-bold text-slate-800 dark:text-slate-200">{linkedParty.name}</span> from <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAccount}</span>? The customer linkage will be removed.</p>
+                                                                <DialogFooter className="mt-4">
+                                                                    <Button variant="ghost" onClick={() => setIsUnlinkConfirmOpen(false)}>Cancel</Button>
+                                                                    <Button variant="destructive" onClick={handleUnmapCustomer}>Confirm Unlink</Button>
+                                                                </DialogFooter>
+                                                            </DialogContent>
+                                                        </Dialog>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            </div>
                                     </div>
 
                                     {/* VEHICLE DETAILS SECTION */}
@@ -737,7 +938,13 @@ export function InternalAccounts() {
                                                                     <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Vehicle Details</p>
                                                                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{company?.name || 'Unknown'} - {model?.name || 'Unknown'}</p>
                                                                     {vehicle?.color && <p className="text-xs font-medium text-slate-500">Color: {vehicle.color}</p>}
-                                                                    {vehicle?.registrationNumber && <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mt-0.5">Reg: {vehicle.registrationNumber}</p>}
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-[150px]">
+                                                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">Documentation & Status</p>
+                                                                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Reg: {vehicle?.registrationNumber || 'Pending'}</p>
+                                                                    <p className="text-xs font-medium text-slate-500 mt-0.5">Bluebook: <span className="capitalize">{vehicle?.bluebookStatus?.replace(/_/g, ' ') || 'Unknown'}</span></p>
+                                                                    <p className="text-xs font-medium text-slate-500">Namsaari: <span className="capitalize">{vehicle?.naamsariStatus?.replace(/_/g, ' ') || 'Unknown'}</span></p>
                                                                 </div>
 
                                                                 <div className="flex-1 min-w-[100px]">

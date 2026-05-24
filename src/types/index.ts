@@ -98,4 +98,8 @@ export interface FollowUp {
   message: string;
   nextFollowUpDate: Timestamp | null;
   createdAt: Timestamp;
+  createdByUid?: string;
+  createdByName?: string;
+  assignedToId?: string; // Users id (uid)
+  assignedToName?: string;
 }

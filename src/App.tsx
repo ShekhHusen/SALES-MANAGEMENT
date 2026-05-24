@@ -6,6 +6,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Layout } from '@/components/layout';
+import { FollowUps } from '@/pages/follow-ups';
 import { Dashboard } from '@/pages/dashboard';
 import { InternalAccounts } from '@/pages/internal-accounts';
 import { Inventory } from '@/pages/inventory';
@@ -94,6 +95,7 @@ function AppRoutes() {
           <Route path="/sales" element={<Sales />} />
           <Route path="/process-document" element={<ProcessDocument />} />
           <Route path="/quotation" element={<Quotation />} />
+          <Route path="/follow-ups" element={<FollowUps />} />
           <Route path="/analyzer" element={<Analyzer />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/users" element={<UserManagement />} />
