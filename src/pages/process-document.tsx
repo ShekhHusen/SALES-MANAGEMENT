@@ -303,6 +303,58 @@ export function ProcessDocument() {
   };
 
   useEffect(() => {
+    if (selectedSale) {
+      setVehiclePrice(selectedSale.otherDetails?.vehiclePrice ?? '');
+      setPaidAmount(selectedSale.otherDetails?.paidAmount ?? '');
+      setDuesAmount(selectedSale.otherDetails?.duesAmount ?? '');
+      setFathersName(selectedSale.otherDetails?.fathersName ?? '');
+      setGrandFathersName(selectedSale.otherDetails?.grandFathersName ?? '');
+      setCustomerAltNumber(selectedSale.otherDetails?.customerAltNumber ?? '');
+      setEngineNumber(selectedSale.otherDetails?.engineNumber ?? '');
+      setVehicleNumber(selectedSale.otherDetails?.vehicleNumber ?? '');
+      setCitizenshipNumber(selectedSale.otherDetails?.citizenshipNumber ?? '');
+      
+      setOnEmi(selectedSale.otherDetails?.onEmi ?? false);
+      setEmiVehiclePrice(selectedSale.otherDetails?.emiVehiclePrice ?? '');
+      setEmiDownPayment(selectedSale.otherDetails?.emiDownPayment ?? '');
+      setEmiPeriod(selectedSale.otherDetails?.emiPeriod ?? '');
+      setEmiInterest(selectedSale.otherDetails?.emiInterest ?? '');
+
+      setBatteryType(selectedSale.otherDetails?.batteryType ?? '');
+      setBatteryBrand(selectedSale.otherDetails?.batteryBrand ?? '');
+      setBluetoothId(selectedSale.otherDetails?.bluetoothId ?? '');
+      setProductId(selectedSale.otherDetails?.productId ?? '');
+      setNotes(selectedSale.otherDetails?.notes ?? '');
+      setNoOfBattery(selectedSale.otherDetails?.noOfBattery ?? '');
+      setSerialNumbers(selectedSale.otherDetails?.serialNumbers ?? []);
+      setImages(selectedSale.otherDetails?.images ?? {});
+    } else {
+      setVehiclePrice('');
+      setPaidAmount('');
+      setDuesAmount('');
+      setFathersName('');
+      setGrandFathersName('');
+      setCustomerAltNumber('');
+      setEngineNumber('');
+      setVehicleNumber('');
+      setCitizenshipNumber('');
+      setOnEmi(false);
+      setEmiVehiclePrice('');
+      setEmiDownPayment('');
+      setEmiPeriod('');
+      setEmiInterest('');
+      setBatteryType('');
+      setBatteryBrand('');
+      setBluetoothId('');
+      setProductId('');
+      setNotes('');
+      setNoOfBattery('');
+      setSerialNumbers([]);
+      setImages({});
+    }
+  }, [selectedSale]);
+
+  useEffect(() => {
     if (location.state && location.state.saleId) {
       const saleId = location.state.saleId;
       const tSale = sales.find(s => s.id === saleId);

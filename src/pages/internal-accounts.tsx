@@ -510,9 +510,9 @@ export function InternalAccounts() {
     };
 
     const linkedPartyFollowups = useMemo(() => {
-        const targetPartyId = linkedParty?.id || selectedAccount;
-        if (!targetPartyId) return [];
-        return followups.filter(f => f.partyId === targetPartyId);
+        if (!selectedAccount) return [];
+        const pId = linkedParty?.id;
+        return followups.filter(f => f.partyId === selectedAccount || (pId && f.partyId === pId));
     }, [linkedParty, selectedAccount, followups]);
 
     const linkedSales = useMemo(() => {
