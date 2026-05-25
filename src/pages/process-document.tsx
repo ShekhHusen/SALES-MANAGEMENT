@@ -617,7 +617,7 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-3 px-6 py-4 cursor-pointer transition-all rounded-xl mx-2 my-1 ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                        className={`grid grid-cols-3 px-4 py-2 cursor-pointer transition-all rounded-lg mx-1 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
@@ -1068,7 +1068,7 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-5 px-6 py-4 items-center cursor-pointer transition-all rounded-xl mx-2 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                        className={`grid grid-cols-5 px-4 py-2 items-center cursor-pointer transition-all rounded-lg mx-1 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
                         <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
@@ -1107,7 +1107,7 @@ export function ProcessDocument() {
               variant="outline"
               disabled={loading || (activeTab === 'completed' && !selectedSale) || (activeTab === 'others_details' && selectedSale?.documentationCompleted)}
               onClick={handlePrevious}
-              className={`border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-white/50 dark:bg-[#0f172a] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-2xl px-12 py-7 font-black text-xs tracking-widest shadow-sm hover:shadow transition-all ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-white/50 dark:bg-[#0f172a] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl px-6 py-3 font-bold text-sm tracking-wide shadow-sm hover:shadow transition-all ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
             >
               {'<< BACK'}
             </Button>
@@ -1118,7 +1118,7 @@ export function ProcessDocument() {
           <Button 
             disabled={loading || (activeTab === 'sold_vehicle' && !selectedSale)}
             onClick={handleNext}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl px-12 py-7 font-black text-xs tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 transition-all"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl px-6 py-3 font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all"
           >
             {activeTab === 'documents' ? 'SAVE & COMPLETE' : 'SAVE & NEXT >>'}
           </Button>

@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -422,21 +422,33 @@ export function InternalAccounts() {
 
     const handleMapCustomer = async (partyId: string) => {
         if (!selectedAccount) return;
-        const newMappings = { ...mappings, [selectedAccount]: partyId };
         try {
-            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
-        } catch (e) {
-            toast.error("Failed to map customer");
+            await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                new FieldPath('mappings', selectedAccount), partyId
+            );
+            toast.success("Successfully mapped customer");
+        } catch (e: any) {
+            if (e.code === 'not-found') {
+                 try {
+                     await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [selectedAccount]: partyId } });
+                     toast.success("Successfully mapped customer");
+                 } catch (err) {
+                     toast.error("Failed to map customer");
+                 }
+            } else {
+                toast.error("Failed to map customer");
+            }
         }
     };
 
     const handleUnmapCustomer = async () => {
         if (!selectedAccount) return;
-        const newMappings = { ...mappings };
-        delete newMappings[selectedAccount];
         try {
-            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+            await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                new FieldPath('mappings', selectedAccount), deleteField()
+            );
             setIsUnlinkConfirmOpen(false);
+            toast.success("Successfully unmapped customer");
         } catch (e) {
             toast.error("Failed to unmap customer");
         }
@@ -1131,10 +1143,15 @@ export function InternalAccounts() {
                                                     value=""
                                                     onChange={async (e) => {
                                                         if (e.target.value) {
-                                                            const newMappings = { ...mappings, [name]: e.target.value };
                                                             try {
-                                                                 await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
-                                                            } catch (err) {}
+                                                                await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                                                                    new FieldPath('mappings', name), e.target.value
+                                                                );
+                                                            } catch (err: any) {
+                                                                if (err.code === 'not-found') {
+                                                                    await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [name]: e.target.value } });
+                                                                }
+                                                            }
                                                         }
                                                     }}
                                                 >
@@ -1173,10 +1190,15 @@ export function InternalAccounts() {
                                                     value=""
                                                     onChange={async (e) => {
                                                         if (e.target.value) {
-                                                            const newMappings = { ...mappings, [e.target.value]: party.id };
                                                             try {
-                                                                await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
-                                                            } catch (err) {}
+                                                                await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                                                                    new FieldPath('mappings', e.target.value), party.id
+                                                                );
+                                                            } catch (err: any) {
+                                                                if (err.code === 'not-found') {
+                                                                    await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [e.target.value]: party.id } });
+                                                                }
+                                                            }
                                                         }
                                                     }}
                                                 >
@@ -1218,10 +1240,10 @@ export function InternalAccounts() {
                                                         variant="ghost" 
                                                         size="sm" 
                                                         onClick={async () => {
-                                                            const newMappings = { ...mappings };
-                                                            delete newMappings[accountName];
                                                             try {
-                                                                 await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+                                                                await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                                                                    new FieldPath('mappings', accountName), deleteField()
+                                                                );
                                                             } catch (err) {}
                                                         }} 
                                                         className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"

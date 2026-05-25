@@ -111,10 +111,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="px-6 pb-8 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <div className="flex flex-col">
-                <div className="text-xl font-extrabold tracking-tight text-[#3B82F6]">
-                  AUTO<span className="text-slate-100 uppercase tracking-widest font-black">Manager</span>
+                <div className="text-xl font-extrabold tracking-wide text-[#3B82F6] leading-tight">
+                  JAY BAUDHIMAI <span className="text-slate-100 uppercase tracking-widest font-black text-sm">TRADERS</span>
                 </div>
-                <span className="text-[9px] font-black tracking-widest text-[#3B82F6] uppercase ml-1 opacity-80">Version 2.1</span>
+                <span className="text-[9px] font-black tracking-widest text-[#3B82F6] uppercase ml-1 opacity-80 mt-1">Version 2.1</span>
               </div>
             </Link>
             <Button variant="ghost" size="icon" className="lg:hidden text-slate-100" onClick={toggleSidebar}>
