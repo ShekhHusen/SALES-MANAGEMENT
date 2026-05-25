@@ -99,5 +99,16 @@ service cloud.firestore {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }
+
+    // Internal Accounts
+    match /internal_openings/{docId} {
+      allow read, write: if isSignedIn();
+    }
+    match /internal_transactions/{docId} {
+      allow read, write: if isSignedIn();
+    }
+    match /internal_data/{docId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

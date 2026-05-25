@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -164,7 +164,7 @@ export function InternalAccounts() {
 
     // Fetch data on load
     useEffect(() => {
-        fetchData();
+        setLoading(true);
         const unsubs = [
             onSnapshot(collection(db, 'parties'), (snap) => setParties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Party)))),
             onSnapshot(collection(db, 'sales'), (snap) => setSales(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale)))),
@@ -173,41 +173,26 @@ export function InternalAccounts() {
             onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model)))),
             onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company)))),
             onSnapshot(collection(db, 'users'), (snap) => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })))),
-            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp))))
+            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp)))),
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
+            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+                 if (snap.exists()) {
+                     setMappings(snap.data()?.mappings || {});
+                 }
+                 setLoading(false);
+            })
         ];
-        return () => unsubs.forEach(u => u());
+        
+        const timeout = setTimeout(() => {
+            if (loading) setLoading(false);
+        }, 3000);
+        
+        return () => {
+            unsubs.forEach(u => u());
+            clearTimeout(timeout);
+        };
     }, []);
-
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`/api/internal-accounts?t=${Date.now()}`);
-            const data = await res.json();
-            if (data) {
-                setOpenings(data.openings || []);
-                setTransactions(data.transactions || []);
-                setMappings(data.mappings || {});
-            }
-        } catch (e) {
-            console.error("Failed to load data", e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const saveData = async (newOpenings = openings, newTransactions = transactions, newMappings = mappings) => {
-        try {
-            const res = await fetch('/api/internal-accounts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ openings: newOpenings, transactions: newTransactions, mappings: newMappings })
-            });
-            if (!res.ok) throw new Error("Failed to save.");
-            toast.success("Saved successfully");
-        } catch (e) {
-            toast.error("Error saving data");
-        }
-    };
 
     const handleImportOpenings = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -222,20 +207,38 @@ export function InternalAccounts() {
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json<any>(ws, { raw: false, dateNF: 'yyyy-mm-dd' });
                 
-                const newOpenings: OpeningBalance[] = data.map(row => ({
-                    id: Math.random().toString(),
+                const newOpenings = data.map(row => ({
                     date: row['Date'] || row['Date '] || '',
                     accountName: (row['Account Name'] || row['Particulars'] || '').toString().trim(),
                     debit: Number(row['Debit']) || 0,
                     credit: Number(row['Credit']) || 0
                 })).filter(o => o.accountName);
 
-                const combined = [...openings, ...newOpenings];
-                setOpenings(combined);
-                await saveData(combined, transactions);
+                if (newOpenings.length === 0) {
+                     toast.info("No openings found to import");
+                     return;
+                }
+
+                setLoading(true);
+                const batchLimit = 400;
+                let promises = [];
+                for (let i = 0; i < newOpenings.length; i += batchLimit) {
+                    const batch = writeBatch(db);
+                    const chunk = newOpenings.slice(i, i + batchLimit);
+                    chunk.forEach(o => {
+                        const ref = doc(collection(db, 'internal_openings'));
+                        batch.set(ref, o);
+                    });
+                    promises.push(batch.commit());
+                }
+                
+                await Promise.all(promises);
                 toast.success(`Imported ${newOpenings.length} opening balances`);
             } catch (error) {
-                toast.error("Failed to parse Excel file");
+                console.error("Failed to parse or save", error);
+                toast.error("Failed to parse Excel file or save data");
+            } finally {
+                setLoading(false);
             }
             if(e.target) e.target.value = '';
         };
@@ -255,8 +258,7 @@ export function InternalAccounts() {
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json<any>(ws, { raw: false, dateNF: 'yyyy-mm-dd' });
                 
-                const newTxns: Transaction[] = data.map(row => ({
-                    id: Math.random().toString(),
+                const newTxns = data.map(row => ({
                     date: row['Date'] || '',
                     vchType: row['Vch Type'] || '',
                     vchNo: row['Vch No.'] || row['Vch No'] || '',
@@ -266,15 +268,19 @@ export function InternalAccounts() {
                     narration: row['Narration'] || ''
                 })).filter(t => t.particulars);
 
+                if (newTxns.length === 0) {
+                    toast.info("No valid transactions found to import");
+                    return;
+                }
+
                 const existingAccountNames = new Set(openings.map(o => o.accountName.toLowerCase()));
-                const newOpeningsToCreate: OpeningBalance[] = [];
+                const newOpeningsToCreate: any[] = [];
                 
                 newTxns.forEach(txn => {
                     const accNameLower = txn.particulars.toLowerCase();
                     if (!existingAccountNames.has(accNameLower)) {
                         existingAccountNames.add(accNameLower);
                         newOpeningsToCreate.push({
-                            id: Math.random().toString(),
                             date: txn.date || new Date().toISOString().split('T')[0],
                             accountName: txn.particulars,
                             debit: 0,
@@ -283,18 +289,39 @@ export function InternalAccounts() {
                     }
                 });
 
-                const combinedTransactions = [...transactions, ...newTxns];
-                const combinedOpenings = [...openings, ...newOpeningsToCreate];
+                setLoading(true);
+                const batchLimit = 400;
+                let promises = [];
                 
-                setTransactions(combinedTransactions);
-                if (newOpeningsToCreate.length > 0) {
-                    setOpenings(combinedOpenings);
+                // Save New Txns
+                for (let i = 0; i < newTxns.length; i += batchLimit) {
+                    const batch = writeBatch(db);
+                    const chunk = newTxns.slice(i, i + batchLimit);
+                    chunk.forEach(t => {
+                        const ref = doc(collection(db, 'internal_transactions'));
+                        batch.set(ref, t);
+                    });
+                    promises.push(batch.commit());
+                }
+
+                // Save New Openings
+                for (let i = 0; i < newOpeningsToCreate.length; i += batchLimit) {
+                    const batch = writeBatch(db);
+                    const chunk = newOpeningsToCreate.slice(i, i + batchLimit);
+                    chunk.forEach(o => {
+                        const ref = doc(collection(db, 'internal_openings'));
+                        batch.set(ref, o);
+                    });
+                    promises.push(batch.commit());
                 }
                 
-                await saveData(combinedOpenings, combinedTransactions);
+                await Promise.all(promises);
                 toast.success(`Imported ${newTxns.length} transactions` + (newOpeningsToCreate.length ? ` and created ${newOpeningsToCreate.length} new accounts` : ''));
             } catch (error) {
-                toast.error("Failed to parse Excel file");
+                 console.error("Failed to parse or save transactions", error);
+                 toast.error("Failed to parse Excel file or save data");
+            } finally {
+                 setLoading(false);
             }
             if(e.target) e.target.value = '';
         };
@@ -396,17 +423,23 @@ export function InternalAccounts() {
     const handleMapCustomer = async (partyId: string) => {
         if (!selectedAccount) return;
         const newMappings = { ...mappings, [selectedAccount]: partyId };
-        setMappings(newMappings);
-        await saveData(openings, transactions, newMappings);
+        try {
+            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+        } catch (e) {
+            toast.error("Failed to map customer");
+        }
     };
 
     const handleUnmapCustomer = async () => {
         if (!selectedAccount) return;
         const newMappings = { ...mappings };
         delete newMappings[selectedAccount];
-        setMappings(newMappings);
-        await saveData(openings, transactions, newMappings);
-        setIsUnlinkConfirmOpen(false);
+        try {
+            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+            setIsUnlinkConfirmOpen(false);
+        } catch (e) {
+            toast.error("Failed to unmap customer");
+        }
     };
 
     const linkedParty = useMemo(() => {
@@ -1096,11 +1129,12 @@ export function InternalAccounts() {
                                                 <select 
                                                     className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                                                     value=""
-                                                    onChange={(e) => {
+                                                    onChange={async (e) => {
                                                         if (e.target.value) {
                                                             const newMappings = { ...mappings, [name]: e.target.value };
-                                                            setMappings(newMappings);
-                                                            saveData(openings, transactions, newMappings);
+                                                            try {
+                                                                 await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+                                                            } catch (err) {}
                                                         }
                                                     }}
                                                 >
@@ -1137,11 +1171,12 @@ export function InternalAccounts() {
                                                 <select 
                                                     className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                                                     value=""
-                                                    onChange={(e) => {
+                                                    onChange={async (e) => {
                                                         if (e.target.value) {
                                                             const newMappings = { ...mappings, [e.target.value]: party.id };
-                                                            setMappings(newMappings);
-                                                            saveData(openings, transactions, newMappings);
+                                                            try {
+                                                                await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+                                                            } catch (err) {}
                                                         }
                                                     }}
                                                 >
@@ -1182,11 +1217,12 @@ export function InternalAccounts() {
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             const newMappings = { ...mappings };
                                                             delete newMappings[accountName];
-                                                            setMappings(newMappings);
-                                                            saveData(openings, transactions, newMappings);
+                                                            try {
+                                                                 await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: newMappings });
+                                                            } catch (err) {}
                                                         }} 
                                                         className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                                                     >
