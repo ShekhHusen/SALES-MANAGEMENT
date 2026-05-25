@@ -223,7 +223,7 @@ export function Parties() {
                     variant="ghost"
                     className={cn(
                       "flex-1 h-10 rounded-lg text-xs font-black uppercase transition-all",
-                      form.watch('type') === 'customer' ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                      form.watch('type') === 'customer' ? "bg-white dark:bg-[#0f172a] text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
                     )}
                     onClick={() => form.setValue('type', 'customer')}
                   >
@@ -234,7 +234,7 @@ export function Parties() {
                     variant="ghost"
                     className={cn(
                       "flex-1 h-10 rounded-lg text-xs font-black uppercase transition-all",
-                      form.watch('type') === 'vendor' ? "bg-white dark:bg-slate-900 text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
+                      form.watch('type') === 'vendor' ? "bg-white dark:bg-[#0f172a] text-blue-600 shadow-sm" : "text-slate-500 hover:bg-white/50"
                     )}
                     onClick={() => form.setValue('type', 'vendor')}
                   >
@@ -245,19 +245,19 @@ export function Parties() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Legal Name / Business Name</label>
-                    <Input {...form.register('name')} placeholder="Identify the person or entity" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
+                    <Input {...form.register('name')} placeholder="Identify the person or entity" className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.name && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.name.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact Line</label>
-                    <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
+                    <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.contactNumber && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.contactNumber.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Residential / Corporate Address</label>
-                    <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
+                    <Input {...form.register('address')} placeholder="Location details for documentation" className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
                     {form.formState.errors.address && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.address.message}</p>}
                   </div>
                 </div>
@@ -277,12 +277,12 @@ export function Parties() {
         </Dialog>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#0f172a] p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
         <div className="relative flex-1 sm:max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
             placeholder="Search by Name or Contact..." 
-            className="pl-10 h-10 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
+            className="pl-10 h-10 bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -290,7 +290,7 @@ export function Parties() {
         
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <Tabs value={filterType} onValueChange={(val) => setFilterType(val)} className="w-full sm:w-auto">
-            <TabsList className="bg-slate-50 dark:bg-slate-900/50 p-1 rounded-lg h-10 border border-slate-100 dark:border-slate-800">
+            <TabsList className="bg-slate-50 dark:bg-[#0f172a] p-1 rounded-lg h-10 border border-slate-100 dark:border-slate-800">
               <TabsTrigger value="all" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Everything</TabsTrigger>
               <TabsTrigger value="customer" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Customers</TabsTrigger>
               <TabsTrigger value="vendor" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md text-xs font-bold h-8">Vendors</TabsTrigger>
@@ -308,7 +308,7 @@ export function Parties() {
         <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
-                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
+                <TableRow className="bg-slate-100 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                     <TableHead className="py-2.5 px-6">
                     <div 
                       className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"

@@ -294,19 +294,19 @@ export function Inventory() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900/50 p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#0f172a] p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
               placeholder="Search by Chassis or Customer Name..." 
-              className="pl-10 h-10 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
+              className="pl-10 h-10 bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[160px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <SelectTrigger className="w-[160px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-slate-400" />
                 <SelectValue placeholder="Status" />
@@ -351,7 +351,7 @@ export function Inventory() {
                     <Input 
                       id="chassis" 
                       placeholder="Enter unique chassis number" 
-                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.chassisNumber}
                       onChange={(e) => setNewVehicle({ ...newVehicle, chassisNumber: e.target.value.toUpperCase() })}
                       required
@@ -363,7 +363,7 @@ export function Inventory() {
                       value={newVehicle.companyId} 
                       onValueChange={(val) => setNewVehicle({ ...newVehicle, companyId: val, modelId: '' })}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
                         <SelectValue placeholder="Select Make" />
                       </SelectTrigger>
                       <SelectContent>
@@ -380,7 +380,7 @@ export function Inventory() {
                       onValueChange={(val) => setNewVehicle({ ...newVehicle, modelId: val })}
                       disabled={!newVehicle.companyId}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
                         <SelectValue placeholder="Select Model" />
                       </SelectTrigger>
                       <SelectContent>
@@ -395,7 +395,7 @@ export function Inventory() {
                     <Input 
                       id="color" 
                       placeholder="Vehicle color" 
-                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.color}
                       onChange={(e) => setNewVehicle({ ...newVehicle, color: e.target.value })}
                     />
@@ -405,7 +405,7 @@ export function Inventory() {
                     <Input 
                       id="reg" 
                       placeholder="Registration info" 
-                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                       value={newVehicle.registrationNumber}
                       onChange={(e) => setNewVehicle({ ...newVehicle, registrationNumber: e.target.value })}
                     />
@@ -416,7 +416,7 @@ export function Inventory() {
                       value={newVehicle.bluebookStatus} 
                       onValueChange={(val: BluebookStatus) => setNewVehicle({ ...newVehicle, bluebookStatus: val })}
                     >
-                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -448,7 +448,7 @@ export function Inventory() {
         <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
+              <TableRow className="bg-slate-100 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                 <TableHead className="py-2.5 px-6">
                   <div 
                     className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
@@ -585,7 +585,7 @@ export function Inventory() {
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
                       <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
-                      <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600">{vehicle.color}</span></span>
+                      <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600 dark:text-slate-300">{vehicle.color}</span></span>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-2.5">
@@ -689,7 +689,7 @@ export function Inventory() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white dark:bg-[#0f172a] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reg. Number</label>
                                 <Input 
@@ -765,7 +765,7 @@ export function Inventory() {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Inventory seed data only</p>
+                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-[#0f172a] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Inventory seed data only</p>
                             )}
                           </div>
 
@@ -792,7 +792,7 @@ export function Inventory() {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Pending Commercial Completion</p>
+                              <p className="text-xs text-center py-6 bg-slate-50 dark:bg-[#0f172a] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-widest italic">Pending Commercial Completion</p>
                             )}
                           </div>
                         </div>

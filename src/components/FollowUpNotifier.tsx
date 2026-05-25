@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
-import { Bell, Phone, MessageCircle, Clock, X, Calendar as CalendarIcon } from 'lucide-react';
+import { Bell, Phone, MessageCircle, Clock, X, Calendar as CalendarIcon, User as UserIcon, History as HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -76,6 +76,28 @@ export function FollowUpNotifier() {
         } catch (error) {
             console.error('Error saving follow-up:', error);
             toast.error('Failed to add follow-up');
+        }
+    };
+
+    const handleAssignChange = async (followupId: string, newAssignedToId: string) => {
+        let assignedToId = null;
+        let assignedToName = null;
+        if (newAssignedToId && newAssignedToId !== 'unassigned') {
+            const assignedUser = users.find(u => u.uid === newAssignedToId);
+            if (assignedUser) {
+                assignedToId = assignedUser.uid;
+                assignedToName = assignedUser.displayName || assignedUser.email;
+            }
+        }
+        try {
+            await updateDoc(doc(db, 'followups', followupId), {
+                assignedToId,
+                assignedToName
+            });
+            toast.success("Assignee updated");
+        } catch (error) {
+            console.error('Error updating assignee:', error);
+            toast.error("Failed to update assignee");
         }
     };
 
@@ -238,6 +260,8 @@ export function FollowUpNotifier() {
                                         users={users}
                                         setUpdatingPartyId={setUpdatingPartyId}
                                         handleSaveFollowup={handleSaveFollowup}
+                                        handleAssignChange={handleAssignChange}
+                                        allFollowups={followups}
                                     />
                                 ))}
                             </div>
@@ -265,6 +289,8 @@ export function FollowUpNotifier() {
                                         users={users}
                                         setUpdatingPartyId={setUpdatingPartyId}
                                         handleSaveFollowup={handleSaveFollowup}
+                                        handleAssignChange={handleAssignChange}
+                                        allFollowups={followups}
                                     />
                                 ))}
                             </div>
@@ -276,18 +302,23 @@ export function FollowUpNotifier() {
     );
 }
 
-function FollowupCard({ party, followup, updatingPartyId, startUpdate, setIsOpen, navigate, newFollowupMsg, setNewFollowupMsg, newFollowupDate, setNewFollowupDate, newFollowupTime, setNewFollowupTime, newFollowupAssignedTo, setNewFollowupAssignedTo, users, setUpdatingPartyId, handleSaveFollowup }: any) {
+function FollowupCard({ party, followup, updatingPartyId, startUpdate, setIsOpen, navigate, newFollowupMsg, setNewFollowupMsg, newFollowupDate, setNewFollowupDate, newFollowupTime, setNewFollowupTime, newFollowupAssignedTo, setNewFollowupAssignedTo, users, setUpdatingPartyId, handleSaveFollowup, handleAssignChange, allFollowups }: any) {
+    const [historyOpen, setHistoryOpen] = useState(false);
+
     return (
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex flex-col gap-3">
             <div className="flex justify-between items-start gap-2">
                 <div>
                     <h4 className="font-bold text-slate-800 dark:text-slate-200">{party.name}</h4>
+                    {party.contactNumber && (
+                        <p className="text-xs font-semibold text-slate-500 mt-0.5">{party.contactNumber}</p>
+                    )}
                     <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 font-medium mt-1">
                         <Clock className="w-3.5 h-3.5" />
                         Due: {(followup.nextFollowUpDate as any)?.toDate?.().toLocaleString() || new Date(followup.nextFollowUpDate as any).toLocaleString()}
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col items-end gap-2">
                     <Button 
                         variant="ghost" 
                         size="sm" 
@@ -309,9 +340,39 @@ function FollowupCard({ party, followup, updatingPartyId, startUpdate, setIsOpen
                     </Button>
                 </div>
             </div>
+            
             <div className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                 <p className="font-semibold text-xs text-slate-400 mb-1 uppercase tracking-wider">Previous Note:</p>
                 "{followup.message}"
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 relative border border-slate-200 dark:border-slate-800 rounded-lg pr-1 bg-white dark:bg-slate-950 focus-within:border-blue-500 transition-colors">
+                    <div className="pl-2.5 pointer-events-none">
+                        <UserIcon className="w-3 h-3 text-slate-400" />
+                    </div>
+                    <select 
+                        value={followup.assignedToId || 'unassigned'}
+                        onChange={(e) => handleAssignChange(followup.id, e.target.value)}
+                        className="h-7 py-0.5 pl-1.5 pr-6 bg-transparent text-[11px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none appearance-none cursor-pointer w-full max-w-[120px] truncate"
+                    >
+                        <option value="unassigned">Unassigned (Global)</option>
+                        {users.map((u: any) => (
+                            <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                        ))}
+                    </select>
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-2.5 h-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 text-xs px-2.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    onClick={() => setHistoryOpen(true)}
+                >
+                    <HistoryIcon className="w-3.5 h-3.5" /> History
+                </Button>
             </div>
             
             {updatingPartyId === party.id ? (
@@ -370,6 +431,51 @@ function FollowupCard({ party, followup, updatingPartyId, startUpdate, setIsOpen
                         </Button>
                     </div>
                 )
+            )}
+
+            {historyOpen && (
+                <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+                    <DialogContent className="max-w-[600px] h-[80vh] flex flex-col z-[100]">
+                        <DialogHeader className="shrink-0 space-y-3">
+                            <DialogTitle>Follow-up History</DialogTitle>
+                            <p className="text-sm text-slate-500">History for {party.name}</p>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                            {allFollowups
+                                .filter((f: any) => f.partyId === party.id)
+                                .sort((a: any, b: any) => {
+                                    const timeA = (a.createdAt as any)?.toMillis?.() || 0;
+                                    const timeB = (b.createdAt as any)?.toMillis?.() || 0;
+                                    return timeB - timeA;
+                                })
+                                .map((f: any) => (
+                                    <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm flex flex-col gap-2">
+                                        <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{f.message}</p>
+                                        <div className="flex flex-wrap gap-3 mt-1 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                <CalendarIcon className="w-3.5 h-3.5" />
+                                                {(f.createdAt as any)?.toDate?.().toLocaleString() || 'Just now'}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                <UserIcon className="w-3.5 h-3.5" />
+                                                By: {f.createdByName || 'Unknown'}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                                                <UserIcon className="w-3.5 h-3.5" />
+                                                Assignee: {f.assignedToName || 'Unassigned'}
+                                            </div>
+                                            {f.nextFollowUpDate && (
+                                                <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium ml-auto">
+                                                    <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                                    Due: {(f.nextFollowUpDate as any)?.toDate?.().toLocaleString()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             )}
         </div>
     );

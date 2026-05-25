@@ -385,7 +385,7 @@ export function Purchases() {
 
       <div className="grid gap-8 lg:grid-cols-12">
         <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit">
-          <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Invoice Reference</h3>
           </div>
           <CardContent className="p-6 space-y-6">
@@ -395,7 +395,7 @@ export function Purchases() {
                 type="date" 
                 value={purchaseDate} 
                 onChange={(e) => setPurchaseDate(e.target.value)} 
-                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
               />
             </div>
             <div className="space-y-2">
@@ -404,14 +404,14 @@ export function Purchases() {
                 value={invoiceNumber} 
                 onChange={(e) => setInvoiceNumber(e.target.value)} 
                 placeholder="Ex: INV-9902" 
-                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Associated Vendor</label>
               <div className="flex gap-2 items-center">
                 <Select value={selectedVendor} onValueChange={setSelectedVendor}>
-                  <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all flex-1">
+                  <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all flex-1">
                     <SelectValue placeholder="Identify Source..." />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -429,7 +429,7 @@ export function Purchases() {
         </Card>
 
         <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Chassis Manifest</h3>
             <div className="flex gap-2">
                <QuickAddVehicle onAdded={(chassis) => {
@@ -438,7 +438,7 @@ export function Purchases() {
                  setSearchQuery(chassis);
                  setIsSelectorOpen(true);
                }} />
-               <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600 px-4">
+               <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-11 bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600 px-4">
                  <Plus className="h-4 w-4 mr-1" /> Add Entry Row
                </Button>
             </div>
@@ -464,7 +464,7 @@ export function Purchases() {
                             placeholder="Search VIN/Chassis..." 
                             value={entry.chassisNumber} 
                             readOnly
-                            className="h-10 rounded-lg border-slate-200 dark:border-slate-800 font-mono font-bold text-sm bg-slate-50 dark:bg-slate-900/50 pr-10 text-slate-500 cursor-not-allowed"
+                            className="h-10 rounded-lg border-slate-200 dark:border-slate-800 font-mono font-bold text-sm bg-slate-50 dark:bg-[#0f172a] pr-10 text-slate-500 cursor-not-allowed"
                           />
                           <Button 
                             variant="ghost" 
@@ -488,7 +488,7 @@ export function Purchases() {
                           }}
                           disabled
                         >
-                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800">
                             <SelectValue placeholder="Brand" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -502,7 +502,7 @@ export function Purchases() {
                           onValueChange={(val) => updateRow(index, 'modelId', val)}
                           disabled
                         >
-                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                          <SelectTrigger className="w-[140px] h-10 rounded-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800">
                             <SelectValue placeholder="Variants" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -517,7 +517,7 @@ export function Purchases() {
                           value={entry.color} 
                           onValueChange={(val) => updateRow(index, 'color', val)}
                         >
-                          <SelectTrigger className="w-[110px] h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                          <SelectTrigger className="w-[110px] h-10 rounded-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -538,7 +538,7 @@ export function Purchases() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-20 px-6">
                         <div className="flex flex-col items-center gap-3">
-                           <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-full">
+                           <div className="p-4 bg-slate-50 dark:bg-[#0f172a] rounded-full">
                               <CarFront className="h-8 w-8 text-slate-300" />
                            </div>
                            <p className="text-slate-400 font-bold text-sm tracking-tight italic">Manifest is empty. Add a row to initiate registration.</p>
@@ -568,13 +568,13 @@ export function Purchases() {
               placeholder="Search chassis, model or company..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
             />
           </div>
 
           <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100 dark:border-slate-800">
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
+              <TableHeader className="bg-slate-50 dark:bg-[#0f172a] sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Chassis</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Make/Model</TableHead>
@@ -599,13 +599,13 @@ export function Purchases() {
                   .map(vehicle => (
                     <TableRow 
                       key={vehicle.chassisNumber} 
-                      className="cursor-pointer hover:bg-slate-50 dark:bg-slate-900/50 group"
+                      className="cursor-pointer hover:bg-slate-50 dark:bg-[#0f172a] group"
                       onClick={() => selectVehicleForRow(vehicle)}
                     >
                       <TableCell className="font-mono font-black text-sm px-4">{vehicle.chassisNumber}</TableCell>
                       <TableCell className="px-4">
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-600">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                             {companies.find(c => c.id === vehicle.companyId)?.name}
                           </span>
                           <span className="text-[10px] font-medium text-slate-400">
@@ -652,7 +652,7 @@ export function Purchases() {
                 Clear Filters
               </Button>
             )}
-            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" onClick={exportPurchases}>
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]" onClick={exportPurchases}>
               <Download className="h-4 w-4 mr-2" />
               Export Records
             </Button>
@@ -675,7 +675,7 @@ export function Purchases() {
                         <div className="space-y-1 p-3 w-[200px]">
                           <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
                           <Select value={vendorFilter} onValueChange={(val) => { setVendorFilter(val); setActivePopover(null); }}>
-                            <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                            <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                               <SelectValue placeholder="All Vendors" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
@@ -713,7 +713,7 @@ export function Purchases() {
                               placeholder="Search chassis..." 
                               value={chassisFilter} 
                               onChange={e => setChassisFilter(e.target.value)}
-                              className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                              className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
                             />
                           </div>
                         </div>
@@ -745,7 +745,7 @@ export function Purchases() {
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100 text-center">
-                      <Badge variant="outline" className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-black">
+                      <Badge variant="outline" className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] font-black">
                         {purchase.invoiceNumber}
                       </Badge>
                     </TableCell>
@@ -866,7 +866,7 @@ export function Purchases() {
               <Input 
                 value={editInvoiceNumber} 
                 onChange={(e) => setEditInvoiceNumber(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-black"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-black"
               />
             </div>
             <div className="space-y-2">
@@ -875,7 +875,7 @@ export function Purchases() {
                 type="date" 
                 value={editPurchaseDate} 
                 onChange={(e) => setEditPurchaseDate(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold"
               />
             </div>
           </div>

@@ -36,7 +36,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
     return (
         <div className="relative flex-1 w-full" ref={containerRef}>
             <div 
-                className="w-full h-11 px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-medium flex items-center justify-between cursor-pointer shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                className="w-full h-11 px-4 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-medium flex items-center justify-between cursor-pointer shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <div className="truncate flex-1 max-w-full text-slate-700 dark:text-slate-300 pr-2">
@@ -46,7 +46,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
             </div>
             {isOpen && (
                 <div className="absolute top-full mt-1.5 left-0 right-0 max-h-64 overflow-y-auto bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 flex flex-col p-1.5">
-                    <div className="sticky top-0 bg-white dark:bg-slate-950 z-10 pb-1.5 border-b border-slate-100 dark:border-slate-800/60 shadow-[0_4px_6px_-6px_rgba(0,0,0,0.1)]">
+                    <div className="sticky top-0 bg-white dark:bg-slate-950 z-10 pb-1.5 border-b border-slate-100 dark:border-slate-700 shadow-[0_4px_6px_-6px_rgba(0,0,0,0.1)]">
                         <Input 
                             autoFocus
                             placeholder="Type to search..." 
@@ -505,7 +505,7 @@ export function InternalAccounts() {
     }, [statementOpening, statementTransactions]);
 
     return (
-        <div className="flex flex-col gap-6 h-full p-4 md:p-6 overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="flex flex-col gap-6 h-full p-4 md:p-6 overflow-hidden bg-slate-50/50 dark:bg-[#0f172a]">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 drop-shadow-sm">Internal Accounts</h1>
@@ -513,7 +513,7 @@ export function InternalAccounts() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <TabsList className="w-fit bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/60 p-1 rounded-xl shadow-sm">
+                <TabsList className="w-fit bg-white/50 dark:bg-slate-950/50 backdrop-blur-md border border-slate-200/60 dark:border-slate-700 p-1 rounded-xl shadow-sm">
                     {userProfile?.role === 'admin' && <TabsTrigger value="opening" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Opening</TabsTrigger>}
                     {userProfile?.role === 'admin' && <TabsTrigger value="transactions" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Transactions</TabsTrigger>}
                     <TabsTrigger value="statement" className="rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">Account Statement</TabsTrigger>
@@ -522,8 +522,8 @@ export function InternalAccounts() {
 
                 {/* --- ACCOUNT OPENING --- */}
                 <TabsContent value="opening" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
-                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
-                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Opening Balances</CardTitle>
                             <div className="flex items-center gap-3">
                                 <Button onClick={downloadOpeningTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
@@ -540,7 +540,7 @@ export function InternalAccounts() {
                         <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
+                                    <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                         <tr>
                                             <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', openingsSort, setOpeningsSort)}>
                                                 <div className="flex items-center">Date <ArrowUpDown className="ml-1 w-3 h-3" /></div>
@@ -592,8 +592,8 @@ export function InternalAccounts() {
 
                 {/* --- TRANSACTIONS --- */}
                 <TabsContent value="transactions" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
-                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
-                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Transactions</CardTitle>
                             <div className="flex items-center gap-3">
                                 <Button onClick={downloadTransactionTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
@@ -610,7 +610,7 @@ export function InternalAccounts() {
                         <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
                             <div className="flex-1 overflow-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
+                                    <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                         <tr>
                                             <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center whitespace-nowrap">Date <ArrowUpDown className="ml-1 w-3 h-3" /></div>
@@ -672,8 +672,8 @@ export function InternalAccounts() {
 
                 {/* --- ACCOUNT STATEMENT --- */}
                 <TabsContent value="statement" className="flex-1 mt-6 flex flex-col min-h-0 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
-                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
-                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div>
                                     <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Account Statement</CardTitle>
@@ -702,7 +702,7 @@ export function InternalAccounts() {
                             ) : (
                                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                                     {/* MAPPING SECTION */}
-                                    <div className="bg-slate-50/50 dark:bg-slate-900/50 p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shrink-0">
+                                    <div className="bg-slate-50/50 dark:bg-[#0f172a] p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shrink-0">
                                         <div className="flex items-center gap-3 w-full xl:w-auto">
                                             <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
                                                 <Link className="h-5 w-5" />
@@ -813,7 +813,7 @@ export function InternalAccounts() {
                                                             </DialogHeader>
                                                             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
                                                                 {/* Add Follow-up Form */}
-                                                                <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-3">
+                                                                <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-3">
                                                                     <div className="space-y-2">
                                                                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Message / Notes</Label>
                                                                         <Textarea 
@@ -857,7 +857,7 @@ export function InternalAccounts() {
                                                                         <p className="text-sm text-center text-slate-500 py-4">No history available.</p>
                                                                     ) : (
                                                                         linkedPartyFollowups.map(f => (
-                                                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+                                                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm">
                                                                                 <div className="flex justify-between items-start mb-2">
                                                                                     <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{f.message}</p>
                                                                                 </div>
@@ -921,8 +921,8 @@ export function InternalAccounts() {
                                                     const model = models.find(m => m.id === vehicle?.modelId);
                                                     
                                                     return (
-                                                        <div key={sale.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-3">
-                                                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/60">
+                                                        <div key={sale.id} className="bg-white dark:bg-[#0f172a] p-4 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-700 flex flex-col gap-3">
+                                                            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
                                                                 <span className="font-mono text-xs font-bold text-slate-500">{sale.chassisNumber}</span>
                                                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-widest">File #{sale.fileNumber}</span>
                                                             </div>
@@ -975,7 +975,7 @@ export function InternalAccounts() {
 
                                     <div className="flex-1 overflow-y-auto px-6">
                                         <table className="w-full text-sm text-left">
-                                            <thead className="bg-[#F8FAFC] dark:bg-slate-900 text-slate-500 font-bold sticky top-0 shadow-sm z-10">
+                                            <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                                 <tr>
                                                     <th className="px-4 py-3 border-b">Date</th>
                                                     <th className="px-4 py-3 border-b">Details</th>
@@ -1040,7 +1040,7 @@ export function InternalAccounts() {
                                     )}
                                     
                                     {/* Footer Summary */}
-                                    <div className="bg-slate-100 dark:bg-slate-900/80 p-6 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.1)] z-20">
+                                    <div className="bg-slate-100 dark:bg-[#0f172a]/80 p-6 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.1)] z-20">
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             <div>
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Opening</p>
@@ -1078,8 +1078,8 @@ export function InternalAccounts() {
 
                 {/* --- MAPPING TAB --- */}
                 <TabsContent value="mapping" className="flex-1 mt-6 flex flex-col min-h-0 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
-                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl overflow-hidden">
-                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 z-20">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden">
+                        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
                             <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Customer Mapping</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -1089,12 +1089,12 @@ export function InternalAccounts() {
                                         <span>Unlinked Accounts (Internal)</span>
                                         <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full text-xs font-black">{allAccountNames.filter(name => !mappings[name]).length}</span>
                                     </h3>
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800/60 space-y-3">
+                                    <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
                                         {allAccountNames.filter(name => !mappings[name]).map(name => (
-                                            <div key={name} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:shadow-md">
+                                            <div key={name} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md">
                                                 <span className="font-medium text-slate-700 dark:text-slate-300">{name}</span>
                                                 <select 
-                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                                                     value=""
                                                     onChange={(e) => {
                                                         if (e.target.value) {
@@ -1127,15 +1127,15 @@ export function InternalAccounts() {
                                         <span>Pending Parties (Unlinked)</span>
                                         <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full text-xs font-black">{parties.filter(p => !Object.values(mappings).includes(p.id)).length}</span>
                                     </h3>
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-800/60 space-y-3">
+                                    <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
                                         {parties.filter(p => !Object.values(mappings).includes(p.id)).map(party => (
-                                            <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all hover:shadow-md">
+                                            <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md">
                                                 <div>
                                                     <p className="font-bold text-slate-700 dark:text-slate-300">{party.name}</p>
                                                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{party.contactNumber || 'No contact'}</p>
                                                 </div>
                                                 <select 
-                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
                                                     value=""
                                                     onChange={(e) => {
                                                         if (e.target.value) {
@@ -1174,7 +1174,7 @@ export function InternalAccounts() {
                                         const party = parties.find(p => p.id === partyId);
                                         if (!party) return null;
                                         return (
-                                            <div key={accountName} className="flex flex-col bg-white dark:bg-slate-900 p-4 xl:p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800/60 transition-all hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900/50">
+                                            <div key={accountName} className="flex flex-col bg-white dark:bg-[#0f172a] p-4 xl:p-5 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700 transition-all hover:shadow-md hover:border-blue-200 dark:hover:border-blue-900/50">
                                                 <div className="flex items-center justify-between mb-4">
                                                     <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div> Active Link
@@ -1199,7 +1199,7 @@ export function InternalAccounts() {
                                                         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{accountName}</p>
                                                     </div>
                                                     <div className="flex justify-center -my-1 relative z-10 w-full">
-                                                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1.5 rounded-full text-slate-400 shadow-sm relative -mt-3 -mb-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+                                                        <div className="bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-slate-800 p-1.5 rounded-full text-slate-400 shadow-sm relative -mt-3 -mb-3 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm">
                                                             <ArrowUpDown className="w-3 h-3" />
                                                         </div>
                                                     </div>

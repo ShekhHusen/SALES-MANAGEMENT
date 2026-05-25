@@ -195,7 +195,7 @@ export function AuditLog() {
       </div>
 
       <Card className="rounded-xl border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 pb-4">
+        <CardHeader className="bg-slate-50/50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 pb-4">
              <div className="flex flex-col md:flex-row gap-4 items-center flex-wrap">
                <div className="relative flex-1 min-w-[200px]">
                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -245,7 +245,7 @@ export function AuditLog() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-900">
+              <TableHeader className="bg-slate-50 dark:bg-[#0f172a]">
                 <TableRow>
                   <TableHead className="font-bold text-xs uppercase text-slate-500 px-4 py-3">Timestamp</TableHead>
                   <TableHead className="font-bold text-xs uppercase text-slate-500 px-4 py-3">User</TableHead>
@@ -276,7 +276,7 @@ export function AuditLog() {
                 ) : (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-slate-200 dark:hover:bg-slate-800">
-                      <TableCell className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-600">
+                      <TableCell className="px-4 py-3 whitespace-nowrap text-sm font-medium text-slate-600 dark:text-slate-300">
                         {log.timestamp?.toDate ? format(log.timestamp.toDate(), 'yyyy-MM-dd HH:mm:ss') : 'N/A'}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -295,29 +295,29 @@ export function AuditLog() {
                           {log.action || log.actionType}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-medium text-slate-700">
+                      <TableCell className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">
                         {log.entityType}
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-mono text-xs font-bold text-slate-600">
+                      <TableCell className="px-4 py-3 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
                         {log.entityId}
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-mono text-xs text-slate-600">
+                      <TableCell className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">
                         {getChassis(log)}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      <TableCell className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                         {getCustomer(log)}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      <TableCell className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                         {getVendor(log)}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-slate-600">
+                      <TableCell className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                         {getFileNo(log)}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-xs font-mono text-slate-600">
+                      <TableCell className="px-4 py-3 text-xs font-mono text-slate-600 dark:text-slate-300">
                         {getInvoiceNo(log)}
                       </TableCell>
                       <TableCell className="px-4 py-3">
-                         <div className="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-100 p-2 rounded-md font-medium text-slate-700 whitespace-nowrap">
+                         <div className="text-xs bg-slate-50 dark:bg-[#0f172a] border border-slate-100 p-2 rounded-md font-medium text-slate-700 whitespace-nowrap">
                             {getStatusText(log)}
                          </div>
                       </TableCell>

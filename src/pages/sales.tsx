@@ -356,7 +356,7 @@ export function Sales() {
         <div className="lg:col-span-12 xl:col-span-8 space-y-8">
           <div className="grid gap-8 md:grid-cols-2">
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <Car className="h-4 w-4" /> Vehicle Selection
                 </h3>
@@ -366,7 +366,7 @@ export function Sales() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Chassis</label>
                   <div className="relative flex items-center gap-2">
                     <Select value={selectedChassis} onValueChange={setSelectedChassis}>
-                      <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
+                      <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
                         <SelectValue placeholder="Identify Unit by Chassis Number" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -404,7 +404,7 @@ export function Sales() {
                 </div>
 
                 {currentVehicle && (
-                  <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
                      <div className="flex justify-between items-center pb-3 border-b border-slate-200/50">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Manufacturer</span>
                         <span className="font-extrabold text-blue-600">{companies.find(c => c.id === currentVehicle.companyId)?.name}</span>
@@ -412,7 +412,7 @@ export function Sales() {
                      <div className="space-y-3">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Finish Assignment</label>
                         <Select value={editColor} onValueChange={setEditColor}>
-                          <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                          <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl">
@@ -429,7 +429,7 @@ export function Sales() {
             </Card>
 
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <User className="h-4 w-4" /> Customer Mapping
                 </h3>
@@ -440,7 +440,7 @@ export function Sales() {
                   <div className="flex gap-2 items-center">
                     <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-bold rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 transition-all h-12 flex-1 hover:bg-white dark:hover:bg-slate-900 overflow-hidden">
+                        <Button variant="outline" className="justify-start text-left font-bold rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 transition-all h-12 flex-1 hover:bg-white dark:hover:bg-slate-900 overflow-hidden">
                           <div className="flex flex-col truncate w-full pt-1">
                             {selectedCustomer ? (
                               <>
@@ -456,7 +456,7 @@ export function Sales() {
                       <PopoverContent className="w-[300px] p-2 border-slate-200 dark:border-slate-800 rounded-xl" align="start">
                         <input
                           placeholder="Search customer..."
-                          className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-3 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full text-sm font-bold bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-3 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={customerSearchQuery}
                           onChange={(e) => setCustomerSearchQuery(e.target.value)}
                         />
@@ -492,7 +492,7 @@ export function Sales() {
                   <div className="rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="space-y-1">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Registry Address</p>
-                       <p className="text-sm font-bold text-slate-700">{customers.find(c => c.id === selectedCustomer)?.address}</p>
+                       <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{customers.find(c => c.id === selectedCustomer)?.address}</p>
                     </div>
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Authorized Contact</p>
@@ -508,7 +508,7 @@ export function Sales() {
         {/* Right Column: Transaction Details */}
         <div className="lg:col-span-12 xl:col-span-4 space-y-8">
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-            <div className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <FileText className="h-4 w-4" /> Registry Attributes
               </h3>
@@ -520,7 +520,7 @@ export function Sales() {
                   type="date" 
                   value={saleDate} 
                   onChange={(e) => setSaleDate(e.target.value)} 
-                  className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+                  className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
                 />
               </div>
             </CardContent>
@@ -540,7 +540,7 @@ export function Sales() {
                 Clear Filters
               </Button>
             )}
-            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" onClick={exportSales}>
+            <Button variant="outline" className="h-10 rounded-lg text-slate-600 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]" onClick={exportSales}>
               <Download className="h-4 w-4 mr-2" />
               Export Records
             </Button>
@@ -580,13 +580,13 @@ export function Sales() {
                               placeholder="Search chassis..." 
                               value={chassisFilter} 
                               onChange={e => setChassisFilter(e.target.value)}
-                              className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
+                              className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm focus-visible:ring-1 focus-visible:ring-blue-500 w-full"
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Company</label>
                             <Select value={companyFilter} onValueChange={(val) => { setCompanyFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Companies" />
                               </SelectTrigger>
                               <SelectContent>
@@ -600,7 +600,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Model</label>
                             <Select value={modelFilter} onValueChange={(val) => { setModelFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={companyFilter === 'ALL' && models.length === 0}>
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={companyFilter === 'ALL' && models.length === 0}>
                                 <SelectValue placeholder="All Models" />
                               </SelectTrigger>
                               <SelectContent>
@@ -614,7 +614,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Color</label>
                             <Select value={colorFilter} onValueChange={(val) => { setColorFilter(val); setActivePopover(null); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Colors" />
                               </SelectTrigger>
                               <SelectContent>
@@ -655,7 +655,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook Status</label>
                             <Select value={bluebookFilter} onValueChange={(val) => { setBluebookFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -668,7 +668,7 @@ export function Sales() {
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Naamsari Status</label>
                             <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setActivePopover(null); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                                 <SelectValue placeholder="All Status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -697,7 +697,7 @@ export function Sales() {
                 return (
                   <TableRow key={sale.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent divide-x divide-slate-100">
                     <TableCell className="px-4 py-2.5 text-center font-bold text-slate-500">{index + 1}</TableCell>
-                    <TableCell className="px-4 py-2.5 font-bold text-slate-700">
+                    <TableCell className="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200">
                       {sale.date instanceof Timestamp 
                         ? sale.date.toDate().toLocaleDateString('en-GB') 
                         : String(sale.date)}
@@ -800,7 +800,7 @@ export function Sales() {
                 type="number" 
                 value={editFileNumber} 
                 onChange={(e) => setEditFileNumber(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-black"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-black"
               />
             </div>
             <div className="space-y-2">
@@ -809,7 +809,7 @@ export function Sales() {
                 type="date" 
                 value={editSaleDate} 
                 onChange={(e) => setEditSaleDate(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold"
+                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold"
               />
             </div>
           </div>
@@ -858,13 +858,13 @@ export function Sales() {
               placeholder="Filter by chassis, model or make..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+              className="pl-10 h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
             />
           </div>
 
           <div className="flex-1 overflow-y-auto mt-4 rounded-xl border border-slate-100 dark:border-slate-800">
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
+              <TableHeader className="bg-slate-50 dark:bg-[#0f172a] sticky top-0 z-10">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Chassis</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-widest px-4">Details</TableHead>
@@ -880,7 +880,7 @@ export function Sales() {
                   .map(vehicle => (
                     <TableRow 
                       key={vehicle.chassisNumber} 
-                      className="cursor-pointer hover:bg-slate-50 dark:bg-slate-900/50 group"
+                      className="cursor-pointer hover:bg-slate-50 dark:bg-[#0f172a] group"
                       onClick={() => {
                         setSelectedChassis(vehicle.chassisNumber);
                         setIsSelectorOpen(false);
@@ -890,7 +890,7 @@ export function Sales() {
                       <TableCell className="font-mono font-black text-sm px-4">{vehicle.chassisNumber}</TableCell>
                       <TableCell className="px-4">
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-600">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                             {companies.find(c => c.id === vehicle.companyId)?.name}
                           </span>
                           <span className="text-[10px] font-medium text-slate-400 uppercase">
@@ -934,8 +934,8 @@ export function Sales() {
             <div className="space-y-4 py-4">
               <div className="bg-slate-50 border p-4 rounded-xl space-y-2">
                  <p className="font-bold text-slate-800">You have created file number: <span className="text-xl text-emerald-600">{successModalData.fileNumber}</span></p>
-                 <p className="text-sm font-medium text-slate-600">Customer: {successModalData.customerName}</p>
-                 <p className="text-sm font-medium text-slate-600">Chassis Number: {successModalData.chassisNumber}</p>
+                 <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Customer: {successModalData.customerName}</p>
+                 <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Chassis Number: {successModalData.chassisNumber}</p>
               </div>
             </div>
           )}

@@ -106,11 +106,11 @@ export function Settings() {
         {/* Companies Section */}
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div 
-            className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setIsBrandExpanded(!isBrandExpanded)}
           >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Brand Directory</h3>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] hover:bg-slate-50 dark:bg-[#0f172a]">
               {isBrandExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
@@ -121,7 +121,7 @@ export function Settings() {
                 placeholder="Manufacturer Name..." 
                 value={newCompany}
                 onChange={(e) => setNewCompany(e.target.value)}
-                className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
+                className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
               />
               <Button onClick={addCompany} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
                 <Plus className="h-4 w-4 mr-2" /> Register Brand
@@ -163,11 +163,11 @@ export function Settings() {
         {/* Models Section */}
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div 
-            className="bg-slate-50 dark:bg-slate-900/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={() => setIsVariantExpanded(!isVariantExpanded)}
           >
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Variant Manifest</h3>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:bg-slate-900/50">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] hover:bg-slate-50 dark:bg-[#0f172a]">
               {isVariantExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
@@ -178,7 +178,7 @@ export function Settings() {
                 value={newModel.companyId} 
                 onValueChange={(val) => setNewModel(prev => ({ ...prev, companyId: val }))}
               >
-                <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all">
+                <SelectTrigger className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all">
                   <SelectValue placeholder="Attribute to Brand" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
@@ -192,7 +192,7 @@ export function Settings() {
                   placeholder="Variant/Model Name..." 
                   value={newModel.name}
                   onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-11 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
+                  className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
                 />
                 <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
                   <Plus className="h-4 w-4 mr-2" /> Add Variant

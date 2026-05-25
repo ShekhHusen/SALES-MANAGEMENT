@@ -115,7 +115,7 @@ export function UserManagement() {
       </div>
 
       <Card className="rounded-xl border-slate-200 dark:border-slate-800 shadow-sm">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 pb-4">
+        <CardHeader className="bg-slate-50/50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Platform Users</CardTitle>
@@ -135,7 +135,7 @@ export function UserManagement() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-900">
+              <TableHeader className="bg-slate-50 dark:bg-[#0f172a]">
                 <TableRow>
                   <TableHead className="font-bold text-xs uppercase text-slate-500 px-4 py-3">User</TableHead>
                   <TableHead className="font-bold text-xs uppercase text-slate-500 px-4 py-3">Email</TableHead>
@@ -162,7 +162,7 @@ export function UserManagement() {
                       <TableCell className="px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
                         {u.displayName || 'Unknown'}
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-sm text-slate-600">
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                         {u.email}
                       </TableCell>
                       <TableCell className="px-4 py-3">

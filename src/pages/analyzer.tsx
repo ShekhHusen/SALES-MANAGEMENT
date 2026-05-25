@@ -159,7 +159,7 @@ export function Analyzer() {
           <div className="space-y-1 p-3 w-[200px]">
             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Status</label>
             <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setActivePopover(null); }}>
-              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -176,7 +176,7 @@ export function Analyzer() {
           <div className="space-y-1 p-3 w-[200px]">
             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
             <Select value={filterVendor} onValueChange={(val) => { setFilterVendor(val); setActivePopover(null); }}>
-              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                 <SelectValue placeholder="All Vendors" />
               </SelectTrigger>
               <SelectContent>
@@ -194,7 +194,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Company</label>
               <Select value={filterCompany} onValueChange={(val) => { setFilterCompany(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Companies" />
                 </SelectTrigger>
                 <SelectContent>
@@ -208,7 +208,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Model</label>
               <Select value={filterModel} onValueChange={(val) => { setFilterModel(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={filterCompany === 'ALL' && models.length === 0}>
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full" disabled={filterCompany === 'ALL' && models.length === 0}>
                   <SelectValue placeholder="All Models" />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +222,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Color</label>
               <Select value={filterColor} onValueChange={(val) => { setFilterColor(val); setActivePopover(null); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Colors" />
                 </SelectTrigger>
                 <SelectContent>
@@ -241,7 +241,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook</label>
               <Select value={filterBluebook} onValueChange={(val) => { setFilterBluebook(val); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -254,7 +254,7 @@ export function Analyzer() {
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Namsari</label>
               <Select value={filterNaamsari} onValueChange={(val) => { setFilterNaamsari(val); setActivePopover(null); }}>
-                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
+                <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -314,7 +314,7 @@ export function Analyzer() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-slate-900/50 relative rounded-2xl">
+    <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-[#0f172a] relative rounded-2xl">
       <div className="flex items-center justify-between shrink-0 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
@@ -331,7 +331,7 @@ export function Analyzer() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch flex-1 min-h-0 overflow-hidden">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden max-h-[300px] lg:max-h-full lg:h-full">
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden max-h-[300px] lg:max-h-full lg:h-full">
           <div className="absolute top-0 right-0 p-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           
           <div className="flex flex-col gap-3 relative z-10">
@@ -339,7 +339,7 @@ export function Analyzer() {
               <Filter className="h-5 w-5 text-blue-600" />
               <h2 className="text-lg font-extrabold uppercase tracking-tight">Filter Criteria</h2>
             </div>
-            <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 shadow-sm bg-white dark:bg-slate-900">
+            <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 shadow-sm bg-white dark:bg-[#0f172a]">
               <RefreshCcw className="w-3.5 h-3.5 mr-2" /> Reset Filters
             </Button>
           </div>
@@ -347,31 +347,31 @@ export function Analyzer() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5 relative z-10 w-full">
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
-              <Input placeholder="Search chassis..." value={filterChassis} onChange={e => setFilterChassis(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search chassis..." value={filterChassis} onChange={e => setFilterChassis(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Reg. Number</label>
-              <Input placeholder="Search reg number..." value={filterRegNum} onChange={e => setFilterRegNum(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search reg number..." value={filterRegNum} onChange={e => setFilterRegNum(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Customer Name</label>
-              <Input placeholder="Search customer..." value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
+              <Input placeholder="Search customer..." value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Customer Contact</label>
-              <Input placeholder="Search contact..." value={filterContact} onChange={e => setFilterContact(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] w-full" />
+              <Input placeholder="Search contact..." value={filterContact} onChange={e => setFilterContact(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] w-full" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex-1 w-full min-w-0 flex flex-col max-h-[400px] lg:max-h-full lg:h-full">
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex-1 w-full min-w-0 flex flex-col max-h-[400px] lg:max-h-full lg:h-full">
           <div className="overflow-auto flex-1 h-full w-full relative rounded-2xl [&_[data-slot=table-container]]:overflow-visible">
           <Table>
-            <TableHeader className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900/50 shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
-              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200 dark:border-slate-800">
+            <TableHeader className="sticky top-0 z-20 bg-slate-50 dark:bg-[#0f172a] shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]">
+              <TableRow className="bg-slate-100 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                 {(
                   [
                     { label: 'Status', key: 'status' as SortKey, filterable: true, sortable: true },

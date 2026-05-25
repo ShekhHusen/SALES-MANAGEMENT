@@ -191,7 +191,7 @@ export function FollowUps() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-4 items-center bg-white dark:bg-[#0f172a] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="flex items-center gap-2 mr-4">
                     <Filter className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Filters:</span>
@@ -233,7 +233,7 @@ export function FollowUps() {
 
             {/* List */}
             {activeFollowups.length === 0 ? (
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
+                <div className="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
                     <div className="mx-auto w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
                         <BellRing className="h-8 w-8 text-slate-400" />
                     </div>
@@ -243,7 +243,7 @@ export function FollowUps() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {activeFollowups.map(({ party, followup, isDue }) => (
-                        <div key={followup.id} className={`bg-white dark:bg-slate-900 border rounded-xl p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden transition-all hover:shadow-md ${isDue ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
+                        <div key={followup.id} className={`bg-white dark:bg-[#0f172a] border rounded-xl p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden transition-all hover:shadow-md ${isDue ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
                             {isDue && (
                                 <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
                                     <div className="absolute top-[-10px] right-[-30px] bg-red-500 text-white text-[10px] font-bold py-1 w-[100px] text-center transform rotate-45 shadow-sm">
@@ -264,7 +264,7 @@ export function FollowUps() {
                                 </div>
                             </div>
                             
-                            <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-800/60 line-clamp-3">
+                            <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-700 line-clamp-3">
                                 <p className="font-semibold text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Previous Note:</p>
                                 "{followup.message}"
                             </div>
@@ -400,9 +400,9 @@ export function FollowUps() {
                                     return timeB - timeA;
                                 })
                                 .map(f => (
-                                    <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm flex flex-col gap-2">
+                                    <div key={f.id} className="bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-col gap-2">
                                         <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{f.message}</p>
-                                        <div className="flex flex-wrap gap-3 mt-1 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                                        <div className="flex flex-wrap gap-3 mt-1 pt-3 border-t border-slate-100 dark:border-slate-700">
                                             <div className="flex items-center gap-1.5 text-xs text-slate-500">
                                                 <CalendarIcon className="w-3.5 h-3.5" />
                                                 {(f.createdAt as any)?.toDate?.().toLocaleString() || 'Just now'}

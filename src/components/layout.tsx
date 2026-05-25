@@ -93,9 +93,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Left Edge Hover Trigger */}
       {!sidebarOpen && (
         <div 
-          className="fixed inset-y-0 left-0 w-6 z-40" 
+          className="fixed inset-y-0 left-0 w-6 z-40 hidden lg:block" 
           onMouseEnter={() => setSidebarOpen(true)}
-          onTouchStart={() => setSidebarOpen(true)}
         />
       )}
 
