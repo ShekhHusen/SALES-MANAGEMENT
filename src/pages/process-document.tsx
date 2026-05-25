@@ -79,10 +79,17 @@ export function ProcessDocument() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const quotationTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
   const trafficTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
+  const bikrinamaEVTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
+  const bikrinamaPetrolTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
 
-  const handleDownloadPDF = async (docType: 'quotation' | 'traffic', sale: Sale, action: 'download' | 'print' = 'download') => {
-    const templateRef = docType === 'quotation' ? quotationTemplateRef : trafficTemplateRef;
-    if (!templateRef.current || !templateRef.current.printRef1.current) return;
+  const handleDownloadPDF = async (docType: 'quotation' | 'traffic' | 'bikrinama_ev' | 'bikrinama_petrol', sale: Sale, action: 'download' | 'print' = 'download') => {
+    let templateRef;
+    if (docType === 'quotation') templateRef = quotationTemplateRef;
+    else if (docType === 'traffic') templateRef = trafficTemplateRef;
+    else if (docType === 'bikrinama_ev') templateRef = bikrinamaEVTemplateRef;
+    else if (docType === 'bikrinama_petrol') templateRef = bikrinamaPetrolTemplateRef;
+
+    if (!templateRef?.current || !templateRef.current.printRef1.current) return;
     setIsGeneratingPdf(true);
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -942,6 +949,30 @@ export function ProcessDocument() {
                      <Printer className="w-4 h-4" />
                    </Button>
                  </div>
+                 <div className="flex items-center">
+                   <Button 
+                     onClick={() => handleDownloadPDF('bikrinama_ev', selectedSale!, 'print')}
+                     disabled={isGeneratingPdf}
+                     variant="outline"
+                     className="rounded-xl border-orange-200/60 text-orange-700 bg-orange-50/50 hover:bg-orange-100 hover:border-orange-300 shadow-sm font-bold h-10 transition-all px-4"
+                     title="Print Bikrinama (EV)"
+                   >
+                     <Printer className="w-4 h-4 mr-2" />
+                     Bikrinama (EV)
+                   </Button>
+                 </div>
+                 <div className="flex items-center">
+                   <Button 
+                     onClick={() => handleDownloadPDF('bikrinama_petrol', selectedSale!, 'print')}
+                     disabled={isGeneratingPdf}
+                     variant="outline"
+                     className="rounded-xl border-rose-200/60 text-rose-700 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-300 shadow-sm font-bold h-10 transition-all px-4"
+                     title="Print Bikrinama (Petrol)"
+                   >
+                     <Printer className="w-4 h-4 mr-2" />
+                     Bikrinama (Petrol)
+                   </Button>
+                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1461,6 +1492,34 @@ export function ProcessDocument() {
               company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
               model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
               docType="traffic"
+              tempDetails={{
+                vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
+                engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
+                productId, notes, noOfBattery, serialNumbers
+              }}
+            />
+            <PdfTemplates
+              ref={bikrinamaEVTemplateRef}
+              sale={selectedSale}
+              vehicle={vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)}
+              customer={customers.find(c => c.id === selectedSale.customerId)}
+              company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
+              model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
+              docType="bikrinama_ev"
+              tempDetails={{
+                vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
+                engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
+                productId, notes, noOfBattery, serialNumbers
+              }}
+            />
+            <PdfTemplates
+              ref={bikrinamaPetrolTemplateRef}
+              sale={selectedSale}
+              vehicle={vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)}
+              customer={customers.find(c => c.id === selectedSale.customerId)}
+              company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
+              model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
+              docType="bikrinama_petrol"
               tempDetails={{
                 vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
                 engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
