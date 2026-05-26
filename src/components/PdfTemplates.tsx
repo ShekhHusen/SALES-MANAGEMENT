@@ -51,7 +51,7 @@ interface PdfTemplateProps {
   customer?: Party;
   company?: Company;
   model?: Model;
-  docType: 'quotation' | 'traffic' | 'bikrinama_ev' | 'bikrinama_petrol';
+  docType: 'quotation' | 'traffic';
   // These props allow overriding the saved values with unsaved ones from the form
   tempDetails?: any; 
 }
@@ -69,34 +69,8 @@ export const PdfTemplates = React.forwardRef(({ sale, vehicle, customer, company
   const price = Number(details.vehiclePrice || 0);
   const serials = details.serialNumbers || [];
 
-  const renderBikrinama = (type: 'ev' | 'petrol') => (
-    <div 
-      ref={printRef1}
-      className="bg-white w-[210mm] min-w-[210mm] h-[297mm] min-h-[297mm] shrink-0 relative outline-none flex flex-col page-break-after overflow-hidden p-16 pt-24"
-      style={{ fontFamily: 'Arial, sans-serif', fontSize: '20px', lineHeight: '2' }}
-    >
-        <div className="text-justify whitespace-pre-wrap">
-          लिखितम बिक्रीनामा गरी दिनेको नाम जिल्ला रौतहट गरुडा नगरपालिका वडा नं. ४ मा सञ्चालन रहेको श्री जय बौधीमाई टेड्रर्स गरुडा न.पा.४ रौतहटको सञ्चालक श्री अनुज शाह आगे बिक्रीनामा गराई लिने खरिदकर्ताको नाम जिल्ला <span className="font-bold border-b border-black md:px-2">........................................</span> न.पा. <span className="font-bold border-b border-black md:px-2">........................................</span> वडा नं. <span className="font-bold border-b border-black md:px-2">........</span> मा बस्ने <span className="font-bold border-b border-black md:px-2">{details.grandFathersName || '...................................................'}</span> को नाति <span className="font-bold border-b border-black md:px-2">{details.fathersName || '...................................................'}</span> को छोरा बर्ष <span className="font-bold border-b border-black md:px-2">..........</span> को <span className="font-bold border-b border-black md:px-2">{customer?.name || '...................................................'}</span> आगे जय बौधीमाई टेडर्स गरुडा न.पा.४ रौतहटले (ON TEST) तिन पांग्रे {type === 'ev' ? 'बैट्री बाट चल्ने' : 'बजाज री'} गाडीको चेचिस नं. <span className="font-bold border-b border-black md:px-2">{vehicle?.chassisNumber || '...................................................'}</span> {type === 'petrol' ? <span>इनजिन नं. <span className="font-bold border-b border-black md:px-2">{details.engineNumber || '...................................................'}</span></span> : ''} रंग <span className="font-bold border-b border-black md:px-2">{vehicle?.color || '...................................................'}</span> भएको गाडी आजको मितिमा खरिदकर्ता <span className="font-bold border-b border-black md:px-2">{customer?.name || '...................................................'}</span> सँग रु. <span className="font-bold border-b border-black md:px-2">{price.toLocaleString()}</span> अक्षरेपी <span className="font-bold border-b border-black md:px-2">{numberToWords(price)}</span> मा विक्रि गरिएको ठिक साँचोहो यो गाडी बाट आजको मिति देखी हुने कुनै किसिमको हानि नोक्शानी क्षतीपुर्ति दुर्घटना तथा कानुन बिपरितको समाग्री समेत ओसार पसार गरेमा सो समेतको जिम्मेवार म खरिदकर्ताले व्यहोर्ने छु भनि हामिहरुले आ-आफ्नो मनोमानी राजि खुशि सँग श्री जय बौधीमाई टेड्स गरुडामा बसी यो खरिद बिक्रिको कागज लेखी लेखाई सही छाप गरी १/१ प्रति लियौ दियौ किनारामा लेखिएको साक्षी सदर पछि कुनै किसिमको उजुर बाजुर गर्ने छैन गरेमा यसैकागजको अधारमानी कानुन बमोजिमको सहुला बुझाउला ईति सम्वत २०८२ साल <span className="font-bold border-b border-black md:px-2">............</span> महिना <span className="font-bold border-b border-black md:px-2">..........</span> गते रोज <span className="font-bold border-b border-black md:px-2">..........</span> मा शुभम <span className="font-bold border-b border-black md:px-2">.....................</span>
-        </div>
-
-        <div className="mt-28 flex justify-between px-4">
-           <div className="w-[60%] font-bold">
-               <p className="mb-6 underline underline-offset-4 decoration-2">साक्षी</p>
-               <p className="mb-6 whitespace-nowrap">जि. रौतहट ....................न.पा. वडा नं.......मा बस्ने ..........................१</p>
-               <p className="whitespace-nowrap">जि. रौतहट ....................न.पा. वडा नं.......मा बस्ने ..........................१</p>
-           </div>
-           
-           <div className="w-[30%] pt-20 border-t-2 border-dashed border-slate-600 text-center font-bold self-end relative">
-              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2">सहीलेछाप</span>
-           </div>
-        </div>
-    </div>
-  );
-
   return (
     <>
-      {docType === 'bikrinama_ev' && renderBikrinama('ev')}
-      {docType === 'bikrinama_petrol' && renderBikrinama('petrol')}
       {docType === 'quotation' ? (
         <>
           <div 

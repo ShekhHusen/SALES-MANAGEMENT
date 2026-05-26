@@ -79,15 +79,10 @@ export function ProcessDocument() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const quotationTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
   const trafficTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
-  const bikrinamaEVTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
-  const bikrinamaPetrolTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
-
-  const handleDownloadPDF = async (docType: 'quotation' | 'traffic' | 'bikrinama_ev' | 'bikrinama_petrol', sale: Sale, action: 'download' | 'print' = 'download') => {
+  const handleDownloadPDF = async (docType: 'quotation' | 'traffic', sale: Sale, action: 'download' | 'print' = 'download') => {
     let templateRef;
     if (docType === 'quotation') templateRef = quotationTemplateRef;
     else if (docType === 'traffic') templateRef = trafficTemplateRef;
-    else if (docType === 'bikrinama_ev') templateRef = bikrinamaEVTemplateRef;
-    else if (docType === 'bikrinama_petrol') templateRef = bikrinamaPetrolTemplateRef;
 
     if (!templateRef?.current || !templateRef.current.printRef1.current) return;
     setIsGeneratingPdf(true);
@@ -254,6 +249,69 @@ export function ProcessDocument() {
        toast.error('Failed to generate EMI List: ' + (e.message || 'Unknown'));
     } finally {
        setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadUploadedImagePDF = (docKey: string, docName: string, action: 'download' | 'print' = 'print') => {
+    const imgData = images[docKey];
+    if (!imgData) {
+      let fallbackPdf = '';
+      if (docKey === 'bikrinama_ev') fallbackPdf = '/BIKRINAMA%20(EV).pdf';
+      else if (docKey === 'bikrinama_petrol') fallbackPdf = '/BIKRINAMA%20(Petrol).pdf';
+      
+      if (fallbackPdf) {
+        if (action === 'print') {
+          window.open(fallbackPdf, '_blank');
+        } else {
+          const a = document.createElement('a');
+          a.href = fallbackPdf;
+          a.download = decodeURIComponent(fallbackPdf.replace('/', ''));
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        return;
+      }
+
+      toast.error(`Please upload ${docName} first from the Documents section below.`);
+      return;
+    }
+    setIsGeneratingPdf(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgRatio = imgProps.width / imgProps.height;
+      const pdfRatio = pdfWidth / pdfHeight;
+      
+      let finalW = pdfWidth;
+      let finalH = pdfHeight;
+      
+      if (imgRatio > pdfRatio) {
+         finalH = pdfWidth / imgRatio;
+      } else {
+         finalW = pdfHeight * imgRatio;
+      }
+      
+      const x = (pdfWidth - finalW) / 2;
+      const y = (pdfHeight - finalH) / 2;
+      
+      pdf.addImage(imgData, 'JPEG', x, y, finalW, finalH);
+      
+      if (action === 'print') {
+        pdf.autoPrint();
+        window.open(pdf.output('bloburl'), '_blank');
+      } else {
+        pdf.save(`${docName.replace(/ /g, '-')}-${selectedSale?.chassisNumber || 'Document'}.pdf`);
+        toast.success(`${docName} downloaded successfully!`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(`Failed to generate ${docName} PDF`);
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -951,7 +1009,7 @@ export function ProcessDocument() {
                  </div>
                  <div className="flex items-center">
                    <Button 
-                     onClick={() => handleDownloadPDF('bikrinama_ev', selectedSale!, 'print')}
+                     onClick={() => handleDownloadUploadedImagePDF('bikrinama_ev', 'Bikrinama EV', 'print')}
                      disabled={isGeneratingPdf}
                      variant="outline"
                      className="rounded-xl border-orange-200/60 text-orange-700 bg-orange-50/50 hover:bg-orange-100 hover:border-orange-300 shadow-sm font-bold h-10 transition-all px-4"
@@ -963,7 +1021,7 @@ export function ProcessDocument() {
                  </div>
                  <div className="flex items-center">
                    <Button 
-                     onClick={() => handleDownloadPDF('bikrinama_petrol', selectedSale!, 'print')}
+                     onClick={() => handleDownloadUploadedImagePDF('bikrinama_petrol', 'Bikrinama Petrol', 'print')}
                      disabled={isGeneratingPdf}
                      variant="outline"
                      className="rounded-xl border-rose-200/60 text-rose-700 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-300 shadow-sm font-bold h-10 transition-all px-4"
@@ -975,8 +1033,8 @@ export function ProcessDocument() {
                  </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
                   <div key={docName} className="relative border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 h-44 bg-slate-50/50 dark:bg-[#0f172a] hover:bg-white dark:hover:bg-slate-800 hover:border-emerald-400 transition-all group overflow-hidden shadow-sm hover:shadow-md cursor-pointer">
@@ -1351,7 +1409,7 @@ export function ProcessDocument() {
                   <ImageIcon className="w-5 h-5 text-slate-500" /> Documents
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
+                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                     const docKey = docName.toLowerCase().replace(/ /g, '_');
                     const hasImage = viewSale.otherDetails?.images?.[docKey];
                     return (
@@ -1492,34 +1550,6 @@ export function ProcessDocument() {
               company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
               model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
               docType="traffic"
-              tempDetails={{
-                vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
-                engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
-                productId, notes, noOfBattery, serialNumbers
-              }}
-            />
-            <PdfTemplates
-              ref={bikrinamaEVTemplateRef}
-              sale={selectedSale}
-              vehicle={vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)}
-              customer={customers.find(c => c.id === selectedSale.customerId)}
-              company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
-              model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
-              docType="bikrinama_ev"
-              tempDetails={{
-                vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
-                engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
-                productId, notes, noOfBattery, serialNumbers
-              }}
-            />
-            <PdfTemplates
-              ref={bikrinamaPetrolTemplateRef}
-              sale={selectedSale}
-              vehicle={vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)}
-              customer={customers.find(c => c.id === selectedSale.customerId)}
-              company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
-              model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
-              docType="bikrinama_petrol"
               tempDetails={{
                 vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
                 engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
