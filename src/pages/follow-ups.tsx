@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
-import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle } from 'lucide-react';
+import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,6 +26,10 @@ export function FollowUps() {
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
     const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null);
     const [taskCompleted, setTaskCompleted] = useState(false);
+    
+    // UI states
+    const [pendingExpanded, setPendingExpanded] = useState(true);
+    const [workedExpanded, setWorkedExpanded] = useState(true);
     
     // Filters
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
@@ -191,19 +195,24 @@ export function FollowUps() {
         }).slice(0, 50); // limit to a reasonable amount
     }, [followups, parties, showOnlyDue, selectedUserId, userProfile]);
 
-    const completedTodayFollowups = useMemo(() => {
+    const workedTodayFollowups = useMemo(() => {
         if (userProfile?.role !== 'admin') return [];
         
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-        const completed = followups.filter(f => {
-            if (!f.isCompleted) return false;
+        const byParty: Record<string, FollowUp> = {};
+
+        followups.forEach(f => {
             const time = (f.createdAt as any)?.toMillis?.() || 0;
-            return time >= startOfDay;
+            if (time >= startOfDay) {
+                if (!byParty[f.partyId] || time > ((byParty[f.partyId].createdAt as any)?.toMillis?.() || 0)) {
+                    byParty[f.partyId] = f;
+                }
+            }
         });
 
-        return completed.sort((a, b) => {
+        return Object.values(byParty).sort((a, b) => {
             const timeA = (a.createdAt as any)?.toMillis?.() || 0;
             const timeB = (b.createdAt as any)?.toMillis?.() || 0;
             return timeB - timeA;
@@ -267,18 +276,30 @@ export function FollowUps() {
                 )}
             </div>
 
-            {/* List */}
-            {activeFollowups.length === 0 ? (
-                <div className="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
-                    <div className="mx-auto w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                        <BellRing className="h-8 w-8 text-slate-400" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-1">No pending follow-ups found</h3>
-                    <p className="text-slate-500">Great job! You're all caught up with your tasks.</p>
+            {/* Active Tasks Section Header */}
+            <div className="flex items-center justify-between cursor-pointer group" onClick={() => setPendingExpanded(!pendingExpanded)}>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">Active Tasks</h2>
+                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full">{activeFollowups.length}</span>
                 </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {activeFollowups.map(({ party, followup, isDue }) => (
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    {pendingExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </Button>
+            </div>
+
+            {/* List */}
+            {pendingExpanded && (
+                activeFollowups.length === 0 ? (
+                    <div className="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
+                        <div className="mx-auto w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle2 className="h-8 w-8 text-emerald-400 opacity-80" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-1">No pending follow-ups found</h3>
+                        <p className="text-slate-500">Great job! You're all caught up with your tasks.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {activeFollowups.map(({ party, followup, isDue }) => (
                         <div key={followup.id} className={`bg-white dark:bg-[#0f172a] border rounded-xl p-5 shadow-sm flex flex-col gap-4 relative overflow-hidden transition-all hover:shadow-md ${isDue ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800'}`}>
                             {isDue && (
                                 <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
@@ -433,51 +454,62 @@ export function FollowUps() {
                         </div>
                     ))}
                 </div>
+                )
             )}
 
-            {/* Admin Completed Tasks Today Section */}
-            {userProfile?.role === 'admin' && completedTodayFollowups.length > 0 && (
+            {/* Admin Tasks Worked On Today Section */}
+            {userProfile?.role === 'admin' && workedTodayFollowups.length > 0 && (
                 <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                            <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    <div className="flex items-center justify-between mb-6 cursor-pointer group" onClick={() => setWorkedExpanded(!workedExpanded)}>
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">Tasks Worked On Today</h2>
+                                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full">{workedTodayFollowups.length}</span>
+                                </div>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Review follow-ups that were marked as completed or updated today by your team.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Tasks Completed Today</h2>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">Review follow-ups that were marked as completed today by your team.</p>
-                        </div>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800">
+                            {workedExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </Button>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {completedTodayFollowups.map((f) => {
-                            const party = parties.find(p => p.id === f.partyId);
-                            return (
-                                <div key={f.id} className="bg-white dark:bg-[#0f172a] border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-5 shadow-sm flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md">
-                                    <div className="pr-8">
-                                        <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200 line-clamp-1">{party?.name || 'Unknown Party'}</h4>
-                                        {party?.contactNumber && (
-                                            <p className="text-xs font-semibold text-slate-500 mt-0.5">{party.contactNumber}</p>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-700 line-clamp-3">
-                                        <p className="font-semibold text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Completion Note:</p>
-                                        "{f.message}"
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mt-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <UserIcon className="w-3.5 h-3.5" />
-                                            By: {f.createdByName || 'Unknown'}
+                    {workedExpanded && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {workedTodayFollowups.map((f) => {
+                                const party = parties.find(p => p.id === f.partyId);
+                                return (
+                                    <div key={f.id} className="bg-white dark:bg-[#0f172a] border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-5 shadow-sm flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md">
+                                        <div className="pr-8">
+                                            <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200 line-clamp-1">{party?.name || 'Unknown Party'}</h4>
+                                            {party?.contactNumber && (
+                                                <p className="text-xs font-semibold text-slate-500 mt-0.5">{party.contactNumber}</p>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold ml-auto">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            {(f.createdAt as any)?.toDate?.().toLocaleTimeString() || 'Just now'}
+                                        
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-700 line-clamp-3">
+                                            <p className="font-semibold text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Note:</p>
+                                            "{f.message}"
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mt-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <UserIcon className="w-3.5 h-3.5" />
+                                                By: {f.createdByName || 'Unknown'}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold ml-auto">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {(f.createdAt as any)?.toDate?.().toLocaleTimeString() || 'Just now'}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
