@@ -102,4 +102,5 @@ export interface FollowUp {
   createdByName?: string;
   assignedToId?: string; // Users id (uid)
   assignedToName?: string;
+  isCompleted?: boolean;
 }

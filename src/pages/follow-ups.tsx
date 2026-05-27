@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
-import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon } from 'lucide-react';
+import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,6 +25,7 @@ export function FollowUps() {
     const [newFollowupTime, setNewFollowupTime] = useState('');
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
     const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null);
+    const [taskCompleted, setTaskCompleted] = useState(false);
     
     // Filters
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
@@ -51,6 +52,7 @@ export function FollowUps() {
         setNewFollowupTime(now.toTimeString().slice(0, 5));
         setNewFollowupMsg('');
         setNewFollowupAssignedTo(currentAssignedTo || 'unassigned');
+        setTaskCompleted(false);
         setUpdatingPartyId(partyId);
     };
 
@@ -61,7 +63,7 @@ export function FollowUps() {
         }
 
         let nextDate = null;
-        if (newFollowupDate) {
+        if (!taskCompleted && newFollowupDate) {
             const timeStr = newFollowupTime || '09:00';
             nextDate = new Date(`${newFollowupDate}T${timeStr}`);
         }
@@ -85,7 +87,8 @@ export function FollowUps() {
                 createdByUid: userProfile?.uid || null,
                 createdByName: userProfile?.displayName || userProfile?.email || 'Unknown User',
                 assignedToId,
-                assignedToName
+                assignedToName,
+                isCompleted: taskCompleted
             });
 
             toast.success('Follow-up updated');
@@ -125,10 +128,11 @@ export function FollowUps() {
         
         const byParty: Record<string, FollowUp[]> = {};
         followups.forEach(f => {
-            if (!f.nextFollowUpDate) return; // Only those with a next date
             if (!byParty[f.partyId]) byParty[f.partyId] = [];
             byParty[f.partyId].push(f);
         });
+
+        const isAdmin = userProfile?.role === 'admin';
 
         Object.entries(byParty).forEach(([partyId, logs]) => {
             logs.sort((a, b) => {
@@ -138,6 +142,17 @@ export function FollowUps() {
             });
 
             const latest = logs[0];
+            if (latest.isCompleted) return; // Skip if latest status is completed
+            if (!latest.nextFollowUpDate) return; // Skip if no next date and not completed
+
+            const isAssignedToMe = latest.assignedToId === userProfile?.uid;
+            const isGlobal = !latest.assignedToId || latest.assignedToId === 'unassigned';
+
+            // User visibility rules:
+            if (!isAdmin && !isAssignedToMe && !isGlobal) {
+                return;
+            }
+
             const nextDate = (latest.nextFollowUpDate as any)?.toDate?.() || new Date(latest.nextFollowUpDate as any);
             const isDue = nextDate <= now;
             
@@ -174,7 +189,26 @@ export function FollowUps() {
             const timeB = (b.followup.nextFollowUpDate as any)?.toMillis?.() || 0;
             return timeA - timeB;
         }).slice(0, 50); // limit to a reasonable amount
-    }, [followups, parties, showOnlyDue, selectedUserId]);
+    }, [followups, parties, showOnlyDue, selectedUserId, userProfile]);
+
+    const completedTodayFollowups = useMemo(() => {
+        if (userProfile?.role !== 'admin') return [];
+        
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+        const completed = followups.filter(f => {
+            if (!f.isCompleted) return false;
+            const time = (f.createdAt as any)?.toMillis?.() || 0;
+            return time >= startOfDay;
+        });
+
+        return completed.sort((a, b) => {
+            const timeA = (a.createdAt as any)?.toMillis?.() || 0;
+            const timeB = (b.createdAt as any)?.toMillis?.() || 0;
+            return timeB - timeA;
+        });
+    }, [followups, userProfile]);
 
     return (
         <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -215,20 +249,22 @@ export function FollowUps() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Label className="text-xs text-slate-500">Assignee:</Label>
-                    <select 
-                        value={selectedUserId}
-                        onChange={(e) => setSelectedUserId(e.target.value)}
-                        className="h-9 px-3 text-sm rounded-lg border border-slate-200 bg-transparent shadow-sm dark:border-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                        <option value="all">All Assignees</option>
-                        <option value="unassigned">Unassigned (Global)</option>
-                        {users.map(u => (
-                            <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
-                        ))}
-                    </select>
-                </div>
+                {userProfile?.role === 'admin' && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Label className="text-xs text-slate-500">Assignee:</Label>
+                        <select 
+                            value={selectedUserId}
+                            onChange={(e) => setSelectedUserId(e.target.value)}
+                            className="h-9 px-3 text-sm rounded-lg border border-slate-200 bg-transparent shadow-sm dark:border-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="all">All Assignees</option>
+                            <option value="unassigned">Unassigned (Global)</option>
+                            {users.map(u => (
+                                <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             {/* List */}
@@ -275,19 +311,27 @@ export function FollowUps() {
                                     <div className="pl-2.5 pointer-events-none">
                                         <UserIcon className="w-3.5 h-3.5 text-slate-400" />
                                     </div>
-                                    <select 
-                                        value={followup.assignedToId || 'unassigned'}
-                                        onChange={(e) => handleAssignChange(followup.id, e.target.value)}
-                                        className="h-7 py-0.5 pl-1.5 pr-7 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none appearance-none cursor-pointer w-full max-w-[140px] truncate"
-                                    >
-                                        <option value="unassigned">Unassigned (Global)</option>
-                                        {users.map(u => (
-                                            <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                                        <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
+                                    {userProfile?.role === 'admin' ? (
+                                        <>
+                                            <select 
+                                                value={followup.assignedToId || 'unassigned'}
+                                                onChange={(e) => handleAssignChange(followup.id, e.target.value)}
+                                                className="h-7 py-0.5 pl-1.5 pr-7 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none appearance-none cursor-pointer w-full max-w-[140px] truncate"
+                                            >
+                                                <option value="unassigned">Unassigned (Global)</option>
+                                                {users.map(u => (
+                                                    <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="h-7 py-0.5 pl-1.5 pr-2.5 flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-[140px] truncate">
+                                            {followup.assignedToName || 'Unassigned (Global)'}
+                                        </div>
+                                    )}
                                 </div>
                                 <Button 
                                     variant="ghost" 
@@ -312,29 +356,39 @@ export function FollowUps() {
                                             autoFocus
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Next Date</Label>
-                                            <Input type="date" className="h-8 text-xs" value={newFollowupDate} onChange={(e) => setNewFollowupDate(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Time</Label>
-                                            <Input type="time" className="h-8 text-xs" value={newFollowupTime} onChange={(e) => setNewFollowupTime(e.target.value)} />
-                                        </div>
+                                    <div className="flex items-center justify-end gap-2 my-2 cursor-pointer" onClick={() => setTaskCompleted(!taskCompleted)}>
+                                        <input type="checkbox" checked={taskCompleted} onChange={(e) => setTaskCompleted(e.target.checked)} className="cursor-pointer rounded border-slate-300" />
+                                        <Label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer">Mark as Completed</Label>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
-                                        <select 
-                                            value={newFollowupAssignedTo}
-                                            onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
-                                            className="flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950"
-                                        >
-                                            <option value="unassigned">Anyone (Global)</option>
-                                            {users.map(u => (
-                                                <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+
+                                    {!taskCompleted && (
+                                        <div className="grid grid-cols-2 gap-3 mt-1">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Next Date</Label>
+                                                <Input type="date" className="h-8 text-xs" value={newFollowupDate} onChange={(e) => setNewFollowupDate(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Time</Label>
+                                                <Input type="time" className="h-8 text-xs" value={newFollowupTime} onChange={(e) => setNewFollowupTime(e.target.value)} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {userProfile?.role === 'admin' && (
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
+                                            <select 
+                                                value={newFollowupAssignedTo}
+                                                onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
+                                                className="flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950"
+                                            >
+                                                <option value="unassigned">Anyone (Global)</option>
+                                                {users.map(u => (
+                                                    <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className="flex gap-2 pt-2">
                                         <Button variant="outline" size="sm" className="flex-1 h-8" onClick={() => setUpdatingPartyId(null)}>Cancel</Button>
                                         <Button size="sm" className="flex-1 h-8 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleSaveFollowup(party.id)}>Save Task</Button>
@@ -381,6 +435,52 @@ export function FollowUps() {
                 </div>
             )}
 
+            {/* Admin Completed Tasks Today Section */}
+            {userProfile?.role === 'admin' && completedTodayFollowups.length > 0 && (
+                <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Tasks Completed Today</h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">Review follow-ups that were marked as completed today by your team.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {completedTodayFollowups.map((f) => {
+                            const party = parties.find(p => p.id === f.partyId);
+                            return (
+                                <div key={f.id} className="bg-white dark:bg-[#0f172a] border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-5 shadow-sm flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-md">
+                                    <div className="pr-8">
+                                        <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200 line-clamp-1">{party?.name || 'Unknown Party'}</h4>
+                                        {party?.contactNumber && (
+                                            <p className="text-xs font-semibold text-slate-500 mt-0.5">{party.contactNumber}</p>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-700 line-clamp-3">
+                                        <p className="font-semibold text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Completion Note:</p>
+                                        "{f.message}"
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mt-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <UserIcon className="w-3.5 h-3.5" />
+                                            By: {f.createdByName || 'Unknown'}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold ml-auto">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {(f.createdAt as any)?.toDate?.().toLocaleTimeString() || 'Just now'}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* History Dialog */}
             {historyOpenFor && (
                 <Dialog open={!!historyOpenFor} onOpenChange={(open) => !open && setHistoryOpenFor(null)}>
@@ -415,7 +515,13 @@ export function FollowUps() {
                                                 <UserIcon className="w-3.5 h-3.5" />
                                                 Assignee: {f.assignedToName || 'Unassigned'}
                                             </div>
-                                            {f.nextFollowUpDate && (
+                                            {f.isCompleted && (
+                                                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold ml-auto">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    Completed
+                                                </div>
+                                            )}
+                                            {!f.isCompleted && f.nextFollowUpDate && (
                                                 <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium ml-auto">
                                                     <Clock className="w-3.5 h-3.5 text-blue-500" />
                                                     Due: {(f.nextFollowUpDate as any)?.toDate?.().toLocaleString()}
