@@ -5,7 +5,7 @@ import { Vehicle, Company, Model, Party, Purchase, Sale } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, FilterIcon, Download } from 'lucide-react';
+import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, FilterIcon, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger, PopoverHeader, PopoverTitle } from '@/components/ui/popover';
@@ -29,6 +29,7 @@ export function Analyzer() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterBluebook, setFilterBluebook] = useState('ALL');
   const [filterNaamsari, setFilterNaamsari] = useState('ALL');
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   type SortKey = 'status' | 'salesDate' | 'fileNo' | 'purchase' | 'vehicle' | 'document' | 'customer';
   const [sortConfig, setSortConfig] = useState<{ key: SortKey, direction: 'asc' | 'desc' } | null>(null);
   const [activePopover, setActivePopover] = useState<SortKey | null>(null);
@@ -335,16 +336,26 @@ export function Analyzer() {
           <div className="absolute top-0 right-0 p-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           
           <div className="flex flex-col gap-3 relative z-10">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-              <Filter className="h-5 w-5 text-blue-600" />
-              <h2 className="text-lg font-extrabold uppercase tracking-tight">Filter Criteria</h2>
+            <div 
+              className="flex items-center justify-between text-slate-800 dark:text-slate-200 cursor-pointer lg:cursor-default"
+              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+            >
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-extrabold uppercase tracking-tight">Filter Criteria</h2>
+              </div>
+              <div className="lg:hidden">
+                {isFilterExpanded ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
+              </div>
             </div>
-            <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 shadow-sm bg-white dark:bg-[#0f172a]">
-              <RefreshCcw className="w-3.5 h-3.5 mr-2" /> Reset Filters
-            </Button>
+            <div className={`flex flex-col gap-3 ${isFilterExpanded ? 'flex' : 'hidden lg:flex'}`}>
+              <Button onClick={resetFilters} variant="outline" size="sm" className="w-full h-8 font-bold text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 shadow-sm bg-white dark:bg-[#0f172a]">
+                <RefreshCcw className="w-3.5 h-3.5 mr-2" /> Reset Filters
+              </Button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5 relative z-10 w-full">
+          <div className={`gap-3.5 relative z-10 w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 ${isFilterExpanded ? 'grid' : 'hidden lg:grid'}`}>
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
               <Input placeholder="Search chassis..." value={filterChassis} onChange={e => setFilterChassis(e.target.value)} className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors placeholder:font-semibold placeholder:text-slate-400 placeholder:text-[10px] uppercase w-full" />

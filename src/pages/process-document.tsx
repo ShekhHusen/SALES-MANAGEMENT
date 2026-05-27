@@ -499,14 +499,15 @@ export function ProcessDocument() {
       setSerialNumbers(selectedSale.otherDetails?.serialNumbers ?? []);
       setImages(selectedSale.otherDetails?.images ?? {});
       
-      setUnlockedTabs(prev => ({ ...prev, documents: true, others_details: true }));
-      setActiveTab('documents');
+      setUnlockedTabs(prev => ({ ...prev, others_details: true, documents: true }));
+      setActiveTab('others_details');
     } else if (activeTab === 'documents') {
       setActiveTab('others_details');
     } else if (activeTab === 'others_details') {
       if (selectedSale?.documentationCompleted) {
         // Do not go back further if we are editing a completed sale
       } else {
+        setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
         setActiveTab('sold_vehicle');
       }
     }
@@ -627,8 +628,18 @@ export function ProcessDocument() {
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 mb-[10px]">
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-full md:w-auto">
-          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-0 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-[44px] gap-1">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(val) => {
+            const newTab = val as TabType;
+            setActiveTab(newTab);
+            if (newTab === 'sold_vehicle') {
+              setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
+            }
+          }} 
+          className="w-full md:w-auto"
+        >
+          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-auto min-h-[44px] gap-1 mb-2 md:mb-0">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
