@@ -202,7 +202,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-hidden pt-4 px-4 pb-[10px] lg:pt-8 lg:px-8 lg:pb-[10px] flex flex-col">
+        <main className="flex-1 overflow-hidden pt-[10px] pb-[10px] pr-[7px] pl-4 lg:pl-8 flex flex-col">
           <div className="mx-auto max-w-[1400px] w-full flex-1 flex flex-col h-full overflow-hidden">
             {/* Professional entry animation placeholder */}
             <div className="animate-in fade-in duration-500 slide-in-from-bottom-2 flex-1 flex flex-col overflow-hidden h-full">

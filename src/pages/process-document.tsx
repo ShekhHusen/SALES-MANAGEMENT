@@ -618,23 +618,23 @@ export function ProcessDocument() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden space-y-6 md:p-2">
-      <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200 shrink-0">
+    <div className="flex flex-col h-[516px] overflow-hidden md:p-2 pb-0 md:pb-0">
+      <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200 shrink-0 mb-[10px]">
         <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2 rounded-xl shadow-lg shadow-emerald-500/20">
             <FileText className="w-6 h-6 text-white" />
         </div>
         <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 drop-shadow-sm">Process Document</h1>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 mb-[10px]">
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-full md:w-auto">
-          <TabsList className="bg-white/50 dark:bg-[#0f172a] backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-auto gap-1">
+          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-0 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-[44px] gap-1">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
                 disabled={!unlockedTabs[tab.id]}
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-2 transition-all"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-[12px] transition-all"
               >
                 {tab.label}
               </TabsTrigger>
@@ -648,7 +648,7 @@ export function ProcessDocument() {
             <Input 
               type="text" 
               placeholder="Search by chassis, name..." 
-              className="pl-9 w-full md:w-72 h-11 rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm focus:ring-emerald-500/50 transition-all"
+              className="pl-9 w-full md:w-72 h-[41px] rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm focus:ring-emerald-500/50 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -659,10 +659,10 @@ export function ProcessDocument() {
         </div>
       </div>
 
-      <Card className="flex-1 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl">
+      <Card className="flex-1 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl mb-[10px] pt-0 pb-1">
         {activeTab === 'sold_vehicle' && (
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="grid grid-cols-3 px-8 py-5 border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+            <div className="grid grid-cols-3 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
               <div>Chassis Number</div>
               <div>Customer Name</div>
               <div>Contact Number</div>
@@ -682,7 +682,7 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-3 px-4 py-2 cursor-pointer transition-all rounded-lg mx-1 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                        className={`grid grid-cols-3 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
@@ -697,9 +697,9 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'others_details' && (
-          <div className="p-8 space-y-10 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-slate-50/50 dark:bg-[#0f172a] p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-200 dark:border-slate-800">
+          <div className="px-8 py-[10px] space-y-10 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-slate-50/50 dark:bg-[#0f172a] px-6 py-[5px] rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
+              <div className="flex items-center justify-between pb-[3px] mb-[10px] border-b border-slate-200 dark:border-slate-800">
                 <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Financial & Family Details</h2>
                 <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <label className="text-sm font-bold text-slate-700 dark:text-slate-300">On EMI?</label>
@@ -726,7 +726,7 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiVehiclePrice} 
                       onChange={(e) => setEmiVehiclePrice(e.target.value ? Number(e.target.value) : '')}
-                      className="h-11 rounded-xl bg-white dark:bg-slate-900"
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>
                   <div className="space-y-3">
@@ -735,7 +735,7 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiDownPayment} 
                       onChange={(e) => setEmiDownPayment(e.target.value ? Number(e.target.value) : '')}
-                      className="h-11 rounded-xl bg-white dark:bg-slate-900"
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>
                   <div className="space-y-3">
@@ -744,7 +744,7 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiPeriod} 
                       onChange={(e) => setEmiPeriod(e.target.value ? Number(e.target.value) : '')}
-                      className="h-11 rounded-xl bg-white dark:bg-slate-900"
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>
                   <div className="space-y-3">
@@ -753,7 +753,7 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiInterest} 
                       onChange={(e) => setEmiInterest(e.target.value ? Number(e.target.value) : '')}
-                      className="h-11 rounded-xl bg-white dark:bg-slate-900"
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>
                 </div>
@@ -766,7 +766,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={vehiclePrice} 
                     onChange={(e) => setVehiclePrice(e.target.value ? Number(e.target.value) : '')}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3">
@@ -775,7 +775,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={paidAmount} 
                     onChange={(e) => setPaidAmount(e.target.value ? Number(e.target.value) : '')}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 shadow-sm focus:ring-emerald-500/50 transition-all font-bold"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 shadow-sm focus:ring-emerald-500/50 transition-all font-bold"
                   />
                 </div>
                 <div className="space-y-3">
@@ -784,7 +784,7 @@ export function ProcessDocument() {
                     type="number" 
                     value={duesAmount} 
                     readOnly
-                    className="h-12 rounded-xl border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400 cursor-not-allowed shadow-sm font-bold"
+                    className="h-[40px] rounded-xl border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400 cursor-not-allowed shadow-sm font-bold"
                   />
                 </div>
                 <div className="space-y-3">
@@ -793,7 +793,7 @@ export function ProcessDocument() {
                     type="text" 
                     value={customerAltNumber} 
                     onChange={(e) => setCustomerAltNumber(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 hover:border-emerald-300 transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 hover:border-emerald-300 transition-all"
                   />
                 </div>
                 <div className="space-y-3">
@@ -801,7 +801,7 @@ export function ProcessDocument() {
                   <Input 
                     value={engineNumber} 
                     onChange={(e) => setEngineNumber(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
                   />
                 </div>
                 <div className="space-y-3">
@@ -809,7 +809,7 @@ export function ProcessDocument() {
                   <Input 
                     value={vehicleNumber} 
                     onChange={(e) => setVehicleNumber(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 uppercase font-mono tracking-wider font-bold"
                   />
                 </div>
                 <div className="space-y-3">
@@ -817,7 +817,7 @@ export function ProcessDocument() {
                   <Input 
                     value={citizenshipNumber} 
                     onChange={(e) => setCitizenshipNumber(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-bold"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-bold"
                   />
                 </div>
                 <div className="space-y-3">
@@ -825,7 +825,7 @@ export function ProcessDocument() {
                   <Input 
                     value={fathersName} 
                     onChange={(e) => setFathersName(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3">
@@ -833,7 +833,7 @@ export function ProcessDocument() {
                   <Input 
                     value={grandFathersName} 
                     onChange={(e) => setGrandFathersName(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-3 md:col-span-2">
@@ -856,7 +856,7 @@ export function ProcessDocument() {
                   <Input 
                     value={batteryType} 
                     onChange={(e) => setBatteryType(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
                   />
                 </div>
                 <div className="space-y-3">
@@ -864,7 +864,7 @@ export function ProcessDocument() {
                   <Input 
                     value={batteryBrand} 
                     onChange={(e) => setBatteryBrand(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-medium transition-all"
                   />
                 </div>
                 <div className="space-y-3">
@@ -872,7 +872,7 @@ export function ProcessDocument() {
                   <Input 
                     value={bluetoothId} 
                     onChange={(e) => setBluetoothId(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
                   />
                 </div>
                 <div className="space-y-3">
@@ -880,7 +880,7 @@ export function ProcessDocument() {
                   <Input 
                     value={productId} 
                     onChange={(e) => setProductId(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-mono font-bold transition-all"
                   />
                 </div>
                 <div className="space-y-3">
@@ -889,7 +889,7 @@ export function ProcessDocument() {
                     type="number"
                     value={noOfBattery} 
                     onChange={(e) => setNoOfBattery(e.target.value ? Number(e.target.value) : '')}
-                    className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-black text-emerald-600 dark:text-emerald-400 transition-all"
+                    className="h-[40px] rounded-xl border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#0f172a]/80 shadow-sm focus:ring-emerald-500/50 font-black text-emerald-600 dark:text-emerald-400 transition-all"
                   />
                 </div>
               </div>
@@ -909,7 +909,7 @@ export function ProcessDocument() {
                              setSerialNumbers(nArr);
                            }}
                            placeholder={`SN-${idx + 1}...`}
-                           className="h-11 bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-mono text-sm font-semibold shadow-sm focus:ring-emerald-500/50"
+                           className="h-[40px] bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-mono text-sm font-semibold shadow-sm focus:ring-emerald-500/50"
                          />
                        </div>
                      ))}
@@ -921,118 +921,148 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'documents' && (
-          <div className="p-8 space-y-6 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
-              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Upload Documents</h2>
-              <div className="flex flex-wrap gap-3">
-                 <div className="flex items-center">
-                   <Button 
-                     onClick={() => handleDownloadPDF('quotation', selectedSale!, 'download')}
-                     disabled={isGeneratingPdf}
-                     variant="outline"
-                     className="rounded-l-xl rounded-r-none border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all border-r-0"
-                   >
-                     <Download className="w-4 h-4 mr-2" />
-                     {isGeneratingPdf ? 'Wait...' : 'Quotation'}
-                   </Button>
-                   <Button 
-                     onClick={() => handleDownloadPDF('quotation', selectedSale!, 'print')}
-                     disabled={isGeneratingPdf}
-                     variant="outline"
-                     className="rounded-r-xl rounded-l-none border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm px-3 h-10 transition-all border-l-0"
-                     title="Print / Preview Quotation"
-                   >
-                     <Printer className="w-4 h-4" />
-                   </Button>
-                 </div>
-                 {onEmi && (
-                   <div className="flex items-center">
+          <div className="px-8 py-[10px] mb-0 h-full animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col xl:flex-row gap-6 overflow-hidden">
+            
+            {/* Left Sidebar: Downloads & Print */}
+            <div className="w-full xl:w-[280px] shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden py-[5px] px-[10px]">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden pr-[24px] pl-6 pt-[5px] pb-0 mb-[9px] space-y-5">
+                 
+                 <div className="space-y-2">
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Quotation</p>
+                   <div className="flex gap-2">
                      <Button 
-                       onClick={() => handleDownloadEMIList('download')}
+                       onClick={() => handleDownloadPDF('quotation', selectedSale!, 'download')}
                        disabled={isGeneratingPdf}
                        variant="outline"
-                       className="rounded-l-xl rounded-r-none border-indigo-200/60 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm font-bold h-10 transition-all border-r-0"
+                       className="flex-1 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all"
                      >
                        <Download className="w-4 h-4 mr-2" />
-                       {isGeneratingPdf ? 'Wait...' : 'EMI List'}
+                       Download
                      </Button>
                      <Button 
-                       onClick={() => handleDownloadEMIList('print')}
+                       onClick={() => handleDownloadPDF('quotation', selectedSale!, 'print')}
                        disabled={isGeneratingPdf}
                        variant="outline"
-                       className="rounded-r-xl rounded-l-none border-indigo-200/60 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm px-3 h-10 transition-all border-l-0"
-                       title="Print / Preview EMI List"
+                       className="shrink-0 w-12 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm h-10 transition-all"
+                       title="Print / Preview Quotation"
                      >
                        <Printer className="w-4 h-4" />
                      </Button>
                    </div>
+                 </div>
+
+                 {onEmi && (
+                   <div className="space-y-2">
+                     <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">EMI List</p>
+                     <div className="flex gap-2">
+                       <Button 
+                         onClick={() => handleDownloadEMIList('download')}
+                         disabled={isGeneratingPdf}
+                         variant="outline"
+                         className="flex-1 rounded-xl border-indigo-200/60 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm font-bold h-10 transition-all"
+                       >
+                         <Download className="w-4 h-4 mr-2" />
+                         Download
+                       </Button>
+                       <Button 
+                         onClick={() => handleDownloadEMIList('print')}
+                         disabled={isGeneratingPdf}
+                         variant="outline"
+                         className="shrink-0 w-12 rounded-xl border-indigo-200/60 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm h-10 transition-all"
+                         title="Print / Preview EMI List"
+                       >
+                         <Printer className="w-4 h-4" />
+                       </Button>
+                     </div>
+                   </div>
                  )}
-                 <div className="flex items-center">
-                   <Button 
-                     onClick={() => handleDownloadPDF('traffic', selectedSale!, 'download')}
-                     disabled={isGeneratingPdf}
-                     variant="outline"
-                     className="rounded-l-xl rounded-r-none border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all border-r-0"
-                   >
-                     <Download className="w-4 h-4 mr-2" />
-                     {isGeneratingPdf ? 'Wait...' : 'Traffic Letter'}
-                   </Button>
-                   <Button 
-                     onClick={() => handleDownloadPDF('traffic', selectedSale!, 'print')}
-                     disabled={isGeneratingPdf}
-                     variant="outline"
-                     className="rounded-r-xl rounded-l-none border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm px-3 h-10 transition-all border-l-0"
-                     title="Print / Preview Traffic Letter"
-                   >
-                     <Printer className="w-4 h-4" />
-                   </Button>
+                 
+                 <div className="space-y-2">
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Traffic Letter</p>
+                   <div className="flex gap-2">
+                     <Button 
+                       onClick={() => handleDownloadPDF('traffic', selectedSale!, 'download')}
+                       disabled={isGeneratingPdf}
+                       variant="outline"
+                       className="flex-1 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm font-bold h-10 transition-all"
+                     >
+                       <Download className="w-4 h-4 mr-2" />
+                       Download
+                     </Button>
+                     <Button 
+                       onClick={() => handleDownloadPDF('traffic', selectedSale!, 'print')}
+                       disabled={isGeneratingPdf}
+                       variant="outline"
+                       className="shrink-0 w-12 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm h-10 transition-all"
+                       title="Print / Preview Traffic Letter"
+                     >
+                       <Printer className="w-4 h-4" />
+                     </Button>
+                   </div>
                  </div>
-                 <div className="flex items-center">
-                   <Button 
-                     onClick={() => handleDownloadCitizenshipA4('download')}
-                     disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
-                     variant="outline"
-                     className="rounded-l-xl rounded-r-none border-teal-200/60 text-teal-700 bg-teal-50/50 hover:bg-teal-100 hover:border-teal-300 shadow-sm font-bold h-10 transition-all border-r-0"
-                   >
-                     <Download className="w-4 h-4 mr-2" />
-                     {isGeneratingPdf ? 'Wait...' : 'Citizenship A4'}
-                   </Button>
-                   <Button 
-                     onClick={() => handleDownloadCitizenshipA4('print')}
-                     disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
-                     variant="outline"
-                     className="rounded-r-xl rounded-l-none border-teal-200/60 text-teal-700 bg-teal-50/50 hover:bg-teal-100 hover:border-teal-300 shadow-sm px-3 h-10 transition-all border-l-0"
-                     title="Print / Preview Citizenship A4"
-                   >
-                     <Printer className="w-4 h-4" />
-                   </Button>
+
+                 <div className="space-y-2">
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Citizenship A4</p>
+                   <div className="flex gap-2">
+                     <Button 
+                       onClick={() => handleDownloadCitizenshipA4('download')}
+                       disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
+                       variant="outline"
+                       className="flex-1 rounded-xl border-teal-200/60 text-teal-700 bg-teal-50/50 hover:bg-teal-100 hover:border-teal-300 shadow-sm font-bold h-10 transition-all"
+                     >
+                       <Download className="w-4 h-4 mr-2" />
+                       Download
+                     </Button>
+                     <Button 
+                       onClick={() => handleDownloadCitizenshipA4('print')}
+                       disabled={isGeneratingPdf || (!images['citizenship_front'] && !images['citizenship_back'])}
+                       variant="outline"
+                       className="shrink-0 w-12 rounded-xl border-teal-200/60 text-teal-700 bg-teal-50/50 hover:bg-teal-100 hover:border-teal-300 shadow-sm h-10 transition-all"
+                       title="Print / Preview Citizenship A4"
+                     >
+                       <Printer className="w-4 h-4" />
+                     </Button>
+                   </div>
                  </div>
-                 <div className="flex items-center">
+
+                 <div className="space-y-2 block">
+                   <div className="w-full h-[1px] bg-slate-200 dark:bg-slate-800 my-2"></div>
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-2">Bikrinama (EV)</p>
                    <Button 
                      onClick={() => handleDownloadUploadedImagePDF('bikrinama_ev', 'Bikrinama EV', 'print')}
                      disabled={isGeneratingPdf}
                      variant="outline"
-                     className="rounded-xl border-orange-200/60 text-orange-700 bg-orange-50/50 hover:bg-orange-100 hover:border-orange-300 shadow-sm font-bold h-10 transition-all px-4"
+                     className="w-full justify-center rounded-xl border-orange-200/60 text-orange-700 bg-orange-50/50 hover:bg-orange-100 hover:border-orange-300 shadow-sm font-bold h-10 transition-all"
                      title="Print Bikrinama (EV)"
                    >
                      <Printer className="w-4 h-4 mr-2" />
-                     Bikrinama (EV)
+                     Print View
                    </Button>
                  </div>
-                 <div className="flex items-center">
+
+                 <div className="space-y-2">
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-2">Bikrinama (Petrol)</p>
                    <Button 
                      onClick={() => handleDownloadUploadedImagePDF('bikrinama_petrol', 'Bikrinama Petrol', 'print')}
                      disabled={isGeneratingPdf}
                      variant="outline"
-                     className="rounded-xl border-rose-200/60 text-rose-700 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-300 shadow-sm font-bold h-10 transition-all px-4"
+                     className="w-full justify-center rounded-xl border-rose-200/60 text-rose-700 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-300 shadow-sm font-bold h-10 transition-all"
                      title="Print Bikrinama (Petrol)"
                    >
                      <Printer className="w-4 h-4 mr-2" />
-                     Bikrinama (Petrol)
+                     Print View
                    </Button>
                  </div>
+
               </div>
             </div>
+
+            {/* Right Content: Upload Documents */}
+            <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pt-[2px] pb-[2px] mb-4 shrink-0">
+                <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Upload Documents</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto pr-2 pb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
@@ -1131,12 +1161,14 @@ export function ProcessDocument() {
                 );
               })}
             </div>
+            </div>
+            </div>
           </div>
         )}
 
         {activeTab === 'completed' && (
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="grid grid-cols-5 px-8 py-5 border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+            <div className="grid grid-cols-5 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                <div>SN.</div>
                <div>Chassis Details</div>
                <div>Customer Details</div>
@@ -1157,7 +1189,7 @@ export function ProcessDocument() {
                       <div 
                         key={sale.id}
                         onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-5 px-4 py-2 items-center cursor-pointer transition-all rounded-lg mx-1 my-1 ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                        className={`grid grid-cols-5 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                       >
                         <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
@@ -1189,14 +1221,14 @@ export function ProcessDocument() {
         )}
       </Card>
 
-      <div className="flex justify-between items-center pt-2 shrink-0 px-2 pb-4">
+      <div className="flex justify-between items-center shrink-0 px-2 pt-[6px] pb-[6px] mb-0">
         <div>
           {(activeTab === 'documents' || activeTab === 'others_details' || activeTab === 'completed') && (
             <Button
               variant="outline"
               disabled={loading || (activeTab === 'completed' && !selectedSale) || (activeTab === 'others_details' && selectedSale?.documentationCompleted)}
               onClick={handlePrevious}
-              className={`border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-white/50 dark:bg-[#0f172a] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl px-6 py-3 font-bold text-sm tracking-wide shadow-sm hover:shadow transition-all ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 bg-white/50 dark:bg-[#0f172a] hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl px-6 py-[16px] font-bold text-sm tracking-wide shadow-sm hover:shadow transition-all ${activeTab === 'others_details' && selectedSale?.documentationCompleted ? 'opacity-0 pointer-events-none' : ''}`}
             >
               {'<< BACK'}
             </Button>
@@ -1207,7 +1239,7 @@ export function ProcessDocument() {
           <Button 
             disabled={loading || (activeTab === 'sold_vehicle' && !selectedSale)}
             onClick={handleNext}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl px-6 py-3 font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl px-6 py-[16px] font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all"
           >
             {activeTab === 'documents' ? 'SAVE & COMPLETE' : 'SAVE & NEXT >>'}
           </Button>
