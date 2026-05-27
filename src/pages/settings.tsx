@@ -102,7 +102,7 @@ export function Settings() {
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Configuration</h1>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
         {/* Companies Section */}
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <div 

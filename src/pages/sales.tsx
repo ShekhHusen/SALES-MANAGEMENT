@@ -351,10 +351,10 @@ export function Sales() {
         </Button>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
         {/* Left Column: Selection */}
         <div className="lg:col-span-12 xl:col-span-8 space-y-8">
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">

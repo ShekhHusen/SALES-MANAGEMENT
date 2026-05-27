@@ -345,7 +345,7 @@ export function Inventory() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateVehicle} className="space-y-6 pt-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2 col-span-2">
                     <Label htmlFor="chassis" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chassis Number*</Label>
                     <Input 

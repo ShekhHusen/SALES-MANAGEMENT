@@ -869,7 +869,7 @@ export function InternalAccounts() {
                                                                             rows={3}
                                                                         />
                                                                     </div>
-                                                                    <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                                         <div className="space-y-2">
                                                                             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5" /> Next Date</Label>
                                                                             <Input type="date" value={newFollowupDate} onChange={(e) => setNewFollowupDate(e.target.value)} />
@@ -1086,7 +1086,7 @@ export function InternalAccounts() {
                                     
                                     {/* Footer Summary */}
                                     <div className="bg-slate-100 dark:bg-[#0f172a]/80 p-6 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.1)] z-20">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                             <div>
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Opening</p>
                                                 <p className="text-lg font-medium text-slate-700 dark:text-slate-200">

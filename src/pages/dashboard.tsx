@@ -78,7 +78,7 @@ export function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-4">
         <StatCard 
           title="Total Inventory" 
           value={stats.totalInventory} 
@@ -109,7 +109,7 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Doc Pending" 
           value={stats.bluebookPending} 
@@ -148,7 +148,7 @@ export function Dashboard() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution</CardTitle>

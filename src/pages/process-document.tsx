@@ -662,28 +662,30 @@ export function ProcessDocument() {
       <Card className="flex-1 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl mb-[10px] pt-0 pb-1">
         {activeTab === 'sold_vehicle' && (
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="grid grid-cols-3 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
-              <div>Chassis Number</div>
-              <div>Customer Name</div>
-              <div>Contact Number</div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {filteredSales.length === 0 ? (
-                <div className="h-full flex items-center justify-center p-8">
-                  <div className="text-slate-500 font-medium">No Data Available</div>
+            <div className="overflow-x-auto w-full">
+              <div className="min-w-[600px]">
+                <div className="grid grid-cols-3 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+                  <div>Chassis Number</div>
+                  <div>Customer Name</div>
+                  <div>Contact Number</div>
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60 p-2">
-                  {filteredSales.map(sale => {
-                    const customer = customers.find(c => c.id === sale.customerId);
-                    const isSelected = selectedSale?.id === sale.id;
-                    return (
-                      <div 
-                        key={sale.id}
-                        onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-3 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
-                      >
+                
+                <div className="flex-1 overflow-y-auto">
+                  {filteredSales.length === 0 ? (
+                    <div className="h-full flex items-center justify-center p-8">
+                      <div className="text-slate-500 font-medium">No Data Available</div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60 p-2">
+                      {filteredSales.map(sale => {
+                        const customer = customers.find(c => c.id === sale.customerId);
+                        const isSelected = selectedSale?.id === sale.id;
+                        return (
+                          <div 
+                            key={sale.id}
+                            onClick={() => setSelectedSale(sale)}
+                            className={`grid grid-cols-3 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                          >
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
                         <div className="text-slate-500 dark:text-slate-400 font-medium">{customer?.contactNumber || '---'}</div>
@@ -693,6 +695,8 @@ export function ProcessDocument() {
                 </div>
               )}
             </div>
+          </div>
+          </div>
           </div>
         )}
 
@@ -1168,29 +1172,31 @@ export function ProcessDocument() {
 
         {activeTab === 'completed' && (
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="grid grid-cols-5 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
-               <div>SN.</div>
-               <div>Chassis Details</div>
-               <div>Customer Details</div>
-               <div>Document Status</div>
-               <div>Action</div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-2">
-              {sales.filter(s => s.documentationCompleted).length === 0 ? (
-                <div className="h-full flex items-center justify-center p-8">
-                  <div className="text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div>
+            <div className="overflow-x-auto w-full">
+              <div className="min-w-[800px]">
+                <div className="grid grid-cols-5 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+                   <div>SN.</div>
+                   <div>Chassis Details</div>
+                   <div>Customer Details</div>
+                   <div>Document Status</div>
+                   <div>Action</div>
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60">
-                  {sales.filter(s => s.documentationCompleted).map((sale, idx) => {
-                    const customer = customers.find(c => c.id === sale.customerId);
-                    return (
-                      <div 
-                        key={sale.id}
-                        onClick={() => setSelectedSale(sale)}
-                        className={`grid grid-cols-5 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
-                      >
+                
+                <div className="flex-1 overflow-y-auto p-2">
+                  {sales.filter(s => s.documentationCompleted).length === 0 ? (
+                    <div className="h-full flex items-center justify-center p-8">
+                      <div className="text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                      {sales.filter(s => s.documentationCompleted).map((sale, idx) => {
+                        const customer = customers.find(c => c.id === sale.customerId);
+                        return (
+                          <div 
+                            key={sale.id}
+                            onClick={() => setSelectedSale(sale)}
+                            className={`grid grid-cols-5 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                          >
                         <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
@@ -1217,6 +1223,8 @@ export function ProcessDocument() {
                 </div>
               )}
             </div>
+          </div>
+          </div>
           </div>
         )}
       </Card>

@@ -383,7 +383,7 @@ export function Purchases() {
         </Button>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
         <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit">
           <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Invoice Reference</h3>
