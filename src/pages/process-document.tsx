@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer } from 'lucide-react';
+import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -460,6 +460,7 @@ export function ProcessDocument() {
   const [images, setImages] = useState<Record<string, string>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isDownloadsExpanded, setIsDownloadsExpanded] = useState(false);
 
   const tabs: { id: TabType; label: string }[] = [
     { id: 'sold_vehicle', label: 'Sold Vehicle' },
@@ -500,7 +501,7 @@ export function ProcessDocument() {
       setImages(selectedSale.otherDetails?.images ?? {});
       
       setUnlockedTabs(prev => ({ ...prev, others_details: true, documents: true }));
-      setActiveTab('others_details');
+      setActiveTab('documents');
     } else if (activeTab === 'documents') {
       setActiveTab('others_details');
     } else if (activeTab === 'others_details') {
@@ -632,6 +633,7 @@ export function ProcessDocument() {
           value={activeTab} 
           onValueChange={(val) => {
             const newTab = val as TabType;
+            if (newTab === 'others_details' || newTab === 'documents') return;
             setActiveTab(newTab);
             if (newTab === 'sold_vehicle') {
               setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
@@ -639,12 +641,12 @@ export function ProcessDocument() {
           }} 
           className="w-full md:w-auto"
         >
-          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-auto min-h-[44px] gap-1 mb-2 md:mb-0">
+          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-auto min-h-[44px] gap-1 mb-4 md:mb-0 w-full sm:w-auto">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                disabled={!unlockedTabs[tab.id]}
+                disabled={!unlockedTabs[tab.id] || ((tab.id === 'others_details' || tab.id === 'documents') && activeTab !== tab.id)}
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-[12px] transition-all"
               >
                 {tab.label}
@@ -939,8 +941,21 @@ export function ProcessDocument() {
           <div className="px-8 py-[10px] mb-0 h-full animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col xl:flex-row gap-6 overflow-hidden">
             
             {/* Left Sidebar: Downloads & Print */}
-            <div className="w-full xl:w-[280px] shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden py-[5px] px-[10px]">
-              <div className="flex-1 overflow-y-auto overflow-x-hidden pr-[24px] pl-6 pt-[5px] pb-0 mb-[9px] space-y-5">
+            <div className={`w-full xl:w-[280px] shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col py-[5px] px-[10px] transition-all xl:h-full overflow-hidden ${isDownloadsExpanded ? 'max-h-[50vh]' : 'h-[50px] xl:max-h-none xl:h-full'}`}>
+              <div 
+                className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800 cursor-pointer xl:cursor-default"
+                onClick={() => setIsDownloadsExpanded(!isDownloadsExpanded)}
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="h-5 w-5 text-emerald-600" />
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Download Links</h3>
+                </div>
+                <div className="xl:hidden">
+                  {isDownloadsExpanded ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
+                </div>
+              </div>
+
+              <div className={`flex-1 overflow-y-auto overflow-x-hidden pr-[24px] pl-6 pt-[5px] pb-0 mb-[9px] space-y-5 ${isDownloadsExpanded ? 'block' : 'hidden xl:block'}`}>
                  
                  <div className="space-y-2">
                    <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Quotation</p>

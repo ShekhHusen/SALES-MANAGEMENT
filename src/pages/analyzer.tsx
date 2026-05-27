@@ -332,7 +332,7 @@ export function Analyzer() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch flex-1 min-h-0 overflow-hidden">
-        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden max-h-[300px] lg:max-h-full lg:h-full">
+        <div className={`bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden transition-all duration-300 lg:max-h-none lg:h-full ${isFilterExpanded ? 'max-h-[50vh]' : 'max-h-[64px] overflow-hidden'}`}>
           <div className="absolute top-0 right-0 p-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           
           <div className="flex flex-col gap-3 relative z-10">
