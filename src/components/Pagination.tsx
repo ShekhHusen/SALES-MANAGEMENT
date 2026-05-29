@@ -10,9 +10,10 @@ interface PaginationProps {
   itemsPerPage: number | 'all';
   setItemsPerPage?: (val: number | 'all') => void;
   totalItems: number;
+  className?: string;
 }
 
-export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage, setItemsPerPage, totalItems }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage, setItemsPerPage, totalItems, className }: PaginationProps) {
   if (totalPages <= 1 && itemsPerPage === 'all') {
     // We still want to show the pagination if totalItems > 5 so they can switch back from 'all'
     if (totalItems <= 5) return null;
@@ -22,7 +23,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage
   const endItem = itemsPerPage === 'all' ? totalItems : Math.min(currentPage * itemsPerPage, totalItems);
 
   return (
-    <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 dark:border-slate-800">
+    <div className={`flex items-center justify-between px-4 py-4 border-t border-slate-100 dark:border-slate-800 ${className || ''}`}>
       <div className="flex-1 flex items-center space-x-4">
         <div className="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
           {totalItems === 0 ? 'No entries' : `Showing ${startItem} to ${endItem} of ${totalItems} entries`}

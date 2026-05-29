@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
+import { useAuth } from '@/hooks/use-auth';
 import { Company, Model } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
 
 import { ImportData } from '@/components/ImportData';
 import { ExportData } from '@/components/ExportData';
@@ -19,10 +20,16 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Settings() {
   const { companies, models } = useGlobalData();
+  const { hasSetPassword, setUserPassword } = useAuth();
+  
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
   const [isBrandExpanded, setIsBrandExpanded] = useState(false);
   const [isVariantExpanded, setIsVariantExpanded] = useState(false);
+  
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<{
     title: string;
@@ -96,11 +103,62 @@ export function Settings() {
     setItemToDelete({ col, id, name });
   };
 
+  const handleSetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    setSettingPassword(true);
+    try {
+      await setUserPassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {}
+    setSettingPassword(false);
+  };
+
   return (
     <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Configuration</h1>
       </div>
+
+      {!hasSetPassword && typeof hasSetPassword === 'boolean' && (
+        <Card className="shadow-sm border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-amber-200/50 dark:border-amber-900/30 flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+            <h3 className="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-500">Security Requirement</h3>
+          </div>
+          <CardContent className="p-6 space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              You signed in via Google. Please set a password for your account so you can also log in using your email and password directly.
+            </p>
+            <div className="flex flex-col gap-3 max-w-sm">
+              <Input 
+                type="password"
+                placeholder="Enter a secure password..."
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="bg-white dark:bg-slate-900"
+              />
+              <Input 
+                type="password"
+                placeholder="Re-enter password..."
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="bg-white dark:bg-slate-900"
+              />
+              <Button onClick={handleSetPassword} disabled={settingPassword} className="font-bold shrink-0 w-full">
+                {settingPassword ? 'Saving...' : 'Set Password'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
         {/* Companies Section */}

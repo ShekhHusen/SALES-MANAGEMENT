@@ -188,9 +188,9 @@ export function Parties() {
 
   return (
     <div className="flex flex-col flex-1 gap-4 h-full">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 mb-1">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 mb-1 lg:mt-[19px]">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Stakeholder Management</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Parties</h1>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -199,7 +199,7 @@ export function Parties() {
         }}>
           <DialogTrigger
             render={
-              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6">
+              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]">
                 <Plus className="h-4.5 w-4.5" /> Initialize New Party
               </Button>
             }

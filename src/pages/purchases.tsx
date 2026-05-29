@@ -369,7 +369,7 @@ export function Purchases() {
 
   return (
     <div className="flex flex-col flex-1 gap-4 h-full">
-      <div className="flex items-center justify-between shrink-0 mb-1">
+      <div className="flex items-center justify-between shrink-0 mb-1 lg:mt-[10px]">
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Purchase Operations</h1>
         </div>
@@ -377,18 +377,18 @@ export function Purchases() {
           onClick={handleSavePurchase} 
           size="lg" 
           disabled={!canCreate}
-          className="rounded-xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold"
+          className="rounded-xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold lg:mr-[200px]"
         >
           Confirm Procurement
         </Button>
       </div>
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
-        <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit">
-          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+        <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0">
+          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[5px] lg:pb-[5px]">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Invoice Reference</h3>
           </div>
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-6 space-y-6 lg:pt-0 lg:pb-[10px]">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Procurement Date</label>
               <Input 
@@ -428,8 +428,8 @@ export function Purchases() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[5px] lg:pb-0">
+          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between lg:pt-0 lg:pb-0">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Chassis Manifest</h3>
             <div className="flex gap-2">
                <QuickAddVehicle onAdded={(chassis) => {
@@ -640,8 +640,8 @@ export function Purchases() {
       </Dialog>
 
       {/* Purchase List History */}
-      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20">
+      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 lg:pt-[5px] lg:pb-[5px]">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 px-6 shrink-0 shadow-sm z-20 lg:pt-[5px] lg:pb-[5px]">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Purchase History</CardTitle>
           </div>
@@ -662,7 +662,7 @@ export function Purchases() {
           <Table>
             <TableHeader>
               <TableRow className="divide-x divide-slate-100">
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap lg:pt-[8px] lg:pb-[8px]">
                   <div className="flex items-center justify-between gap-1.5">
                     Party Name
                     <Popover open={activePopover === 'vendor'} onOpenChange={(open) => setActivePopover(open ? 'vendor' : null)}>
@@ -690,13 +690,13 @@ export function Purchases() {
                     </Popover>
                   </div>
                 </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={() => handleSort('invoiceNumber')}>
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors lg:pt-[8px] lg:pb-[8px]" onClick={() => handleSort('invoiceNumber')}>
                   <div className="flex items-center gap-1">
                     Invoice No.
                     {sortField === 'invoiceNumber' && (sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                   </div>
                 </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap lg:pt-[8px] lg:pb-[8px]">
                   <div className="flex items-center justify-between gap-1.5">
                     Vehicle Details
                     <Popover open={activePopover === 'company'} onOpenChange={(open) => setActivePopover(open ? 'company' : null)}>
@@ -721,10 +721,10 @@ export function Purchases() {
                     </Popover>
                   </div>
                 </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
+                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap lg:pt-[8px] lg:pb-[8px]">
                   Document Status
                 </TableHead>
-                <TableHead className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Action</TableHead>
+                <TableHead className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap lg:pt-[8px] lg:pb-[8px]">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -821,14 +821,16 @@ export function Purchases() {
               )}
             </TableBody>
           </Table>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            setItemsPerPage={setItemsPerPage}
-            totalItems={totalItems}
-          />
+          <div className="lg:pt-[1px] lg:pb-[5px]">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              totalItems={totalItems}
+            />
+          </div>
         </CardContent>
       </Card>
 

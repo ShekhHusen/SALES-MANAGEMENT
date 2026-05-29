@@ -74,7 +74,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">Dashboard</h1>
       </div>
 
       {/* Stats Grid */}

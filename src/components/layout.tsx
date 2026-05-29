@@ -17,7 +17,8 @@ import {
   Printer,
   Shield,
   BookOpen,
-  BellRing
+  BellRing,
+  KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -46,14 +47,13 @@ const navItems = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { logout, user, userProfile } = useAuth();
+  const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
   const { loading: dataLoading } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   if (dataLoading) {
-    // Only return a simpler state if we have no user, else let layout render so the user sees the dashboard framework immediately
     if (!user) {
       return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC] dark:bg-background">
@@ -77,7 +77,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const currentRole = userProfile?.role || 'user';
-  // Filter nav items by user role
   const visibleNavItems = navItems.filter(item => item.roles.includes(currentRole));
 
   return (
@@ -202,8 +201,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-hidden pt-16 lg:pt-[10px] pb-[10px] pr-[7px] pl-4 lg:pl-8 flex flex-col">
+        <main className="flex-1 overflow-hidden pt-[20px] pb-[2px] pr-[7px] pl-4 lg:pl-4 flex flex-col lg:pt-0 lg:pb-0">
           <div className="mx-auto max-w-[1400px] w-full flex-1 flex flex-col h-full overflow-hidden">
+            {(!hasSetPassword && typeof hasSetPassword === 'boolean' && location.pathname !== '/settings') && (
+              <div className="mb-4 mt-16 lg:mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm z-30 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-amber-100 dark:bg-amber-900/50 rounded-full flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">Set up your password</h4>
+                    <p className="text-xs text-amber-700 dark:text-amber-500/80 mt-0.5">You signed in with Google. Set a password so you can optionally log in with email and password next time.</p>
+                  </div>
+                </div>
+                <Link to="/settings" className="shrink-0">
+                  <Button size="sm" className="bg-amber-600 hover:bg-amber-700 font-bold border-none shadow-sm shadow-amber-500/20">
+                    Set Password
+                  </Button>
+                </Link>
+              </div>
+            )}
             {/* Professional entry animation placeholder */}
             <div className="animate-in fade-in duration-500 slide-in-from-bottom-2 flex-1 flex flex-col overflow-hidden h-full">
                {renderContent()}

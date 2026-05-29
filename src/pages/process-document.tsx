@@ -620,7 +620,7 @@ export function ProcessDocument() {
   });
 
   return (
-    <div className="flex flex-col h-[516px] overflow-hidden md:p-2 pb-0 md:pb-0">
+    <div className="flex flex-col h-[599px] overflow-hidden md:p-2 pt-[8px] pb-0 md:pb-0 lg:pt-[10px]">
       <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200 shrink-0 mb-[10px]">
         <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2 rounded-xl shadow-lg shadow-emerald-500/20">
             <FileText className="w-6 h-6 text-white" />
@@ -628,7 +628,7 @@ export function ProcessDocument() {
         <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 drop-shadow-sm">Process Document</h1>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 mb-[10px]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 h-[40px] pt-[1px] mb-[10px]">
         <Tabs 
           value={activeTab} 
           onValueChange={(val) => {
@@ -636,18 +636,18 @@ export function ProcessDocument() {
             if (newTab === 'others_details' || newTab === 'documents') return;
             setActiveTab(newTab);
             if (newTab === 'sold_vehicle') {
-              setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
+               setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
             }
           }} 
-          className="w-full md:w-auto"
+          className="w-full md:w-auto h-[34px] pt-0 mb-0 lg:pb-0"
         >
-          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 py-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-auto min-h-[44px] gap-1 mb-4 md:mb-0 w-full sm:w-auto">
+          <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 pt-0 pb-0 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-[83px] mb-0 md:mb-0 w-full sm:w-auto gap-1 max-md:pt-0 max-md:h-[65px] lg:pt-0 lg:pb-0 lg:h-[35px] lg:bg-[#eee9e9] dark:lg:bg-[#0f172a] lg:pl-[24px] lg:pr-[34px]">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
                 disabled={!unlockedTabs[tab.id] || ((tab.id === 'others_details' || tab.id === 'documents') && activeTab !== tab.id)}
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-[12px] transition-all"
+                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]"
               >
                 {tab.label}
               </TabsTrigger>
@@ -655,27 +655,27 @@ export function ProcessDocument() {
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex items-center gap-3 max-md:mt-[24px] lg:pt-0 lg:pb-[3px]">
+          <div className="relative group lg:pb-0 lg:pt-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
             <Input 
               type="text" 
               placeholder="Search by chassis, name..." 
-              className="pl-9 w-full md:w-72 h-[41px] rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm focus:ring-emerald-500/50 transition-all"
+              className="pl-9 w-full md:w-72 h-[41px] rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm focus:ring-emerald-500/50 transition-all max-md:mt-0"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="w-11 h-11 p-0 rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm hover:border-emerald-500/50 hover:bg-emerald-50/50 transition-all">
+          <Button variant="outline" className="w-11 h-11 p-0 rounded-xl bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-sm border-slate-200/60 dark:border-slate-700 shadow-sm hover:border-emerald-500/50 hover:bg-emerald-50/50 transition-all max-md:mt-0">
             <Filter className="w-4 h-4 text-slate-600 dark:text-slate-400" />
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl mb-[10px] pt-0 pb-1">
+      <Card className="flex-1 h-[400px] rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl mb-0 pt-0 pb-0 max-md:mt-[71px]">
         {activeTab === 'sold_vehicle' && (
-          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="overflow-x-auto w-full">
+          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
+            <div className="overflow-x-auto w-full max-md:mt-0">
               <div className="min-w-[600px]">
                 <div className="grid grid-cols-3 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                   <div>Chassis Number</div>
@@ -714,8 +714,8 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'others_details' && (
-          <div className="px-8 py-[10px] space-y-10 overflow-y-auto h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-slate-50/50 dark:bg-[#0f172a] px-6 py-[5px] rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm">
+          <div className="px-8 space-y-10 overflow-y-auto h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
+            <div className="bg-slate-50/50 dark:bg-[#0f172a] px-6 py-[5px] rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm max-md:mt-0">
               <div className="flex items-center justify-between pb-[3px] mb-[10px] border-b border-slate-200 dark:border-slate-800">
                 <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Financial & Family Details</h2>
                 <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -938,10 +938,10 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'documents' && (
-          <div className="px-8 py-[10px] mb-0 h-full animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col xl:flex-row gap-6 overflow-hidden">
+          <div className="px-8 mb-0 h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col xl:flex-row gap-6 overflow-hidden max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
             
             {/* Left Sidebar: Downloads & Print */}
-            <div className={`w-full xl:w-[280px] shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col py-[5px] px-[10px] transition-all xl:h-full overflow-hidden ${isDownloadsExpanded ? 'max-h-[50vh]' : 'h-[50px] xl:max-h-none xl:h-full'}`}>
+            <div className={`w-full xl:w-[280px] shrink-0 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col py-[5px] px-[10px] transition-all xl:h-full overflow-hidden ${isDownloadsExpanded ? 'max-h-[50vh]' : 'h-[50px] xl:max-h-none xl:h-full'} max-md:mt-0`}>
               <div 
                 className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800 cursor-pointer xl:cursor-default"
                 onClick={() => setIsDownloadsExpanded(!isDownloadsExpanded)}
@@ -1088,7 +1088,7 @@ export function ProcessDocument() {
             </div>
 
             {/* Right Content: Upload Documents */}
-            <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 bg-white dark:bg-[#0f172a] rounded-2xl px-6 pt-[4px] pb-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col h-[250px] lg:h-[425px] overflow-hidden">
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pt-[2px] pb-[2px] mb-4 shrink-0">
                 <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-slate-100 dark:to-slate-400">Upload Documents</h2>
               </div>
@@ -1197,8 +1197,8 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'completed' && (
-          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="overflow-x-auto w-full">
+          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
+            <div className="overflow-x-auto w-full max-md:mt-0">
               <div className="min-w-[800px]">
                 <div className="grid grid-cols-5 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                    <div>SN.</div>

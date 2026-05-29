@@ -336,8 +336,8 @@ export function Sales() {
   };
 
   return (
-    <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2 lg:pb-0 lg:h-[850px]">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 lg:mb-[20px] lg:mt-[16px] lg:pt-0">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Sales Desk</h1>
         </div>
@@ -345,7 +345,7 @@ export function Sales() {
           onClick={handleSaveSale} 
           size="lg" 
           disabled={!selectedChassis || !selectedCustomer || !canCreate}
-          className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold"
+          className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold lg:mr-[250px]"
         >
           Finalize Transaction
         </Button>
@@ -355,13 +355,13 @@ export function Sales() {
         {/* Left Column: Selection */}
         <div className="lg:col-span-12 xl:col-span-8 space-y-8">
           <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
-            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px] lg:pb-0">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <Car className="h-4 w-4" /> Vehicle Selection
                 </h3>
               </div>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-6 space-y-6 lg:pt-[10px] lg:pb-[10px]">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Chassis</label>
                   <div className="relative flex items-center gap-2">
@@ -428,13 +428,13 @@ export function Sales() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px]">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <User className="h-4 w-4" /> Customer Mapping
                 </h3>
               </div>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-6 space-y-6 lg:pt-[10px] lg:pb-[10px]">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
                   <div className="flex gap-2 items-center">
@@ -507,8 +507,8 @@ export function Sales() {
 
         {/* Right Column: Transaction Details */}
         <div className="lg:col-span-12 xl:col-span-4 space-y-8">
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-            <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px]">
+            <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                 <FileText className="h-4 w-4" /> Registry Attributes
               </h3>
@@ -528,8 +528,8 @@ export function Sales() {
         </div>
       </div>
 
-      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px]">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0">
+      <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px] lg:pt-[5px] lg:pb-[5px] lg:h-[562px]">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0 lg:pt-0 lg:pb-[5px]">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-xl font-black">Sales History</CardTitle>
           </div>
@@ -546,7 +546,7 @@ export function Sales() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0 overflow-auto flex-1 relative [&_[data-slot=table-container]]:overflow-visible">
+        <CardContent className="p-0 overflow-auto flex-1 relative [&_[data-slot=table-container]]:overflow-visible lg:h-[550px] lg:w-[1328px]">
           <Table>
             <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
               <TableRow>
@@ -773,14 +773,17 @@ export function Sales() {
               )}
             </TableBody>
           </Table>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            itemsPerPage={itemsPerPage}
-            setItemsPerPage={setItemsPerPage}
-            totalItems={totalItems}
-          />
+          <div className="lg:pt-0 lg:pb-0">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              totalItems={totalItems}
+              className="lg:pt-[5px] lg:pb-[5px]"
+            />
+          </div>
         </CardContent>
       </Card>
 

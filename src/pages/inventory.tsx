@@ -288,7 +288,7 @@ export function Inventory() {
 
   return (
     <div className="flex flex-col flex-1 gap-4 h-full">
-      <div className="flex items-center justify-between shrink-0 mb-1">
+      <div className="flex items-center justify-between shrink-0 mb-1 lg:mt-[25px]">
         <div className="flex flex-col">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Vehicle Inventory</h1>
         </div>
