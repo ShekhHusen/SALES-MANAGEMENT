@@ -8,8 +8,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updatePassword,
-  fetchSignInMethodsForEmail,
-  reauthenticateWithPopup
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -96,11 +95,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       await signInWithPopup(auth, provider);
       toast.success('Logged in successfully');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || 'Failed to login with Google');
+      if (error.code === 'auth/user-mismatch' || error.code === 'auth/account-exists-with-different-credential') {
+        toast.error('Account conflict detected. Please try logging in again and select the correct account.', { duration: 5000 });
+        await signOut(auth);
+      } else {
+        toast.error(error.message || 'Failed to login with Google');
+      }
     }
   };
 
