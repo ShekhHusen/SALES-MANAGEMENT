@@ -20,7 +20,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Settings() {
   const { companies, models } = useGlobalData();
-  const { hasSetPassword, setUserPassword } = useAuth();
+  const { hasSetPassword, setUserPassword, user, resetPassword } = useAuth();
   
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
@@ -127,38 +127,64 @@ export function Settings() {
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Configuration</h1>
       </div>
 
-      {!hasSetPassword && typeof hasSetPassword === 'boolean' && (
-        <Card className="shadow-sm border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-900/10 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-amber-200/50 dark:border-amber-900/30 flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-            <h3 className="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-500">Security Requirement</h3>
-          </div>
-          <CardContent className="p-6 space-y-4">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              You signed in via Google. Please set a password for your account so you can also log in using your email and password directly.
-            </p>
-            <div className="flex flex-col gap-3 max-w-sm">
-              <Input 
-                type="password"
-                placeholder="Enter a secure password..."
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="bg-white dark:bg-slate-900"
-              />
-              <Input 
-                type="password"
-                placeholder="Re-enter password..."
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="bg-white dark:bg-slate-900"
-              />
-              <Button onClick={handleSetPassword} disabled={settingPassword} className="font-bold shrink-0 w-full">
-                {settingPassword ? 'Saving...' : 'Set Password'}
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden mb-8">
+        <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-slate-500" />
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Security & Authentication</h3>
+        </div>
+        <CardContent className="p-6">
+          {!hasSetPassword && typeof hasSetPassword === 'boolean' ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-500">
+                  You signed in via Google. Set a password for your account so you can also log in using your email and password directly.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 max-w-sm">
+                <Input 
+                  type="password"
+                  placeholder="Enter a secure password..."
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="bg-white dark:bg-slate-900 h-11"
+                />
+                <Input 
+                  type="password"
+                  placeholder="Re-enter password..."
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-white dark:bg-slate-900 h-11"
+                />
+                <Button onClick={handleSetPassword} disabled={settingPassword} className="font-bold h-11 w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900">
+                  {settingPassword ? 'Saving...' : 'Set Password'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div>
+                <h4 className="font-bold text-slate-900 dark:text-slate-100">Password Management</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Your account is protected with a password. If you want to change your password, you can request a secure reset link.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="font-bold shrink-0 h-11 px-6 shadow-sm" 
+                onClick={async () => {
+                  if (!user?.email) {
+                    toast.error('No email address found for your account.');
+                    return;
+                  }
+                  await resetPassword(user.email);
+                }}
+              >
+                Send Reset Link
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
         {/* Companies Section */}

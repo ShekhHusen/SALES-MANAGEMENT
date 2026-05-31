@@ -8,7 +8,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updatePassword,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -35,6 +36,7 @@ interface AuthContextType {
   signupWithEmail: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
   setUserPassword: (pass: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   hasSetPassword: boolean | null;
 }
 
@@ -150,6 +152,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success('Password reset email sent! Check your inbox.');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Failed to send password reset email.');
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -161,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, loginWithGoogle, loginWithEmail, signupWithEmail, logout, setUserPassword, hasSetPassword }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, loginWithGoogle, loginWithEmail, signupWithEmail, logout, setUserPassword, resetPassword, hasSetPassword }}>
       {children}
     </AuthContext.Provider>
   );
