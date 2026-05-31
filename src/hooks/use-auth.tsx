@@ -53,19 +53,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       if (currentUser) {
         try {
-          // Check if password provider is linked
-          const methods = await fetchSignInMethodsForEmail(auth, currentUser.email!);
-          setHasSetPassword(methods.includes('password'));
+          // Check if password provider is linked safely without triggering enumeration errors
+          const hasPasswordProvider = currentUser.providerData.some(
+            provider => provider.providerId === 'password'
+          );
 
           const userDocRef = doc(db, 'users', currentUser.uid);
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
             const data = userDoc.data() as UserProfile;
+            let needsUpdate = false;
+            
             if (currentUser.email === 'husnailalam06@gmail.com' && data.role !== 'admin') {
               data.role = 'admin';
-              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+              needsUpdate = true;
             }
+            if (hasPasswordProvider && !data.hasSetPassword) {
+              data.hasSetPassword = true;
+              needsUpdate = true;
+            }
+            
+            if (needsUpdate) {
+              await setDoc(userDocRef, { ...data }, { merge: true });
+            }
+            
+            setHasSetPassword(data.hasSetPassword || hasPasswordProvider);
             setUserProfile(data);
           } else {
             const newRole: UserRole = currentUser.email === 'husnailalam06@gmail.com' ? 'admin' : 'pending';
@@ -75,15 +88,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               displayName: currentUser.displayName,
               photoURL: currentUser.photoURL,
               role: newRole,
+              hasSetPassword: hasPasswordProvider,
               createdAt: serverTimestamp(),
             };
             await setDoc(userDocRef, newProfile);
+            setHasSetPassword(hasPasswordProvider);
             setUserProfile(newProfile);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
-          // Fallback if fetchSignInMethodsForEmail fails due to privacy settings in identitytoolkit
-          setHasSetPassword(false);
         }
       } else {
         setUserProfile(null);
@@ -110,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         toast.error(error.message || 'Failed to login with Google');
       }
+      throw error;
     }
   };
 
@@ -139,7 +153,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!auth.currentUser) return;
     try {
       await updatePassword(auth.currentUser, pass);
+      await auth.currentUser.reload();
       setHasSetPassword(true);
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      await setDoc(userDocRef, { hasSetPassword: true }, { merge: true });
       toast.success('Password set successfully! You can now login with this password.');
     } catch (error: any) {
       if (error.code === 'auth/requires-recent-login') {
@@ -167,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOut(auth);
       toast.success('Logged out successfully');
+      window.location.href = '/';
     } catch (error) {
       console.error(error);
       toast.error('Failed to logout');

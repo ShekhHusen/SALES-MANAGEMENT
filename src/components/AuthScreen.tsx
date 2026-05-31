@@ -21,9 +21,11 @@ export function AuthScreen() {
       if (mode === 'login') {
         if (!password) return;
         await loginWithEmail(email, password);
+        window.location.href = '/';
       } else if (mode === 'signup') {
         if (!password) return;
         await signupWithEmail(email, password);
+        window.location.href = '/';
       } else if (mode === 'reset') {
         await resetPassword(email);
         setMode('login'); // go back to login automatically on success
@@ -105,7 +107,12 @@ export function AuthScreen() {
             </div>
 
             <button
-              onClick={loginWithGoogle}
+              onClick={async () => {
+                try {
+                  await loginWithGoogle();
+                  window.location.href = '/';
+                } catch (e) {}
+              }}
               type="button"
               className="mt-6 w-full flex items-center justify-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 h-12 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
             >

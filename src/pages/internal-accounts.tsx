@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -125,6 +125,10 @@ export function InternalAccounts() {
     const [openingsPage, setOpeningsPage] = useState(1);
     const [transactionsPage, setTransactionsPage] = useState(1);
     const [statementPage, setStatementPage] = useState(1);
+    
+    // Mapping specific states
+    const [mappingPage, setMappingPage] = useState(1);
+    const [mappingSearchQuery, setMappingSearchQuery] = useState('');
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
     const [openingsSort, setOpeningsSort] = useState<SortConfig>(null);
@@ -1128,98 +1132,110 @@ export function InternalAccounts() {
                             <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Customer Mapping</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                                        <span>Unlinked Accounts (Internal)</span>
-                                        <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full text-xs font-black">{allAccountNames.filter(name => !mappings[name]).length}</span>
-                                    </h3>
-                                    <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
-                                        {allAccountNames.filter(name => !mappings[name]).map(name => (
-                                            <div key={name} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md">
-                                                <span className="font-medium text-slate-700 dark:text-slate-300">{name}</span>
-                                                <select 
-                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
-                                                    value=""
-                                                    onChange={async (e) => {
-                                                        if (e.target.value) {
-                                                            try {
-                                                                await updateDoc(doc(db, 'internal_data', 'mappings'), 
-                                                                    new FieldPath('mappings', name), e.target.value
-                                                                );
-                                                            } catch (err: any) {
-                                                                if (err.code === 'not-found') {
-                                                                    await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [name]: e.target.value } });
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    <option value="" disabled>Link to Party...</option>
-                                                    {parties.map(p => (
-                                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
-                                        {allAccountNames.filter(name => !mappings[name]).length === 0 && (
-                                            <div className="text-center py-8">
-                                                <div className="bg-emerald-100 dark:bg-emerald-900/30 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                    <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                                                </div>
-                                                <p className="text-sm text-slate-500 font-medium">All accounts are linked!</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                            {(() => {
+                                const unlinkedParties = parties.filter(p => !Object.values(mappings).includes(p.id));
+                                const filteredParties = unlinkedParties.filter(p => 
+                                    p.name.toLowerCase().includes(mappingSearchQuery.toLowerCase()) || 
+                                    (p.contactNumber && p.contactNumber.includes(mappingSearchQuery))
+                                );
+                                
+                                const totalMappingPages = Math.max(1, Math.ceil(filteredParties.length / ITEMS_PER_PAGE));
+                                const startMappingIdx = (mappingPage - 1) * ITEMS_PER_PAGE;
+                                const paginatedParties = filteredParties.slice(startMappingIdx, startMappingIdx + ITEMS_PER_PAGE);
 
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                                        <span>Pending Parties (Unlinked)</span>
-                                        <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-full text-xs font-black">{parties.filter(p => !Object.values(mappings).includes(p.id)).length}</span>
-                                    </h3>
-                                    <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
-                                        {parties.filter(p => !Object.values(mappings).includes(p.id)).map(party => (
-                                            <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md">
-                                                <div>
-                                                    <p className="font-bold text-slate-700 dark:text-slate-300">{party.name}</p>
-                                                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{party.contactNumber || 'No contact'}</p>
-                                                </div>
-                                                <select 
-                                                    className="w-40 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
-                                                    value=""
-                                                    onChange={async (e) => {
-                                                        if (e.target.value) {
-                                                            try {
-                                                                await updateDoc(doc(db, 'internal_data', 'mappings'), 
-                                                                    new FieldPath('mappings', e.target.value), party.id
-                                                                );
-                                                            } catch (err: any) {
-                                                                if (err.code === 'not-found') {
-                                                                    await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [e.target.value]: party.id } });
-                                                                }
-                                                            }
-                                                        }
+                                return (
+                                    <div className="space-y-4 max-w-4xl mx-auto w-full">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                                                <span>Pending Parties (Unlinked)</span>
+                                                <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-full text-xs font-black">{unlinkedParties.length}</span>
+                                            </h3>
+                                            <div className="relative w-full sm:w-64">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                                <Input 
+                                                    placeholder="Search pending parties..."
+                                                    value={mappingSearchQuery}
+                                                    onChange={(e) => {
+                                                        setMappingSearchQuery(e.target.value);
+                                                        setMappingPage(1);
                                                     }}
-                                                >
-                                                    <option value="" disabled>Link Account...</option>
-                                                    {allAccountNames.map(name => (
-                                                        <option key={name} value={name}>{name}</option>
-                                                    ))}
-                                                </select>
+                                                    className="pl-9 h-10 rounded-xl"
+                                                />
                                             </div>
-                                        ))}
-                                        {parties.filter(p => !Object.values(mappings).includes(p.id)).length === 0 && (
-                                            <div className="text-center py-8">
-                                                <div className="bg-emerald-100 dark:bg-emerald-900/30 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                    <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        
+                                        <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
+                                            {paginatedParties.map(party => (
+                                                <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 sm:p-4 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md gap-4 flex-wrap sm:flex-nowrap">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-slate-700 dark:text-slate-300 truncate">{party.name}</p>
+                                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{party.contactNumber || 'No contact'}</p>
+                                                    </div>
+                                                    <div className="w-full sm:w-64 shrink-0">
+                                                        <SearchableSelect 
+                                                            options={allAccountNames}
+                                                            value=""
+                                                            onChange={async (val) => {
+                                                                if (val) {
+                                                                    try {
+                                                                        await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                                                                            new FieldPath('mappings', val), party.id
+                                                                        );
+                                                                    } catch (err: any) {
+                                                                        if (err.code === 'not-found') {
+                                                                            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [val]: party.id } });
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                            placeholder="Link Account..."
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm text-slate-500 font-medium">All parties are linked!</p>
+                                            ))}
+                                            {paginatedParties.length === 0 && (
+                                                <div className="text-center py-12">
+                                                    <div className="bg-emerald-100 dark:bg-emerald-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                        <RefreshCw className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                                                    </div>
+                                                    <p className="text-base text-slate-600 dark:text-slate-400 font-medium">
+                                                        {mappingSearchQuery ? "No pending parties match your search." : "All parties are linked!"}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {totalMappingPages > 1 && (
+                                            <div className="flex items-center justify-between pt-4">
+                                                <p className="text-sm text-slate-500 font-medium hidden sm:block">
+                                                    Showing <span className="font-bold text-slate-700 dark:text-slate-300">{startMappingIdx + 1}</span> to <span className="font-bold text-slate-700 dark:text-slate-300">{Math.min(startMappingIdx + ITEMS_PER_PAGE, filteredParties.length)}</span> of <span className="font-bold text-slate-700 dark:text-slate-300">{filteredParties.length}</span>
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setMappingPage(p => Math.max(1, p - 1))}
+                                                        disabled={mappingPage === 1}
+                                                        className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-800"
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                                                    </Button>
+                                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 px-2">Page {mappingPage} of {totalMappingPages}</span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setMappingPage(p => Math.min(totalMappingPages, p + 1))}
+                                                        disabled={mappingPage === totalMappingPages}
+                                                        className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-800"
+                                                    >
+                                                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            </div>
+                                );
+                            })()}
 
                             <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg flex items-center gap-2">
