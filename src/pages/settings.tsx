@@ -700,7 +700,7 @@ export function Settings() {
                     actionLabel: "Clear Everything",
                     expectedText: "DELETE ALL",
                     onConfirm: async () => {
-                      const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models'];
+                      const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models', 'internal_openings', 'internal_transactions', 'internal_data'];
                       try {
                         for (const colName of collections) {
                           const q = query(collection(db, colName));

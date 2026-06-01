@@ -725,7 +725,9 @@ export function InternalAccounts() {
                         <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div>
-                                    <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Account Statement</CardTitle>
+                                    <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">
+                                        {linkedParty && selectedAccount ? `${linkedParty.name} X ${selectedAccount}` : selectedAccount ? `Statement: ${selectedAccount}` : 'Account Statement'}
+                                    </CardTitle>
                                     {linkedParty && (
                                         <div className="text-xs text-slate-500 font-medium mt-1">
                                             <span className="font-bold text-slate-700 dark:text-slate-300">{linkedParty.name}</span>
@@ -1173,7 +1175,7 @@ export function InternalAccounts() {
                                                     </div>
                                                     <div className="w-full sm:w-64 shrink-0">
                                                         <SearchableSelect 
-                                                            options={allAccountNames}
+                                                            options={allAccountNames.filter(name => !mappings[name])}
                                                             value=""
                                                             onChange={async (val) => {
                                                                 if (val) {
