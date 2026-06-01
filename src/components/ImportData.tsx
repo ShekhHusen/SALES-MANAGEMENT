@@ -213,11 +213,22 @@ export function ImportData() {
       }
       else if (importType === 'purchases') {
         for (const row of data) {
-          const inv = row['Invoice Number']?.toString().trim();
+          let inv = '';
+          let vendorName = '';
+          let chassisStr = '';
+          let dateStr: any = null;
+
+          for (const key of Object.keys(row)) {
+            const kl = key.toLowerCase();
+            if (kl.includes('invoice')) inv = row[key]?.toString().trim();
+            else if (kl.includes('vendor')) vendorName = row[key]?.toString().trim();
+            else if (kl.includes('chassis')) chassisStr = row[key]?.toString() || '';
+            else if (kl.includes('date')) dateStr = row[key];
+          }
+
           if (!inv) continue;
 
           let vendorId = '';
-          const vendorName = row['Vendor Name']?.toString().trim();
           let newOps = 1;
           if (vendorName) {
             vendorId = existingParties.get(vendorName.toLowerCase()) || '';
@@ -229,7 +240,6 @@ export function ImportData() {
             }
           }
 
-          const chassisStr = row['Chassis Numbers (comma separated)']?.toString() || '';
           const chassisArr = chassisStr.split(',').map((c: string) => c.trim()).filter(Boolean);
           newOps += chassisArr.length;
 
@@ -241,7 +251,6 @@ export function ImportData() {
              opCount++;
           }
 
-          const dateStr = row['Date (YYYY-MM-DD)'];
           let date = Timestamp.now();
           if (dateStr) {
              if (dateStr instanceof Date) {

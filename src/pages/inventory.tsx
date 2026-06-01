@@ -685,7 +685,7 @@ export function Inventory() {
                               </div>
                               <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase">Initial Log</p>
-                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.createdAt.toDate().toLocaleDateString()}</p>
+                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.createdAt?.toDate?.()?.toLocaleDateString() || '-'}</p>
                               </div>
                             </div>
 
@@ -753,7 +753,7 @@ export function Inventory() {
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 rounded-xl border border-blue-50 p-6 bg-blue-50/30">
                                 <div>
                                   <p className="text-[10px] text-blue-400 font-black uppercase">Date</p>
-                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{purchaseDetails.date.toDate().toLocaleDateString()}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{purchaseDetails.date?.toDate?.()?.toLocaleDateString() || '-'}</p>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-blue-400 font-black uppercase">Invoice #</p>
@@ -780,7 +780,7 @@ export function Inventory() {
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 rounded-xl border border-emerald-50 p-6 bg-emerald-50/30">
                                 <div>
                                   <p className="text-[10px] text-emerald-400 font-black uppercase">Sale Date</p>
-                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{saleDetails.date.toDate().toLocaleDateString()}</p>
+                                  <p className="font-extrabold text-slate-900 dark:text-slate-100">{saleDetails.date?.toDate?.()?.toLocaleDateString() || '-'}</p>
                                 </div>
                                 <div>
                                   <p className="text-[10px] text-emerald-400 font-black uppercase">File Reference</p>

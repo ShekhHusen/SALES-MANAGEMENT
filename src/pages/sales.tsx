@@ -699,7 +699,7 @@ export function Sales() {
                     <TableCell className="px-4 py-2.5 text-center font-bold text-slate-500">{index + 1}</TableCell>
                     <TableCell className="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-200">
                       {sale.date instanceof Timestamp 
-                        ? sale.date.toDate().toLocaleDateString('en-GB') 
+                        ? sale.date?.toDate?.()?.toLocaleDateString('en-GB') || 'N/A'
                         : String(sale.date)}
                     </TableCell>
                     <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100">

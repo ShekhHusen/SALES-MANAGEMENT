@@ -739,7 +739,7 @@ export function Purchases() {
                         <span className="font-black text-slate-900 dark:text-slate-100 uppercase">{vendor?.name || 'Unknown Vendor'}</span>
                         <span className="text-[10px] font-bold text-slate-400">
                           {purchase.date instanceof Timestamp 
-                            ? purchase.date.toDate().toLocaleDateString('en-GB') 
+                            ? purchase.date?.toDate?.()?.toLocaleDateString('en-GB') || 'N/A'
                             : String(purchase.date)}
                         </span>
                       </div>
