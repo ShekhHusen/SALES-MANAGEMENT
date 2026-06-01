@@ -631,7 +631,7 @@ export function Settings() {
                         let deletedCount = 0;
                         let skippedCount = 0;
                         
-                        const batch = writeBatch(db);
+                        let batch = writeBatch(db);
                         let ops = 0;
                         
                         for (const docSnap of openingsSnap.docs) {
@@ -642,6 +642,12 @@ export function Settings() {
                                 batch.delete(docSnap.ref);
                                 deletedCount++;
                                 ops++;
+
+                                if (ops === 490) {
+                                    await batch.commit();
+                                    batch = writeBatch(db);
+                                    ops = 0;
+                                }
                             }
                         }
                         
@@ -681,14 +687,22 @@ export function Settings() {
                       try {
                         const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
                         let deletedCount = 0;
-                        const batch = writeBatch(db);
+                        let batch = writeBatch(db);
+                        let ops = 0;
                         
                         for (const docSnap of txnsSnap.docs) {
                             batch.delete(docSnap.ref);
                             deletedCount++;
+                            ops++;
+                            
+                            if (ops === 490) {
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                ops = 0;
+                            }
                         }
                         
-                        if (deletedCount > 0) {
+                        if (ops > 0) {
                             await batch.commit();
                         }
                         
