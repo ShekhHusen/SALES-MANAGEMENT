@@ -409,6 +409,20 @@ export function InternalAccounts() {
         return sortable;
     }, [transactions, transactionsSort]);
 
+    const openingsTotals = useMemo(() => {
+        return openings.reduce((acc, curr) => ({
+            debit: acc.debit + (curr.debit || 0),
+            credit: acc.credit + (curr.credit || 0)
+        }), { debit: 0, credit: 0 });
+    }, [openings]);
+
+    const transactionsTotals = useMemo(() => {
+        return transactions.reduce((acc, curr) => ({
+            debit: acc.debit + (curr.debit || 0),
+            credit: acc.credit + (curr.credit || 0)
+        }), { debit: 0, credit: 0 });
+    }, [transactions]);
+
     const paginatedOpenings = useMemo(() => {
         const start = (openingsPage - 1) * ITEMS_PER_PAGE;
         return sortedOpenings.slice(start, start + ITEMS_PER_PAGE);
@@ -618,6 +632,15 @@ export function InternalAccounts() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    {openings.length > 0 && (
+                                        <tfoot className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-200 dark:border-slate-700 font-bold sticky bottom-0 z-10 shadow-sm top-shadow-md">
+                                            <tr>
+                                                <td colSpan={2} className="px-4 py-3 text-right">Grand Total</td>
+                                                <td className="px-4 py-3 text-right text-blue-600 dark:text-blue-400">{openingsTotals.debit.toFixed(2)}</td>
+                                                <td className="px-4 py-3 text-right text-indigo-600 dark:text-indigo-400">{openingsTotals.credit.toFixed(2)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
                                 </table>
                             </div>
                             
@@ -698,6 +721,16 @@ export function InternalAccounts() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    {transactions.length > 0 && (
+                                        <tfoot className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-200 dark:border-slate-700 font-bold sticky bottom-0 z-10 shadow-sm top-shadow-md">
+                                            <tr>
+                                                <td colSpan={4} className="px-4 py-3 text-right">Grand Total</td>
+                                                <td className="px-4 py-3 text-right whitespace-nowrap text-blue-600 dark:text-blue-400">{transactionsTotals.debit.toFixed(2)}</td>
+                                                <td className="px-4 py-3 text-right whitespace-nowrap text-indigo-600 dark:text-indigo-400">{transactionsTotals.credit.toFixed(2)}</td>
+                                                <td className="px-4 py-3"></td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
                                 </table>
                             </div>
                             
