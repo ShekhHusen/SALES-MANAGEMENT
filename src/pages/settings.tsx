@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { Company, Model } from '@/types';
@@ -624,14 +624,32 @@ export function Settings() {
                     actionLabel: "Clear Openings",
                     onConfirm: async () => {
                       try {
-                        const res = await fetch('/api/internal-accounts/clear', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'openings' })
-                        });
-                        if (!res.ok) throw new Error('Server error');
-                        const data = await res.json();
-                        toast.success(`Cleared ${data.deleted} openings. Skipped ${data.skipped} linked openings.`);
+                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
+                        const usedAccounts = new Set(txnsSnap.docs.map(d => (d.data().particulars || '').toLowerCase().trim()));
+                        
+                        const openingsSnap = await getDocs(query(collection(db, 'internal_openings')));
+                        let deletedCount = 0;
+                        let skippedCount = 0;
+                        
+                        const batch = writeBatch(db);
+                        let ops = 0;
+                        
+                        for (const docSnap of openingsSnap.docs) {
+                            const accountName = (docSnap.data().accountName || '').toLowerCase().trim();
+                            if (usedAccounts.has(accountName)) {
+                                skippedCount++;
+                            } else {
+                                batch.delete(docSnap.ref);
+                                deletedCount++;
+                                ops++;
+                            }
+                        }
+                        
+                        if (ops > 0) {
+                            await batch.commit();
+                        }
+                        
+                        toast.success(`Cleared ${deletedCount} openings. Skipped ${skippedCount} linked openings.`);
                       } catch (err) {
                         toast.error("Failed to clear internal account openings.");
                       }
@@ -661,14 +679,20 @@ export function Settings() {
                     actionLabel: "Clear Transactions",
                     onConfirm: async () => {
                       try {
-                        const res = await fetch('/api/internal-accounts/clear', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: 'transactions' })
-                        });
-                        if (!res.ok) throw new Error('Server error');
-                        const data = await res.json();
-                        toast.success(`Successfully cleared ${data.deleted} internal transactions.`);
+                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
+                        let deletedCount = 0;
+                        const batch = writeBatch(db);
+                        
+                        for (const docSnap of txnsSnap.docs) {
+                            batch.delete(docSnap.ref);
+                            deletedCount++;
+                        }
+                        
+                        if (deletedCount > 0) {
+                            await batch.commit();
+                        }
+                        
+                        toast.success(`Successfully cleared ${deletedCount} internal transactions.`);
                       } catch (err) {
                         toast.error("Failed to clear internal account transactions.");
                       }
