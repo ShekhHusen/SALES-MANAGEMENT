@@ -107,6 +107,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      // Auto logout after 30 minutes of inactivity (30 * 60 * 1000 = 1800000 ms)
+      timeoutId = setTimeout(() => {
+        if (auth.currentUser) {
+           signOut(auth).then(() => {
+             toast.info('You have been logged out due to inactivity.', { duration: 6000 });
+             window.location.href = '/';
+           });
+        }
+      }, 1800000);
+    };
+
+    if (user) {
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keydown', resetTimer);
+      window.addEventListener('click', resetTimer);
+      window.addEventListener('scroll', resetTimer);
+      resetTimer();
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('click', resetTimer);
+      window.removeEventListener('scroll', resetTimer);
+    };
+  }, [user]);
+
   const loginWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
