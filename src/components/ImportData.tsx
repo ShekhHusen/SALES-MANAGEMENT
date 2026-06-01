@@ -105,10 +105,12 @@ export function ImportData() {
       const existingCompanies = new Map(companiesSnap.docs.map(d => [d.data().name.toLowerCase(), d.id]));
       
       const modelsSnap = await getDocs(collection(db, 'models'));
-      const existingModels = new Map(modelsSnap.docs.map(d => [d.data().name.toLowerCase(), d.id]));
+      const existingModels = new Map(modelsSnap.docs.map(d => [`${d.data().companyId}_${d.data().name.toLowerCase()}`, d.id]));
 
       const partiesSnap = await getDocs(collection(db, 'parties'));
       const existingParties = new Map(partiesSnap.docs.map(d => [d.data().name.toLowerCase(), d.id]));
+
+      const createdEntities = new Set<string>();
 
       let count = 0;
       const data = previewData;
@@ -131,21 +133,26 @@ export function ImportData() {
           if (!name) continue;
           
           let id = existingParties.get(name.toLowerCase());
+          let isNew = false;
           if (!id) {
             const docRef = doc(collection(db, 'parties'));
             id = docRef.id;
             existingParties.set(name.toLowerCase(), id);
+            isNew = true;
           }
           
           await commitBatchIfNeeded(1);
-          currentBatch.set(doc(db, 'parties', id), {
-            name,
-            address: row['Address']?.toString() || '',
-            contactNumber: row['Contact Number']?.toString() || '',
-            type,
-            createdAt: Timestamp.now()
-          }, { merge: true });
-          opCount++;
+          if (isNew) {
+            currentBatch.set(doc(db, 'parties', id), {
+              name,
+              address: row['Address']?.toString() || '',
+              contactNumber: row['Contact Number']?.toString() || '',
+              type,
+              createdAt: Timestamp.now()
+            });
+            createdEntities.add(id);
+            opCount++;
+          }
           count++;
         }
       } 
@@ -157,41 +164,43 @@ export function ImportData() {
           let compId = '';
           const compName = row['Company']?.toString().trim();
           let newOps = 1;
+          let isNewComp = false;
           if (compName) {
             compId = existingCompanies.get(compName.toLowerCase()) || '';
             if (!compId) {
               const cRef = doc(collection(db, 'companies'));
               compId = cRef.id;
               existingCompanies.set(compName.toLowerCase(), compId);
+              isNewComp = true;
               newOps++;
             }
           }
 
           let modelId = '';
           const modelName = row['Model']?.toString().trim();
+          let isNewModel = false;
           if (modelName && compId) {
-            modelId = existingModels.get(modelName.toLowerCase()) || '';
+            modelId = existingModels.get(`${compId}_${modelName.toLowerCase()}`) || '';
             if (!modelId) {
               const mRef = doc(collection(db, 'models'));
               modelId = mRef.id;
-              existingModels.set(modelName.toLowerCase(), modelId);
+              existingModels.set(`${compId}_${modelName.toLowerCase()}`, modelId);
+              isNewModel = true;
               newOps++;
             }
           }
 
           await commitBatchIfNeeded(newOps);
 
-          if (compName && !existingCompanies.has(compName.toLowerCase() + '_created')) {
-              if (compId && !existingCompanies.has(compId)) {
-                currentBatch.set(doc(db, 'companies', compId), { name: compName });
-                existingCompanies.set(compId, compId); // just to mark as added
-                opCount++;
-              }
+          if (isNewComp && !createdEntities.has(compId)) {
+             currentBatch.set(doc(db, 'companies', compId), { name: compName });
+             createdEntities.add(compId);
+             opCount++;
           }
 
-          if (modelName && compId && !existingModels.has(modelId)) {
+          if (isNewModel && !createdEntities.has(modelId)) {
              currentBatch.set(doc(db, 'models', modelId), { name: modelName, companyId: compId });
-             existingModels.set(modelId, modelId);
+             createdEntities.add(modelId);
              opCount++;
           }
 
@@ -230,12 +239,14 @@ export function ImportData() {
 
           let vendorId = '';
           let newOps = 1;
+          let isNewVendor = false;
           if (vendorName) {
             vendorId = existingParties.get(vendorName.toLowerCase()) || '';
             if (!vendorId) {
                const pRef = doc(collection(db, 'parties'));
                vendorId = pRef.id;
                existingParties.set(vendorName.toLowerCase(), vendorId);
+               isNewVendor = true;
                newOps++;
             }
           }
@@ -245,9 +256,9 @@ export function ImportData() {
 
           await commitBatchIfNeeded(newOps);
 
-          if (vendorName && !existingParties.has(vendorId)) {
+          if (isNewVendor && !createdEntities.has(vendorId)) {
              currentBatch.set(doc(db, 'parties', vendorId), { name: vendorName, type: 'vendor', address: '', contactNumber: '', createdAt: Timestamp.now() });
-             existingParties.set(vendorId, vendorId);
+             createdEntities.add(vendorId);
              opCount++;
           }
 
@@ -277,6 +288,7 @@ export function ImportData() {
              currentBatch.set(doc(db, 'vehicles', chassis), {
                  chassisNumber: chassis,
                  status: 'in-stock',
+                 purchaseId: ref.id,
                  updatedAt: Timestamp.now()
              }, { merge: true });
              opCount++;
@@ -293,39 +305,43 @@ export function ImportData() {
            let custId = '';
            const custName = row['Customer Name']?.toString().trim();
            let newOps = 2; // sale + vehicle
+           let isNewCust = false;
            if (custName) {
               custId = existingParties.get(custName.toLowerCase()) || '';
               if (!custId) {
                  const pRef = doc(collection(db, 'parties'));
                  custId = pRef.id;
                  existingParties.set(custName.toLowerCase(), custId);
+                 isNewCust = true;
                  newOps++;
               }
            }
 
            let compId = '';
            const compName = row['Company']?.toString().trim();
+           let isNewComp = false;
            if (compName) {
              compId = existingCompanies.get(compName.toLowerCase()) || '';
              if (!compId) {
                const cRef = doc(collection(db, 'companies'));
                compId = cRef.id;
                existingCompanies.set(compName.toLowerCase(), compId);
+               isNewComp = true;
                newOps++;
              }
            }
 
            await commitBatchIfNeeded(newOps);
 
-           if (custName && !existingParties.has(custId)) {
+           if (isNewCust && !createdEntities.has(custId)) {
               currentBatch.set(doc(db, 'parties', custId), { name: custName, type: 'customer', address: '', contactNumber: '', createdAt: Timestamp.now() });
-              existingParties.set(custId, custId);
+              createdEntities.add(custId);
               opCount++;
            }
 
-           if (compName && !existingCompanies.has(compId)) {
+           if (isNewComp && !createdEntities.has(compId)) {
               currentBatch.set(doc(db, 'companies', compId), { name: compName });
-              existingCompanies.set(compId, compId);
+              createdEntities.add(compId);
               opCount++;
            }
 
