@@ -643,7 +643,7 @@ export function Settings() {
                                 deletedCount++;
                                 ops++;
 
-                                if (ops === 490) {
+                                if (ops === 400) {
                                     await batch.commit();
                                     batch = writeBatch(db);
                                     ops = 0;
@@ -656,8 +656,9 @@ export function Settings() {
                         }
                         
                         toast.success(`Cleared ${deletedCount} openings. Skipped ${skippedCount} linked openings.`);
-                      } catch (err) {
-                        toast.error("Failed to clear internal account openings.");
+                      } catch (err: any) {
+                        console.error('Clear openings error:', err);
+                        toast.error("Failed to clear internal account openings. " + err.message);
                       }
                     }
                   });
@@ -685,8 +686,15 @@ export function Settings() {
                     actionLabel: "Clear Transactions",
                     onConfirm: async () => {
                       try {
-                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
                         let deletedCount = 0;
+                        const BATCH_SIZE = 400;
+                        
+                        const toastId = toast.loading('Clearing internal transactions... This may take a moment.');
+                        
+                        // We will batch delete in a loop until no more documents are left.
+                        // For 8777 documents, calling getDocs repeatedly could be needed if we only query small amounts,
+                        // but doing a single getDocs and then batching is also fine given client memory can handle a few thousand docs.
+                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
                         let batch = writeBatch(db);
                         let ops = 0;
                         
@@ -695,7 +703,7 @@ export function Settings() {
                             deletedCount++;
                             ops++;
                             
-                            if (ops === 490) {
+                            if (ops === BATCH_SIZE) {
                                 await batch.commit();
                                 batch = writeBatch(db);
                                 ops = 0;
@@ -706,9 +714,10 @@ export function Settings() {
                             await batch.commit();
                         }
                         
-                        toast.success(`Successfully cleared ${deletedCount} internal transactions.`);
-                      } catch (err) {
-                        toast.error("Failed to clear internal account transactions.");
+                        toast.success(`Successfully cleared ${deletedCount} internal transactions.`, { id: toastId });
+                      } catch (err: any) {
+                        console.error('Clear transactions error:', err);
+                        toast.error("Failed to clear internal account transactions. " + err.message);
                       }
                     }
                   });
