@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
@@ -15,9 +17,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
 
-const SearchableSelect = ({ options, value, onChange, placeholder }: { options: string[], value: string, onChange: (val: string) => void, placeholder: string }) => {
+const SearchableSelect = ({ options, value, onChange, placeholder }: { options: { label: string, value: string, category: string }[], value: string, onChange: (val: string) => void, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ Parties: true });
     const containerRef = React.useRef<HTMLDivElement>(null);
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -29,9 +32,32 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filtered = useMemo(() => {
-         return options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+    const filteredOptions = useMemo(() => {
+         return options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()) || o.value.toLowerCase().includes(search.toLowerCase()));
     }, [options, search]);
+
+    const groupedOptions = useMemo(() => {
+        const groups: Record<string, typeof options> = {};
+        for (const opt of filteredOptions) {
+            if (!groups[opt.category]) groups[opt.category] = [];
+            groups[opt.category].push(opt);
+        }
+        return groups;
+    }, [filteredOptions]);
+
+    useEffect(() => {
+        if (search) {
+            const allCategories = Object.keys(groupedOptions);
+            const expandAll = allCategories.reduce((acc, cat) => ({...acc, [cat]: true}), {});
+            setExpandedCategories(expandAll);
+        }
+    }, [search, groupedOptions]);
+
+    const toggleCategory = (category: string) => {
+        setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+    };
+
+    const selectedLabel = useMemo(() => options.find(o => o.value === value)?.label || value, [options, value]);
 
     return (
         <div className="relative flex-1 w-full" ref={containerRef}>
@@ -40,37 +66,52 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <div className="truncate flex-1 max-w-full text-slate-700 dark:text-slate-300 pr-2">
-                    {value || <span className="text-slate-500">{placeholder}</span>}
+                    {selectedLabel || <span className="text-slate-500">{placeholder}</span>}
                 </div>
                 <ArrowUpDown className="h-4 w-4 ml-1 shrink-0 text-slate-500" />
             </div>
             {isOpen && (
-                <div className="absolute top-full mt-1.5 left-0 right-0 max-h-64 overflow-y-auto bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 flex flex-col p-1.5">
+                <div className="absolute top-full mt-1.5 left-0 right-0 max-h-[300px] overflow-y-auto bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 flex flex-col p-1.5">
                     <div className="sticky top-0 bg-white dark:bg-slate-950 z-10 pb-1.5 border-b border-slate-100 dark:border-slate-700 shadow-[0_4px_6px_-6px_rgba(0,0,0,0.1)]">
                         <Input 
                             autoFocus
                             placeholder="Type to search..." 
                             value={search} 
                             onChange={(e) => setSearch(e.target.value)}
-                            className="h-9 text-sm"
+                            className="h-9 text-sm rounded-lg"
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>
-                    <div className="mt-1.5 flex flex-col gap-0.5">
-                        {filtered.map(opt => (
-                            <div 
-                                key={opt} 
-                                className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${value === opt ? 'bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900/30 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-                                onClick={() => {
-                                    onChange(opt);
-                                    setIsOpen(false);
-                                    setSearch('');
-                                }}
-                            >
-                                {opt}
+                    <div className="mt-2 flex flex-col gap-1">
+                        {Object.entries(groupedOptions).map(([category, opts]: [string, any[]]) => (
+                            <div key={category} className="mb-1">
+                                <div 
+                                    className="px-3 py-2 text-[11px] uppercase font-bold text-slate-600 dark:text-slate-400 tracking-wider sticky top-[46px] bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-sm z-[5] flex justify-between items-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); toggleCategory(category); }}
+                                >
+                                    <span>{category} ({opts.length})</span>
+                                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${expandedCategories[category] ? '' : '-rotate-90'}`} />
+                                </div>
+                                {expandedCategories[category] && (
+                                    <div className="mt-1 flex flex-col gap-0.5">
+                                        {opts.map(opt => (
+                                            <div 
+                                                key={opt.value} 
+                                                className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${value === opt.value ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/40 dark:text-blue-300' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'}`}
+                                                onClick={() => {
+                                                    onChange(opt.value);
+                                                    setIsOpen(false);
+                                                    setSearch('');
+                                                }}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
-                        {filtered.length === 0 && <div className="p-3 text-sm text-slate-500 text-center">No results found.</div>}
+                        {filteredOptions.length === 0 && <div className="p-4 text-sm text-slate-500 text-center font-medium italic">No results found.</div>}
                     </div>
                 </div>
             )}
@@ -122,6 +163,7 @@ export function InternalAccounts() {
     
     // Pagination states
     const ITEMS_PER_PAGE = 10;
+    const [statementSort, setStatementSort] = useState<SortConfig>({ key: 'date', direction: 'asc' });
     const [openingsPage, setOpeningsPage] = useState(1);
     const [transactionsPage, setTransactionsPage] = useState(1);
     const [statementPage, setStatementPage] = useState(1);
@@ -129,6 +171,7 @@ export function InternalAccounts() {
     // Mapping specific states
     const [mappingPage, setMappingPage] = useState(1);
     const [mappingSearchQuery, setMappingSearchQuery] = useState('');
+    const [openingSearchQuery, setOpeningSearchQuery] = useState('');
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
     const [openingsSort, setOpeningsSort] = useState<SortConfig>(null);
@@ -366,6 +409,18 @@ export function InternalAccounts() {
         return Array.from(names).sort();
     }, [openings, transactions]);
 
+    const accountOptions = useMemo(() => {
+        return allAccountNames.map(name => {
+            const isMapped = !!mappings[name];
+            const isPartyMatch = parties.some(p => p.name.toLowerCase() === name.toLowerCase());
+            return {
+                label: name,
+                value: name,
+                category: (isMapped || isPartyMatch) ? "Parties" : "Internal Accounts"
+            };
+        });
+    }, [allAccountNames, mappings, parties]);
+
     const statementOpening = useMemo(() => {
         if (!selectedAccount) return null;
         // Sum up all openings for this account just in case there are multiple
@@ -378,8 +433,26 @@ export function InternalAccounts() {
 
     const statementTransactions = useMemo(() => {
         if (!selectedAccount) return [];
-        return transactions.filter(t => t.particulars.trim() === selectedAccount);
-    }, [selectedAccount, transactions]);
+        const filtered = transactions.filter(t => t.particulars.trim() === selectedAccount);
+        
+        return filtered.sort((a, b) => {
+            if (!statementSort) return 0;
+            const dir = statementSort.direction === 'asc' ? 1 : -1;
+            
+            if (statementSort.key === 'date') {
+                const dateA = a.date && (a.date as any).toDate ? (a.date as any).toDate().getTime() : new Date(a.date).getTime();
+                const dateB = b.date && (b.date as any).toDate ? (b.date as any).toDate().getTime() : new Date(b.date).getTime();
+                return (dateA - dateB) * dir;
+            }
+            
+            const valA = a[statementSort.key as keyof typeof a];
+            const valB = b[statementSort.key as keyof typeof b];
+            
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+    }, [selectedAccount, transactions, statementSort]);
 
     useEffect(() => {
         setStatementPage(1);
@@ -387,6 +460,15 @@ export function InternalAccounts() {
 
     const sortedOpenings = useMemo(() => {
         let sortable = [...openings];
+        
+        if (openingSearchQuery.trim()) {
+            const query = openingSearchQuery.toLowerCase();
+            sortable = sortable.filter(o => 
+                (o.accountName && o.accountName.toLowerCase().includes(query)) ||
+                (o.date && o.date.toLowerCase().includes(query))
+            );
+        }
+
         if (openingsSort) {
             sortable.sort((a: any, b: any) => {
                 if (a[openingsSort.key] < b[openingsSort.key]) return openingsSort.direction === 'asc' ? -1 : 1;
@@ -395,7 +477,7 @@ export function InternalAccounts() {
             });
         }
         return sortable;
-    }, [openings, openingsSort]);
+    }, [openings, openingsSort, openingSearchQuery]);
 
     const sortedTransactions = useMemo(() => {
         let sortable = [...transactions];
@@ -563,9 +645,150 @@ export function InternalAccounts() {
         const isDebitBal = balance >= 0;
 
         return {
-            totalDb, totalCr, balance: Math.abs(balance), isDebitBal
+            totalDb, totalCr, balance: Math.abs(balance), isDebitBal, txDb, txCr
         };
     }, [statementOpening, statementTransactions]);
+
+    const downloadFollowUpReport = () => {
+        if (!selectedAccount) {
+            toast.error("Select an account first");
+            return;
+        }
+        if (linkedPartyFollowups.length === 0) {
+            toast.error("No follow-ups found for this account");
+            return;
+        }
+        
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Follow-up Report: ${selectedAccount}`, 14, 22);
+        
+        const tableColumn = ["Date", "Message", "Next Follow Up", "Assigned To", "Created By", "Status"];
+        const tableRows: any[] = [];
+        
+        linkedPartyFollowups.forEach(f => {
+            tableRows.push([
+                f.createdAt ? (f.createdAt as any).toDate().toLocaleDateString('en-GB') : '',
+                f.message || '',
+                f.nextFollowUpDate ? (f.nextFollowUpDate as any).toDate().toLocaleDateString('en-GB') : '',
+                f.assignedToName || f.assignedToId || 'Unassigned',
+                f.createdByName || f.createdByUid || 'System',
+                f.isCompleted ? 'Completed' : 'Pending'
+            ]);
+        });
+        
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 30,
+        });
+        
+        doc.save(`Follow_Up_Report_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    };
+
+    const downloadStatementWithVehicles = () => {
+        if (!selectedAccount) {
+            toast.error("Select an account first");
+            return;
+        }
+        
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text(`Account Statement: ${selectedAccount}`, 14, 22);
+        
+        let startY = 30;
+
+        // 1. Vehicle Details (Top)
+        const vehicleColumns = ["Sale Date", "File No", "Chassis No", "Company & Model", "Color & Reg No", "Doc Status", "Battery Info", "Price"];
+        const vehicleRows: any[] = [];
+        
+        if (linkedParty && linkedSales.length > 0) {
+            linkedSales.forEach(s => {
+                const vehicle = vehicles.find(v => v.chassisNumber === s.chassisNumber);
+                const model = vehicle ? models.find(m => m.id === vehicle.modelId) : null;
+                const company = vehicle ? companies.find(c => c.id === vehicle.companyId) : null;
+                const otherDetail = otherDetails.find(od => od.saleId === s.id);
+                
+                let batteryInfo = 'N/A';
+                if (otherDetail?.batteryDetails) {
+                     const bd = otherDetail.batteryDetails;
+                     batteryInfo = `${bd.numberOfBattery}x ${bd.category}\nModel: ${bd.model}\nSN: ${bd.serialNumbers?.join(', ') || ''}`;
+                }
+
+                vehicleRows.push([
+                    (s.date && (s.date as any).toDate) ? (s.date as any).toDate().toLocaleDateString('en-GB') : '',
+                    s.fileNumber || '',
+                    s.chassisNumber || '',
+                    `${company?.name || '-'}\n${model?.name || '-'}`,
+                    `Color: ${vehicle?.color || '-'}\nReg: ${vehicle?.registrationNumber || '-'}`,
+                    `BB: ${vehicle?.bluebookStatus || '-'}\nN/S: ${vehicle?.naamsariStatus || '-'}\nVeh: ${vehicle?.status || '-'}`,
+                    batteryInfo,
+                    otherDetail?.price ? otherDetail.price.toFixed(2) : '0.00'
+                ]);
+            });
+        } else {
+            vehicleRows.push(["", "No vehicle sales linked to this account.", "", "", "", "", "", ""]);
+        }
+
+        doc.setFontSize(14);
+        doc.text("Vehicle Details", 14, startY);
+        startY += 8;
+
+        autoTable(doc, {
+            head: [vehicleColumns],
+            body: vehicleRows,
+            startY: startY,
+            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        });
+
+        startY = (doc as any).lastAutoTable.finalY + 15;
+
+        // 2. Statement Transactions (Bottom)
+        const statementColumns = ["Date", "Particulars", "Vch Type", "Debit", "Credit"];
+        const statementRows: any[] = [];
+        
+        if (statementOpening) {
+            statementRows.push([
+                (statementOpening.date && (statementOpening.date as any).toDate) ? (statementOpening.date as any).toDate().toLocaleDateString('en-GB') : statementOpening.date,
+                "OPENING BALANCE",
+                "Opening",
+                statementOpening.debit ? statementOpening.debit.toFixed(2) : '0.00',
+                statementOpening.credit ? statementOpening.credit.toFixed(2) : '0.00'
+            ]);
+        }
+        
+        statementTransactions.forEach(t => {
+            statementRows.push([
+                (t.date && (t.date as any).toDate) ? (t.date as any).toDate().toLocaleDateString('en-GB') : t.date,
+                t.particulars,
+                t.voucherType,
+                t.debit ? t.debit.toFixed(2) : '0.00',
+                t.credit ? t.credit.toFixed(2) : '0.00'
+            ]);
+        });
+        
+        if (statementRows.length === 0) {
+            statementRows.push(["", "No statement records found.", "", "", ""]);
+        } else {
+             statementRows.push(["", "CLOSING BALANCE", "", 
+                 totals.isDebitBal ? '' : totals.balance.toFixed(2), 
+                 totals.isDebitBal ? totals.balance.toFixed(2) : ''
+             ]);
+             statementRows.push(["", "TOTAL", "", totals.totalDb.toFixed(2), totals.totalCr.toFixed(2)]);
+        }
+
+        doc.setFontSize(14);
+        doc.text("Statement Transactions", 14, startY);
+        startY += 8;
+
+        autoTable(doc, {
+            head: [statementColumns],
+            body: statementRows,
+            startY: startY,
+        });
+
+        doc.save(`Statement_With_Vehicles_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    };
 
     return (
         <div className="flex flex-col gap-6 h-full p-4 md:p-6 overflow-hidden bg-slate-50/50 dark:bg-[#0f172a] lg:pt-[10px] lg:pb-[10px]">
@@ -586,18 +809,33 @@ export function InternalAccounts() {
                 {/* --- ACCOUNT OPENING --- */}
                 <TabsContent value="opening" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
                     <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden lg:pt-0 lg:pb-0">
-                        <CardHeader className="flex flex-row items-center justify-between pb-4 max-md:pl-[16px] max-md:pb-0 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 lg:pt-[5px] lg:pb-0">
+                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4 max-md:pl-[16px] max-md:pb-0 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 lg:pt-[5px] lg:pb-0">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">Opening Balances</CardTitle>
-                            <div className="flex items-center gap-3">
-                                <Button onClick={downloadOpeningTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-                                    <Download className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
-                                    Template
-                                </Button>
-                                <label className="cursor-pointer h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0.5">
-                                    <FileSpreadsheet className="w-4 h-4" />
-                                    Import Excel
-                                    <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportOpenings} />
-                                </label>
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <input 
+                                        type="text"
+                                        placeholder="Search by name or date..."
+                                        value={openingSearchQuery}
+                                        onChange={(e) => {
+                                            setOpeningSearchQuery(e.target.value);
+                                            setOpeningsPage(1);
+                                        }}
+                                        className="w-full pl-9 h-10 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <Button onClick={downloadOpeningTemplate} variant="outline" size="sm" className="h-10 rounded-xl font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex-1 sm:flex-none">
+                                        <Download className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
+                                        Template
+                                    </Button>
+                                    <label className="cursor-pointer h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0.5 flex-1 sm:flex-none">
+                                        <FileSpreadsheet className="w-4 h-4" />
+                                        Import Excel
+                                        <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportOpenings} />
+                                    </label>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
@@ -620,17 +858,30 @@ export function InternalAccounts() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {openings.length === 0 && (
-                                            <tr><td colSpan={4} className="p-4 text-center text-slate-500">No opening balances. Import from Excel to get started.</td></tr>
+                                        {sortedOpenings.length === 0 && (
+                                            <tr><td colSpan={4} className="p-4 text-center text-slate-500">No opening balances found.</td></tr>
                                         )}
-                                        {paginatedOpenings.map((op, i) => (
-                                            <tr key={i} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50">
-                                                <td className="px-4 py-2">{op.date}</td>
-                                                <td className="px-4 py-2 font-medium">{op.accountName}</td>
-                                                <td className="px-4 py-2 text-right">{op.debit ? op.debit.toFixed(2) : '-'}</td>
-                                                <td className="px-4 py-2 text-right">{op.credit ? op.credit.toFixed(2) : '-'}</td>
-                                            </tr>
-                                        ))}
+                                        {paginatedOpenings.map((op, i) => {
+                                            const linkedPartyId = mappings[op.accountName] || mappings[op.accountName.trim()];
+                                            const linkedParty = linkedPartyId ? parties.find(p => p.id === linkedPartyId) : null;
+                                            return (
+                                                <tr key={i} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                                                    <td className="px-4 py-2">{op.date}</td>
+                                                    <td className="px-4 py-2 font-medium">
+                                                        <div className="flex flex-col">
+                                                            <span>{op.accountName}</span>
+                                                            {linkedParty && (
+                                                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 mt-0.5">
+                                                                    <Link className="w-3 h-3" /> Linked: {linkedParty.name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-2 text-right">{op.debit ? op.debit.toFixed(2) : '-'}</td>
+                                                    <td className="px-4 py-2 text-right">{op.credit ? op.credit.toFixed(2) : '-'}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                     {openings.length > 0 && (
                                         <tfoot className="bg-slate-50 dark:bg-slate-800/80 border-t-2 border-slate-200 dark:border-slate-700 font-bold sticky bottom-0 z-10 shadow-sm top-shadow-md">
@@ -645,14 +896,14 @@ export function InternalAccounts() {
                             </div>
                             
                             {/* Openings Pagination */}
-                            {openings.length > ITEMS_PER_PAGE && (
+                            {sortedOpenings.length > ITEMS_PER_PAGE && (
                                 <div className="flex items-center justify-between px-4 py-3 lg:py-[5px] border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-10 shadow-sm text-sm text-slate-500">
-                                    <div>Showing {((openingsPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(openingsPage * ITEMS_PER_PAGE, openings.length)} of {openings.length} entries</div>
+                                    <div>Showing {((openingsPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(openingsPage * ITEMS_PER_PAGE, sortedOpenings.length)} of {sortedOpenings.length} entries</div>
                                     <div className="flex gap-1">
                                         <Button variant="outline" size="sm" onClick={() => setOpeningsPage(p => Math.max(1, p - 1))} disabled={openingsPage === 1} className="h-8">
                                             <ChevronLeft className="w-4 h-4 mr-1" /> Prev
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => setOpeningsPage(p => Math.min(Math.ceil(openings.length / ITEMS_PER_PAGE), p + 1))} disabled={openingsPage === Math.ceil(openings.length / ITEMS_PER_PAGE)} className="h-8">
+                                        <Button variant="outline" size="sm" onClick={() => setOpeningsPage(p => Math.min(Math.ceil(sortedOpenings.length / ITEMS_PER_PAGE), p + 1))} disabled={openingsPage === Math.ceil(sortedOpenings.length / ITEMS_PER_PAGE)} className="h-8">
                                             Next <ChevronRight className="w-4 h-4 ml-1" />
                                         </Button>
                                     </div>
@@ -756,7 +1007,7 @@ export function InternalAccounts() {
                 <TabsContent value="statement" className="flex-1 mt-6 flex flex-col min-h-0 space-y-4 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
                     <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden">
                         <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                                 <div>
                                     <CardTitle className="whitespace-nowrap text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">
                                         {linkedParty && selectedAccount ? `${linkedParty.name} X ${selectedAccount}` : selectedAccount ? `Statement: ${selectedAccount}` : 'Account Statement'}
@@ -768,13 +1019,27 @@ export function InternalAccounts() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="relative w-full md:w-96 flex">
-                                    <SearchableSelect 
-                                        options={allAccountNames} 
-                                        value={selectedAccount} 
-                                        onChange={setSelectedAccount} 
-                                        placeholder="Select an account..." 
-                                    />
+                                <div className="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
+                                    <div className="relative w-full md:w-80 flex shrink-0">
+                                        <SearchableSelect 
+                                            options={accountOptions} 
+                                            value={selectedAccount} 
+                                            onChange={setSelectedAccount} 
+                                            placeholder="Select an account..." 
+                                        />
+                                    </div>
+                                    {selectedAccount && (
+                                        <div className="flex gap-2 w-full md:w-auto shrink-0 mt-2 md:mt-0">
+                                            <Button onClick={downloadFollowUpReport} variant="outline" size="sm" className="flex-1 md:flex-none h-11 rounded-xl text-xs font-bold border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800" title="Download Follow-up Report (PDF)">
+                                                <FileText className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
+                                                Follow-ups
+                                            </Button>
+                                            <Button onClick={downloadStatementWithVehicles} variant="outline" size="sm" className="flex-1 md:flex-none h-11 rounded-xl text-xs font-bold border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800" title="Download Account Statement with Vehicle Details (PDF)">
+                                                <FileText className="w-3.5 h-3.5 mr-1.5 text-red-600 dark:text-red-400" />
+                                                Statement + Vehicles
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </CardHeader>
@@ -1061,12 +1326,52 @@ export function InternalAccounts() {
                                         <table className="w-full text-sm text-left">
                                             <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                                 <tr>
-                                                    <th className="px-4 py-3 border-b">Date</th>
+                                                    <th 
+                                                        className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                        onClick={() => handleSort('date', statementSort, setStatementSort)}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                                            Date
+                                                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                                                        </div>
+                                                    </th>
                                                     <th className="px-4 py-3 border-b">Details</th>
-                                                    <th className="px-4 py-3 border-b">Vch Type</th>
-                                                    <th className="px-4 py-3 border-b">Vch No.</th>
-                                                    <th className="px-4 py-3 border-b text-right">Debit</th>
-                                                    <th className="px-4 py-3 border-b text-right">Credit</th>
+                                                    <th 
+                                                        className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                        onClick={() => handleSort('vchType', statementSort, setStatementSort)}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                                            Vch Type
+                                                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                        onClick={() => handleSort('vchNo', statementSort, setStatementSort)}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                                            Vch No.
+                                                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                        onClick={() => handleSort('debit', statementSort, setStatementSort)}
+                                                    >
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            Debit
+                                                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                                                        </div>
+                                                    </th>
+                                                    <th 
+                                                        className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                        onClick={() => handleSort('credit', statementSort, setStatementSort)}
+                                                    >
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            Credit
+                                                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                                                        </div>
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1137,11 +1442,11 @@ export function InternalAccounts() {
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Total Debit</p>
-                                                <p className="text-lg font-medium text-red-600 dark:text-red-400">₹{totals.totalDb.toFixed(2)} <span className="text-xs opacity-70">Dr</span></p>
+                                                <p className="text-lg font-medium text-red-600 dark:text-red-400">₹{totals.txDb.toFixed(2)} <span className="text-xs opacity-70">Dr</span></p>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Total Credit</p>
-                                                <p className="text-lg font-medium text-green-600 dark:text-green-400">₹{totals.totalCr.toFixed(2)} <span className="text-xs opacity-70">Cr</span></p>
+                                                <p className="text-lg font-medium text-green-600 dark:text-green-400">₹{totals.txCr.toFixed(2)} <span className="text-xs opacity-70">Cr</span></p>
                                             </div>
                                             <div className="md:border-l md:border-slate-300 dark:md:border-slate-700 md:pl-4">
                                                 <p className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold mb-1">Closing Balance</p>
@@ -1208,7 +1513,7 @@ export function InternalAccounts() {
                                                     </div>
                                                     <div className="w-full sm:w-64 shrink-0">
                                                         <SearchableSelect 
-                                                            options={allAccountNames.filter(name => !mappings[name])}
+                                                            options={accountOptions.filter(opt => !mappings[opt.value])}
                                                             value=""
                                                             onChange={async (val) => {
                                                                 if (val) {
