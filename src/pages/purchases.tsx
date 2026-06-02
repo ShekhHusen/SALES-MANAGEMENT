@@ -187,22 +187,32 @@ export function Purchases() {
     }
 
     try {
-      const batch = writeBatch(db);
+      let batch = writeBatch(db);
+      let ops = 0;
       
       // Revert inventory records back to ready-to-purchase
-      vehiclesInPurchase.forEach(v => {
+      for (const v of vehiclesInPurchase) {
         batch.update(doc(db, 'vehicles', v.chassisNumber), {
           purchaseId: null,
           currentOwnerId: null,
           status: 'ready-to-purchase',
           updatedAt: Timestamp.now()
         });
-      });
+        ops++;
+        if (ops >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            ops = 0;
+        }
+      }
       
       // Delete purchase record
       batch.delete(doc(db, 'purchases', purchaseToDelete.id));
+      ops++;
       
-      await batch.commit();
+      if (ops > 0) {
+          await batch.commit();
+      }
       
       if (user) {
         logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
@@ -292,7 +302,8 @@ export function Purchases() {
         }
       }
 
-      const batch = writeBatch(db);
+      let batch = writeBatch(db);
+      let ops = 0;
       
       // 1. Create Purchase record
       const purchaseRef = doc(collection(db, 'purchases'));
@@ -303,6 +314,7 @@ export function Purchases() {
         chassisNumbers,
         createdAt: Timestamp.now(),
       });
+      ops++;
 
       // 2. Create/Update Vehicles
       for (const entry of sanitizedEntries) {
@@ -320,12 +332,21 @@ export function Purchases() {
           bluebookStatus: 'Not Received',
           naamsariStatus: 'Pending',
         }, { merge: true });
+        ops++;
+        
+        if (ops >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            ops = 0;
+        }
 
         // Ensure createdAt is only set manually or we'd need a separate check
         // For simplicity with batch.set merge, we add a server timestamp to updatedAt
       }
 
-      await batch.commit();
+      if (ops > 0) {
+          await batch.commit();
+      }
       
       if (user) {
         logAction(user.uid, user.email || '', 'CREATE', 'Purchase', purchaseRef.id, {
