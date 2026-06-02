@@ -425,15 +425,28 @@ export function Settings() {
                       try {
                         const salesSnap = await getDocs(query(collection(db, 'sales')));
                         let count = 0;
+                        let batch = writeBatch(db);
+                        let ops = 0;
+                        
                         for (const d of salesSnap.docs) {
                           const chassis = d.data().chassisNumber;
                           if (chassis) {
-                            try {
-                              await updateDoc(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
-                            } catch(e) {} // ignore if vehicle doesn't exist
+                            batch.update(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
+                            ops++;
                           }
-                          await deleteDoc(d.ref);
+                          batch.delete(d.ref);
                           count++;
+                          ops++;
+                          
+                          if (ops >= 400) {
+                              await batch.commit();
+                              batch = writeBatch(db);
+                              ops = 0;
+                          }
+                        }
+                        
+                        if (ops > 0) {
+                            await batch.commit();
                         }
                         toast.success(`Successfully cleared ${count} sales records.`);
                       } catch (err) {
@@ -476,6 +489,9 @@ export function Settings() {
                         
                         let deleted = 0;
                         let skipped = 0;
+                        let batch = writeBatch(db);
+                        let ops = 0;
+
                         for (const d of purchSnap.docs) {
                           const chassisArr = d.data().chassisNumbers || [];
                           const hasSold = chassisArr.some((c: string) => soldChassis.has(c));
@@ -483,13 +499,28 @@ export function Settings() {
                             skipped++;
                           } else {
                             for (const c of chassisArr) {
-                              try {
-                                await deleteDoc(doc(db, 'vehicles', c));
-                              } catch(e) {}
+                              batch.delete(doc(db, 'vehicles', c));
+                              ops++;
+                              if (ops >= 400) {
+                                  await batch.commit();
+                                  batch = writeBatch(db);
+                                  ops = 0;
+                              }
                             }
-                            await deleteDoc(d.ref);
+                            batch.delete(d.ref);
                             deleted++;
+                            ops++;
+                            
+                            if (ops >= 400) {
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                ops = 0;
+                            }
                           }
+                        }
+
+                        if (ops > 0) {
+                            await batch.commit();
                         }
                         toast.success(`Cleared ${deleted} purchases. Skipped ${skipped} linked to sales.`);
                       } catch (err) {
@@ -536,14 +567,28 @@ export function Settings() {
 
                         let deleted = 0;
                         let skipped = 0;
+                        let batch = writeBatch(db);
+                        let ops = 0;
+                        
                         for (const d of vehSnap.docs) {
                           const data = d.data();
                           if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
                             skipped++;
                           } else {
-                            await deleteDoc(d.ref);
+                            batch.delete(d.ref);
                             deleted++;
+                            ops++;
+                            
+                            if (ops >= 400) {
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                ops = 0;
+                            }
                           }
+                        }
+                        
+                        if (ops > 0) {
+                            await batch.commit();
                         }
                         toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
                       } catch (err) {
@@ -586,13 +631,27 @@ export function Settings() {
 
                         let deleted = 0;
                         let skipped = 0;
+                        let batch = writeBatch(db);
+                        let ops = 0;
+
                         for (const p of partiesSnap.docs) {
                           if (usedIds.has(p.id)) {
                             skipped++;
                           } else {
-                            await deleteDoc(p.ref);
+                            batch.delete(p.ref);
                             deleted++;
+                            ops++;
+                            
+                            if (ops === 400) {
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                ops = 0;
+                            }
                           }
+                        }
+                        
+                        if (ops > 0) {
+                            await batch.commit();
                         }
                         toast.success(`Cleared ${deleted} parties. Skipped ${skipped} linked parties.`);
                       } catch (err) {
@@ -752,8 +811,23 @@ export function Settings() {
                         for (const colName of collections) {
                           const q = query(collection(db, colName));
                           const snap = await getDocs(q);
-                          const deletePromises = snap.docs.map(d => deleteDoc(doc(db, colName, d.id)));
-                          await Promise.all(deletePromises);
+                          
+                          let batch = writeBatch(db);
+                          let ops = 0;
+                          
+                          for (const d of snap.docs) {
+                              batch.delete(doc(db, colName, d.id));
+                              ops++;
+                              if (ops >= 400) {
+                                  await batch.commit();
+                                  batch = writeBatch(db);
+                                  ops = 0;
+                              }
+                          }
+                          
+                          if (ops > 0) {
+                              await batch.commit();
+                          }
                         }
                         toast.success('All system data cleared successfully.');
                       } catch (err) {
