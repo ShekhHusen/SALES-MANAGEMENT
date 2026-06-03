@@ -674,6 +674,18 @@ export function ProcessDocument() {
       </div>
 
       <Card className="flex-1 h-[400px] rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 flex flex-col overflow-hidden bg-white/80 dark:bg-slate-950 backdrop-blur-xl mb-0 pt-0 pb-0 max-md:mt-[71px]">
+        {selectedSale && (activeTab === 'others_details' || activeTab === 'documents') && (() => {
+          const customer = customers.find(c => c.id === selectedSale.customerId);
+          return (
+            <div className="bg-blue-50 dark:bg-blue-900/20 px-6 py-3 border-b border-blue-100 dark:border-blue-800 flex items-center shrink-0 shadow-inner">
+              <Info className="w-5 h-5 text-blue-500 mr-2" />
+              <span className="text-sm font-bold text-blue-800 dark:text-blue-300">
+                Editing Documentation for Customer: <span className="font-black text-blue-900 dark:text-blue-200 uppercase tracking-wide">{customer?.name || 'Unknown'}</span> (Chassis: {selectedSale.chassisNumber})
+              </span>
+            </div>
+          );
+        })()}
+
         {activeTab === 'sold_vehicle' && (
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
             <div className="overflow-x-auto w-full max-md:mt-0">
