@@ -60,12 +60,20 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
 
-    const unsubVehicles = onSnapshot(query(collection(db, 'vehicles'), orderBy('updatedAt', 'desc')), (s) => {
+    const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (s) => {
       if(active) {
-        setData(prev => ({ ...prev, vehicles: s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle)) }));
+        const sorted = s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle)).sort((a, b) => {
+          const tA = (a.updatedAt as any)?.toMillis?.() || 0;
+          const tB = (b.updatedAt as any)?.toMillis?.() || 0;
+          return tB - tA;
+        });
+        setData(prev => ({ ...prev, vehicles: sorted }));
         loadedStates.vehicles = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Vehicles subscription error", error);
+      if(active) { loadedStates.vehicles = true; checkLoading(); }
     });
     const unsubCompanies = onSnapshot(collection(db, 'companies'), (s) => {
       if(active) {
@@ -73,6 +81,9 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         loadedStates.companies = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Companies subscription error", error);
+      if(active) { loadedStates.companies = true; checkLoading(); }
     });
     const unsubModels = onSnapshot(collection(db, 'models'), (s) => {
       if(active) {
@@ -80,6 +91,9 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         loadedStates.models = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Models subscription error", error);
+      if(active) { loadedStates.models = true; checkLoading(); }
     });
     const unsubColors = onSnapshot(collection(db, 'colors'), (s) => {
       if(active) {
@@ -87,6 +101,9 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         loadedStates.colors = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Colors subscription error", error);
+      if(active) { loadedStates.colors = true; checkLoading(); }
     });
     const unsubParties = onSnapshot(collection(db, 'parties'), (s) => {
       if(active) {
@@ -94,20 +111,35 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         loadedStates.parties = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Parties subscription error", error);
+      if(active) { loadedStates.parties = true; checkLoading(); }
     });
-    const unsubPurchases = onSnapshot(query(collection(db, 'purchases'), orderBy('date', 'desc')), (s) => {
+    const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => {
       if(active) {
-        setData(prev => ({ ...prev, purchases: s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)) }));
+        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+        setData(prev => ({ ...prev, purchases: sorted }));
         loadedStates.purchases = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Purchases subscription error", error);
+      if(active) { loadedStates.purchases = true; checkLoading(); }
     });
-    const unsubSales = onSnapshot(query(collection(db, 'sales'), orderBy('date', 'desc')), (s) => {
+    const unsubSales = onSnapshot(collection(db, 'sales'), (s) => {
       if(active) {
-        setData(prev => ({ ...prev, sales: s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)) }));
+        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
+           return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+        setData(prev => ({ ...prev, sales: sorted }));
         loadedStates.sales = true;
         checkLoading();
       }
+    }, (error) => {
+      console.error("Sales subscription error", error);
+      if(active) { loadedStates.sales = true; checkLoading(); }
     });
 
     return () => {
