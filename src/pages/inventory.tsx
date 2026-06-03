@@ -163,18 +163,19 @@ export function Inventory() {
     }
   };
 
-  const updateDocStatus = async (chassisNumber: string, bluebook: BluebookStatus, naamsari: NaamsariStatus, registrationNumber: string) => {
+  const updateDocStatus = async (chassisNumber: string, bluebook: BluebookStatus, naamsari: NaamsariStatus, registrationNumber: string, color: string) => {
     try {
       const vehicleRef = doc(db, 'vehicles', chassisNumber);
       await updateDoc(vehicleRef, {
         bluebookStatus: bluebook,
         naamsariStatus: naamsari,
         registrationNumber: registrationNumber || '',
+        color: color || '',
         updatedAt: Timestamp.now(),
       });
       
       if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', chassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber });
+        logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', chassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber, color });
       }
 
       toast.success('Status updated');
@@ -689,7 +690,7 @@ export function Inventory() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white dark:bg-[#0f172a] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-white dark:bg-[#0f172a] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reg. Number</label>
                                 <Input 
@@ -699,6 +700,17 @@ export function Inventory() {
                                   }}
                                   placeholder="Eg. BA 1 CHA 1234"
                                   className="h-10 rounded-lg border-slate-200 dark:border-slate-800 uppercase"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Color</label>
+                                <Input 
+                                  value={selectedVehicle?.color || ''} 
+                                  onChange={(e) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, color: e.target.value });
+                                  }}
+                                  placeholder="Vehicle Color"
+                                  className="h-10 rounded-lg border-slate-200 dark:border-slate-800"
                                 />
                               </div>
                               <div className="space-y-2">
@@ -737,7 +749,7 @@ export function Inventory() {
                                 </Select>
                               </div>
                             </div>
-                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(selectedVehicle.chassisNumber, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '')}>
+                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(selectedVehicle.chassisNumber, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '', selectedVehicle.color || '')}>
                               Commit Status Changes
                             </Button>
                           </div>

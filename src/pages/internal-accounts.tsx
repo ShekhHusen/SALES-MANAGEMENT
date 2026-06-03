@@ -171,6 +171,7 @@ export function InternalAccounts() {
     // Mapping specific states
     const [mappingPage, setMappingPage] = useState(1);
     const [mappingSearchQuery, setMappingSearchQuery] = useState('');
+    const [linkedMappingSearchQuery, setLinkedMappingSearchQuery] = useState('');
     const [openingSearchQuery, setOpeningSearchQuery] = useState('');
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
@@ -1578,12 +1579,28 @@ export function InternalAccounts() {
                             })()}
 
                             <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg flex items-center gap-2">
-                                    <Link className="w-5 h-5 text-blue-500" /> Linked Mappings
-                                    <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full text-xs font-black">{Object.keys(mappings).length}</span>
-                                </h3>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg flex items-center gap-2">
+                                        <Link className="w-5 h-5 text-blue-500" /> Linked Mappings
+                                        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full text-xs font-black">{Object.keys(mappings).length}</span>
+                                    </h3>
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                        <Input 
+                                            placeholder="Search linked mappings..."
+                                            value={linkedMappingSearchQuery}
+                                            onChange={(e) => setLinkedMappingSearchQuery(e.target.value)}
+                                            className="pl-9 h-10 rounded-xl"
+                                        />
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                    {Object.entries(mappings).map(([accountName, partyId]) => {
+                                    {Object.entries(mappings).filter(([accountName, partyId]) => {
+                                        if (!linkedMappingSearchQuery) return true;
+                                        const query = linkedMappingSearchQuery.toLowerCase();
+                                        const party = parties.find(p => p.id === partyId);
+                                        return accountName.toLowerCase().includes(query) || (party && party.name.toLowerCase().includes(query));
+                                    }).map(([accountName, partyId]) => {
                                         const party = parties.find(p => p.id === partyId);
                                         if (!party) return null;
                                         return (
