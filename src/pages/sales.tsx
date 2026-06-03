@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { logAction } from '@/lib/audit';
@@ -41,7 +41,7 @@ export function Sales() {
   const { user, userProfile } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
-  const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock' && !!v.purchaseId);
+  const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock');
   const isAdmin = userProfile?.role === 'admin';
   const isSalesManager = userProfile?.role === 'sales_manager';
   const canDelete = isAdmin;
@@ -223,8 +223,8 @@ export function Sales() {
       const vehicleRef = doc(db, 'vehicles', returnSale.chassisNumber);
       batch.update(vehicleRef, {
         status: 'in-stock',
-        saleId: null,
-        currentOwnerId: null,
+        saleId: deleteField(),
+        currentOwnerId: deleteField(),
         updatedAt: Timestamp.now(),
       });
       
@@ -255,8 +255,8 @@ export function Sales() {
         const vehicleRef = doc(db, 'vehicles', saleToDelete.chassisNumber);
         await updateDoc(vehicleRef, {
           status: 'in-stock',
-          saleId: null,
-          currentOwnerId: null,
+          saleId: deleteField(),
+          currentOwnerId: deleteField(),
           updatedAt: Timestamp.now(),
         });
       } catch (vehError) {
