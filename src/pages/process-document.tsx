@@ -1094,7 +1094,7 @@ export function ProcessDocument() {
               </div>
               <div className="flex-1 overflow-y-auto pr-2 pb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
+              {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Selfie', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                 const docKey = docName.toLowerCase().replace(/ /g, '_');
                 return (
                   <div key={docName} className="relative border-2 border-dashed border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 h-44 bg-slate-50/50 dark:bg-[#0f172a] hover:bg-white dark:hover:bg-slate-800 hover:border-emerald-400 transition-all group overflow-hidden shadow-sm hover:shadow-md cursor-pointer">
@@ -1475,7 +1475,7 @@ export function ProcessDocument() {
                   <ImageIcon className="w-5 h-5 text-slate-500" /> Documents
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
+                   {['Citizenship Front', 'Citizenship Back', 'Agreement Paper', 'Photo', 'Selfie', 'Quotation', 'Traffic Letter', 'Bikrinama EV', 'Bikrinama Petrol', 'Cheque', 'Additional Doc 1', 'Additional Doc 2', 'Additional Doc 3'].map((docName) => {
                     const docKey = docName.toLowerCase().replace(/ /g, '_');
                     const hasImage = viewSale.otherDetails?.images?.[docKey];
                     return (
