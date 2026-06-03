@@ -42,6 +42,11 @@ service cloud.firestore {
                     incoming().companyId is string && exists(/databases/$(database)/documents/companies/$(incoming().companyId));
       allow update, delete: if isSignedIn();
     }
+    
+    // Colors
+    match /colors/{colorId} {
+      allow read, write: if isSignedIn();
+    }
 
     // Parties (Vendors and Customers)
     match /parties/{partyId} {

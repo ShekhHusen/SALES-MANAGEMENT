@@ -118,7 +118,9 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => {
       if(active) {
         const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
+          const tA = (a.date as any)?.toMillis?.() || 0;
+          const tB = (b.date as any)?.toMillis?.() || 0;
+          return tB - tA;
         });
         setData(prev => ({ ...prev, purchases: sorted }));
         loadedStates.purchases = true;
@@ -131,7 +133,9 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const unsubSales = onSnapshot(collection(db, 'sales'), (s) => {
       if(active) {
         const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
-           return new Date(b.date).getTime() - new Date(a.date).getTime();
+          const tA = (a.date as any)?.toMillis?.() || 0;
+          const tB = (b.date as any)?.toMillis?.() || 0;
+          return tB - tA;
         });
         setData(prev => ({ ...prev, sales: sorted }));
         loadedStates.sales = true;
