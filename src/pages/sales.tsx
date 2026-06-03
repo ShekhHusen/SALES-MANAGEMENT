@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { BadgeDollarSign, Car, User, FileText, Search, Check, ArrowUp, ArrowDown, FilterIcon, FilterX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Download } from 'lucide-react';
+import { Trash2, Download, CornerUpLeft } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
@@ -202,6 +202,46 @@ export function Sales() {
   };
 
   const [saleToDelete, setSaleToDelete] = useState<(Sale & { id: string }) | null>(null);
+  const [returnSale, setReturnSale] = useState<(Sale & { id: string }) | null>(null);
+  const [returnReason, setReturnReason] = useState('');
+
+  const confirmReturnSale = async () => {
+    if (!returnSale || !returnReason.trim()) {
+      toast.error('Please provide a reason to return the sale.');
+      return;
+    }
+    
+    try {
+      const batch = writeBatch(db);
+      const saleRef = doc(db, 'sales', returnSale.id);
+      batch.update(saleRef, {
+        status: 'returned',
+        returnedAt: Timestamp.now(),
+        returnReason: returnReason.trim()
+      });
+      
+      const vehicleRef = doc(db, 'vehicles', returnSale.chassisNumber);
+      batch.update(vehicleRef, {
+        status: 'in-stock',
+        saleId: null,
+        currentOwnerId: null,
+        updatedAt: Timestamp.now(),
+      });
+      
+      await batch.commit();
+
+      if (user) {
+        logAction(user.uid, user.email || '', 'UPDATE', 'Sale', returnSale.id, { action: 'RETURNED', reason: returnReason });
+      }
+
+      toast.success(`Sale for ${returnSale.chassisNumber} marked as returned.`);
+      setReturnSale(null);
+      setReturnReason('');
+    } catch (error) {
+      console.error("Return Sale Error:", error);
+      toast.error('Failed to return sale record.');
+    }
+  };
 
   const confirmDeleteSale = async () => {
     if (!saleToDelete) return;
@@ -702,8 +742,20 @@ export function Sales() {
                         ? sale.date?.toDate?.()?.toLocaleDateString('en-GB') || 'N/A'
                         : String(sale.date)}
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100">
-                      #{sale.fileNumber}
+                    <TableCell className="px-4 py-2.5 font-black text-slate-900 dark:text-slate-100 flex flex-col gap-1 items-start">
+                      <span>#{sale.fileNumber}</span>
+                      {sale.status === 'returned' && (
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="outline" className="w-fit bg-red-50 text-red-600 border-red-200 text-[10px] uppercase font-bold py-0 h-5">
+                            Returned
+                          </Badge>
+                          {sale.returnReason && (
+                            <span className="text-[10px] font-medium text-red-500/80 leading-none" title={sale.returnReason}>
+                              {sale.returnReason.length > 20 ? `${sale.returnReason.substring(0, 20)}...` : sale.returnReason}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
@@ -739,6 +791,17 @@ export function Sales() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
+                        {canEdit && sale.status !== 'returned' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-orange-600 hover:text-white border-orange-200 hover:bg-orange-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
+                            onClick={() => setReturnSale(sale)}
+                            title="Return Sale"
+                          >
+                            <CornerUpLeft className="h-3 w-3 mr-1" /> RETURN
+                          </Button>
+                        )}
                         {canEdit && (
                           <Button 
                             variant="default" 
@@ -841,6 +904,36 @@ export function Sales() {
             </Button>
             <Button className="flex-1 h-11 rounded-xl font-black bg-red-600 hover:bg-red-700" onClick={confirmDeleteSale}>
               Confirm Reversal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!returnSale} onOpenChange={(open) => !open && setReturnSale(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-orange-600">Return Sale?</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              Mark sale for <span className="text-slate-900 dark:text-slate-100 font-extrabold">{returnSale?.chassisNumber}</span> as RETURNED. The vehicle will be moved back to the inventory as "In-Stock". This action keeps the sale history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Reason for Return</label>
+              <Input
+                placeholder="e.g. Scratches, Customer changed mind..."
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                className="h-11 rounded-xl font-medium border-slate-200 dark:border-slate-800"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-6">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setReturnSale(null)}>
+              Cancel
+            </Button>
+            <Button className="flex-1 h-11 rounded-xl font-black bg-orange-600 hover:bg-orange-700 text-white" disabled={!returnReason.trim()} onClick={confirmReturnSale}>
+              Confirm Return
             </Button>
           </div>
         </DialogContent>

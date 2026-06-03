@@ -37,10 +37,12 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 export function Dashboard() {
   const { vehicles, purchases, sales, companies, models } = useGlobalData();
 
+  const activeSales = sales.filter(s => s.status !== 'returned');
+
   const stats = {
     totalInventory: vehicles.length,
     totalProcurement: purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
-    totalSales: sales.length,
+    totalSales: activeSales.length,
     inStock: vehicles.filter(v => v.status === 'in-stock').length,
     bluebookPending: vehicles.filter(v => v.bluebookStatus === 'Not Received').length,
     bluebookReceived: vehicles.filter(v => v.bluebookStatus === 'Received').length,
@@ -62,7 +64,7 @@ export function Dashboard() {
   }));
 
   // Sales Trend (Last 6 months simplified)
-  const salesByMonth = sales.reduce((acc: any, sale) => {
+  const salesByMonth = activeSales.reduce((acc: any, sale) => {
     const month = sale.date.toDate().toLocaleString('default', { month: 'short' });
     acc[month] = (acc[month] || 0) + 1;
     return acc;

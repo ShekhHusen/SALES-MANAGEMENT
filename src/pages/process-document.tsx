@@ -1213,8 +1213,9 @@ export function ProcessDocument() {
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
             <div className="overflow-x-auto w-full max-md:mt-0">
               <div className="min-w-[800px]">
-                <div className="grid grid-cols-5 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+                <div className="grid grid-cols-6 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                    <div>SN.</div>
+                   <div>File No.</div>
                    <div>Chassis Details</div>
                    <div>Customer Details</div>
                    <div>Document Status</div>
@@ -1234,9 +1235,10 @@ export function ProcessDocument() {
                           <div 
                             key={sale.id}
                             onClick={() => setSelectedSale(sale)}
-                            className={`grid grid-cols-5 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                            className={`grid grid-cols-6 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                           >
                         <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
+                        <div className="font-bold text-blue-600 dark:text-blue-400">#{sale.fileNumber}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
                         <div>

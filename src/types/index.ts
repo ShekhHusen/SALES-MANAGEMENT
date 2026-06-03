@@ -66,6 +66,9 @@ export interface Sale {
   documentationCompleted?: boolean;
   otherDetails?: any;
   createdAt: Timestamp;
+  status?: 'active' | 'returned';
+  returnedAt?: Timestamp;
+  returnReason?: string;
 }
 
 export interface OtherDetails {
