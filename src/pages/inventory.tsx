@@ -24,7 +24,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Inventory() {
   const { user } = useAuth();
-  const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   
@@ -393,13 +393,19 @@ export function Inventory() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="color" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Color</Label>
-                    <Input 
-                      id="color" 
-                      placeholder="Vehicle color" 
-                      className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
-                      value={newVehicle.color}
-                      onChange={(e) => setNewVehicle({ ...newVehicle, color: e.target.value })}
-                    />
+                    <Select 
+                      value={newVehicle.color} 
+                      onValueChange={(val) => setNewVehicle({ ...newVehicle, color: val })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
+                        <SelectValue placeholder="Select Color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colors.map(c => (
+                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reg Number</Label>
@@ -704,14 +710,21 @@ export function Inventory() {
                               </div>
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Color</label>
-                                <Input 
+                                <Select 
                                   value={selectedVehicle?.color || ''} 
-                                  onChange={(e) => {
-                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, color: e.target.value });
+                                  onValueChange={(val) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, color: val });
                                   }}
-                                  placeholder="Vehicle Color"
-                                  className="h-10 rounded-lg border-slate-200 dark:border-slate-800"
-                                />
+                                >
+                                  <SelectTrigger className="h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]">
+                                    <SelectValue placeholder="Select Color" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {colors.map(c => (
+                                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Update Bluebook</label>

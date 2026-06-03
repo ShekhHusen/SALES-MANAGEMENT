@@ -19,13 +19,15 @@ import { BackupRestore } from '@/components/BackupRestore';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Settings() {
-  const { companies, models } = useGlobalData();
+  const { companies, models, colors } = useGlobalData();
   const { hasSetPassword, setUserPassword, user, resetPassword } = useAuth();
   
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
+  const [newColor, setNewColor] = useState('');
   const [isBrandExpanded, setIsBrandExpanded] = useState(false);
   const [isVariantExpanded, setIsVariantExpanded] = useState(false);
+  const [isColorExpanded, setIsColorExpanded] = useState(false);
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,6 +61,17 @@ export function Settings() {
       toast.success('Model added');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'models');
+    }
+  };
+
+  const addColor = async () => {
+    if (!newColor.trim()) return;
+    try {
+      await addDoc(collection(db, 'colors'), { name: newColor });
+      setNewColor('');
+      toast.success('Color added');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'colors');
     }
   };
 
@@ -313,6 +326,63 @@ export function Settings() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-12 text-slate-400 italic text-xs font-bold">No registered variants</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+          )}
+        </Card>
+        
+        {/* Colors Section */}
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          <div 
+            className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => setIsColorExpanded(!isColorExpanded)}
+          >
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Vehicle Colors</h3>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] hover:bg-slate-50 dark:bg-[#0f172a]">
+              {isColorExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+          {isColorExpanded && (
+            <CardContent className="p-6 space-y-6">
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Color Name..." 
+                value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
+              />
+              <Button onClick={addColor} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
+                <Plus className="h-4 w-4 mr-2" /> Add Color
+              </Button>
+            </div>
+            
+            <div className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                    <TableHead className="py-3 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Color</TableHead>
+                    <TableHead className="w-16 px-6"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {colors.length > 0 ? (
+                    colors.map((color) => (
+                      <TableRow key={color.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
+                        <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{color.name}</TableCell>
+                        <TableCell className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('colors', color.id, color.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center py-12 text-slate-400 italic text-xs font-bold">No registered colors</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import type { Vehicle, Company, Model, Party, Purchase, Sale } from '../types';
+import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
 
 interface GlobalDataState {
   vehicles: Vehicle[];
   companies: Company[];
   models: Model[];
+  colors: VehicleColor[];
   parties: Party[];
   purchases: Purchase[];
   sales: Sale[];
@@ -17,6 +18,7 @@ const initialState: GlobalDataState = {
   vehicles: [],
   companies: [],
   models: [],
+  colors: [],
   parties: [],
   purchases: [],
   sales: [],
@@ -36,6 +38,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       vehicles: false,
       companies: false,
       models: false,
+      colors: false,
       parties: false,
       purchases: false,
       sales: false,
@@ -46,6 +49,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         loadedStates.vehicles &&
         loadedStates.companies &&
         loadedStates.models &&
+        loadedStates.colors &&
         loadedStates.parties &&
         loadedStates.purchases &&
         loadedStates.sales
@@ -77,6 +81,13 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         checkLoading();
       }
     });
+    const unsubColors = onSnapshot(collection(db, 'colors'), (s) => {
+      if(active) {
+        setData(prev => ({ ...prev, colors: s.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor)) }));
+        loadedStates.colors = true;
+        checkLoading();
+      }
+    });
     const unsubParties = onSnapshot(collection(db, 'parties'), (s) => {
       if(active) {
         setData(prev => ({ ...prev, parties: s.docs.map(d => ({ ...d.data(), id: d.id } as Party)) }));
@@ -101,7 +112,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     return () => {
       active = false;
-      unsubVehicles(); unsubCompanies(); unsubModels(); unsubParties(); unsubPurchases(); unsubSales();
+      unsubVehicles(); unsubCompanies(); unsubModels(); unsubColors(); unsubParties(); unsubPurchases(); unsubSales();
     };
   }, []);
 
