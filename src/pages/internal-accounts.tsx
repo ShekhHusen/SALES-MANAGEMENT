@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 
 const SearchableSelect = ({ options, value, onChange, placeholder }: { options: { label: string, value: string, category: string }[], value: string, onChange: (val: string) => void, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -161,6 +162,10 @@ export function InternalAccounts() {
     const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     
+    // View Sheet state
+    const [viewSheetOpen, setViewSheetOpen] = useState(false);
+    const [viewSale, setViewSale] = useState<any>(null);
+
     // Pagination states
     const ITEMS_PER_PAGE = 10;
     const [statementSort, setStatementSort] = useState<SortConfig>({ key: 'date', direction: 'asc' });
@@ -1084,6 +1089,26 @@ export function InternalAccounts() {
                                             )}
                                             
                                             <div className="flex items-center gap-2">
+                                                {linkedParty?.type === 'customer' && (() => {
+                                                  const customerSales = sales.filter(s => s.customerId === linkedParty.id);
+                                                  if (customerSales.length > 0) {
+                                                    return (
+                                                      <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-9 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-xs rounded-lg shadow-sm px-3 flex items-center"
+                                                        onClick={() => {
+                                                          const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
+                                                          setViewSale(latestSale);
+                                                          setViewSheetOpen(true);
+                                                        }}
+                                                      >
+                                                        VIEW
+                                                      </Button>
+                                                    );
+                                                  }
+                                                  return null;
+                                                })()}
                                                 <Dialog open={isQuickFollowupOpen} onOpenChange={setIsQuickFollowupOpen}>
                                                         <DialogTrigger asChild>
                                                             <Button variant="default" size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
@@ -1648,6 +1673,12 @@ export function InternalAccounts() {
                     </Card>
                 </TabsContent>
             </Tabs>
+            
+            <ProcessDocumentSheet 
+                open={viewSheetOpen} 
+                onOpenChange={setViewSheetOpen} 
+                viewSale={viewSale} 
+            />
         </div>
     );
 }
