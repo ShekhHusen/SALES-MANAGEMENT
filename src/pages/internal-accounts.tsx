@@ -21,7 +21,7 @@ import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 const SearchableSelect = ({ options, value, onChange, placeholder }: { options: { label: string, value: string, category: string }[], value: string, onChange: (val: string) => void, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ Parties: true });
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ "Parties": true, "Un-linked Parties": true, "Internal Accounts": true });
     const containerRef = React.useRef<HTMLDivElement>(null);
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -416,15 +416,32 @@ export function InternalAccounts() {
     }, [openings, transactions]);
 
     const accountOptions = useMemo(() => {
-        return allAccountNames.map(name => {
+        const options: { label: string, value: string, category: string }[] = [];
+        const addedNames = new Set<string>();
+
+        allAccountNames.forEach(name => {
             const isMapped = !!mappings[name];
             const isPartyMatch = parties.some(p => p.name.toLowerCase() === name.toLowerCase());
-            return {
+            options.push({
                 label: name,
                 value: name,
                 category: (isMapped || isPartyMatch) ? "Parties" : "Internal Accounts"
-            };
+            });
+            addedNames.add(name.toLowerCase());
         });
+
+        parties.forEach(p => {
+            if (!addedNames.has(p.name.toLowerCase())) {
+                options.push({
+                    label: p.name,
+                    value: p.name,
+                    category: "Un-linked Parties",
+                });
+                addedNames.add(p.name.toLowerCase());
+            }
+        });
+
+        return options;
     }, [allAccountNames, mappings, parties]);
 
     const statementOpening = useMemo(() => {
@@ -561,8 +578,11 @@ export function InternalAccounts() {
     };
 
     const linkedParty = useMemo(() => {
-        if (!selectedAccount || !mappings[selectedAccount]) return null;
-        return parties.find(p => p.id === mappings[selectedAccount]);
+        if (!selectedAccount) return null;
+        if (mappings[selectedAccount]) {
+            return parties.find(p => p.id === mappings[selectedAccount]) || null;
+        }
+        return parties.find(p => p.name.toLowerCase() === selectedAccount.toLowerCase()) || null;
     }, [selectedAccount, mappings, parties]);
     
     useEffect(() => {
