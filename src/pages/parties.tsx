@@ -29,6 +29,7 @@ type PartyFormValues = z.infer<typeof partySchema>;
 
 import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 
 export function Parties() {
   const { parties, purchases, sales } = useGlobalData();
@@ -36,6 +37,10 @@ export function Parties() {
   const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // View Sheet state
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<any>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -394,6 +399,27 @@ export function Parties() {
                     </TableCell>
                     <TableCell className="px-6 py-2.5 text-right">
                       <div className="flex justify-end gap-2">
+                        {party.type === 'customer' && (() => {
+                          const customerSales = sales.filter(s => s.customerId === party.id);
+                          if (customerSales.length > 0) {
+                            return (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
+                                onClick={() => {
+                                  // Show the most recent sale for this customer
+                                  const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
+                                  setViewSale(latestSale);
+                                  setViewSheetOpen(true);
+                                }}
+                              >
+                                VIEW
+                              </Button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -460,6 +486,12 @@ export function Parties() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ProcessDocumentSheet 
+        open={viewSheetOpen} 
+        onOpenChange={setViewSheetOpen} 
+        viewSale={viewSale} 
+      />
     </div>
   );
 }

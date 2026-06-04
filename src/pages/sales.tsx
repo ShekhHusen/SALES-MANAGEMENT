@@ -34,6 +34,7 @@ import * as XLSX from 'xlsx';
 
 import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
 import { Pagination } from '@/components/Pagination';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
@@ -200,6 +201,10 @@ export function Sales() {
       handleFirestoreError(error, OperationType.UPDATE, 'sales');
     }
   };
+
+  // View Sheet state
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<any>(null);
 
   const [saleToDelete, setSaleToDelete] = useState<(Sale & { id: string }) | null>(null);
   const [returnSale, setReturnSale] = useState<(Sale & { id: string }) | null>(null);
@@ -791,6 +796,17 @@ export function Sales() {
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-center">
                       <div className="flex justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
+                          onClick={() => {
+                            setViewSale(sale);
+                            setViewSheetOpen(true);
+                          }}
+                        >
+                          VIEW
+                        </Button>
                         {canEdit && sale.status !== 'returned' && (
                           <Button 
                             variant="outline" 
@@ -1049,6 +1065,12 @@ export function Sales() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ProcessDocumentSheet 
+        open={viewSheetOpen} 
+        onOpenChange={setViewSheetOpen} 
+        viewSale={viewSale} 
+      />
     </div>
   );
 }

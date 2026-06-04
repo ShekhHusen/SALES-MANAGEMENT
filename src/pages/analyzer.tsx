@@ -9,6 +9,7 @@ import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, Fi
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger, PopoverHeader, PopoverTitle } from '@/components/ui/popover';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -37,6 +38,10 @@ export function Analyzer() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
+
+  // View Sheet state
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<any>(null);
 
   const requestSort = (key: SortKey) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -315,7 +320,8 @@ export function Analyzer() {
   };
 
   return (
-    <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-[#0f172a] relative rounded-2xl">
+    <>
+      <div className="flex-1 p-4 lg:p-8 pt-0 lg:pt-0 overflow-hidden h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] flex flex-col bg-slate-50 dark:bg-[#0f172a] relative rounded-2xl">
       <div className="flex items-center justify-between shrink-0 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
@@ -392,6 +398,7 @@ export function Analyzer() {
                     { label: 'Vehicle Details', key: 'vehicle' as SortKey, filterable: true, sortable: true },
                     { label: 'Document Status', key: 'document' as SortKey, filterable: true, sortable: true },
                     { label: 'Customer Details', key: 'customer' as SortKey, filterable: false, sortable: false },
+                    { label: 'Action', key: 'action' as SortKey, filterable: false, sortable: false },
                   ]
                 ).map(col => (
                   <TableHead 
@@ -533,12 +540,31 @@ export function Analyzer() {
                         </Badge>
                       )}
                     </TableCell>
+
+                    {/* ACTION DETAILS */}
+                    <TableCell className="px-6 py-2.5">
+                      {isSold && sale ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
+                          onClick={() => {
+                            setViewSale(sale);
+                            setViewSheetOpen(true);
+                          }}
+                        >
+                          VIEW
+                        </Button>
+                      ) : (
+                         <span className="opacity-0">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {paginatedData.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
+                  <TableCell colSpan={8} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500 space-y-2">
                        <Filter className="w-8 h-8 opacity-20" />
                        <span className="font-semibold">No data matches the current filters.</span>
@@ -559,6 +585,12 @@ export function Analyzer() {
         </div>
       </div>
     </div>
-  </div>
+    </div>
+    <ProcessDocumentSheet 
+      open={viewSheetOpen} 
+      onOpenChange={setViewSheetOpen} 
+      viewSale={viewSale} 
+    />
+    </>
   );
 }
