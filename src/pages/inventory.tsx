@@ -77,7 +77,9 @@ export function Inventory() {
   useEffect(() => {
     if (vehicles.length > 0 && (purchases.length > 0 || sales.length > 0)) {
       vehicles.forEach(vehicle => {
-        const saleId = sales.find(s => s.chassisNumber === vehicle.chassisNumber)?.id || null;
+        // Ignore sales that have been returned
+        const validSales = sales.filter(s => s.status !== 'returned');
+        const saleId = validSales.find(s => s.chassisNumber === vehicle.chassisNumber)?.id || null;
         const purchaseId = purchases.find(p => p.chassisNumbers.includes(vehicle.chassisNumber))?.id || null;
         
         let realStatus: 'ready-to-purchase' | 'in-stock' | 'sold' = 'ready-to-purchase';

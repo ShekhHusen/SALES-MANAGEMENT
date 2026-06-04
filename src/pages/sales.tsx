@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { logAction } from '@/lib/audit';
@@ -223,8 +223,8 @@ export function Sales() {
       const vehicleRef = doc(db, 'vehicles', returnSale.chassisNumber);
       batch.update(vehicleRef, {
         status: 'in-stock',
-        saleId: deleteField(),
-        currentOwnerId: deleteField(),
+        saleId: null,
+        currentOwnerId: null,
         updatedAt: Timestamp.now(),
       });
       
@@ -255,8 +255,8 @@ export function Sales() {
         const vehicleRef = doc(db, 'vehicles', saleToDelete.chassisNumber);
         await updateDoc(vehicleRef, {
           status: 'in-stock',
-          saleId: deleteField(),
-          currentOwnerId: deleteField(),
+          saleId: null,
+          currentOwnerId: null,
           updatedAt: Timestamp.now(),
         });
       } catch (vehError) {

@@ -21,6 +21,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import { Pagination } from '@/components/Pagination';
 import { PdfTemplates } from '@/components/PdfTemplates';
 
 type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
@@ -74,6 +75,14 @@ export function ProcessDocument() {
   const [notes, setNotes] = useState('');
   const [noOfBattery, setNoOfBattery] = useState<number | ''>('');
   const [serialNumbers, setSerialNumbers] = useState<string[]>([]);
+
+  // Pagination State for Sold Vehicles
+  const [soldCurrentPage, setSoldCurrentPage] = useState(1);
+  const [soldItemsPerPage, setSoldItemsPerPage] = useState<number | 'all'>(20);
+
+  // Pagination State for Completed
+  const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
+  const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(20);
 
   // PDF generation state
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -184,19 +193,17 @@ export function ProcessDocument() {
       pdf.text(`Interest Rate: ${interestRate}% p.a.`, 40, y);
       
       let emi = 0;
+      let monthlyInterestRate = 0;
       if (principal > 0 && period > 0) {
         if (interestRate > 0) {
-          // Flat rate calculation
-          // Total Interest = Principal * (Interest Rate / 100) * (Period / 12)
-          const totalInterest = principal * (interestRate / 100) * (period / 12);
-          const totalAmount = principal + totalInterest;
-          emi = totalAmount / period;
+          monthlyInterestRate = (interestRate / 12) / 100;
+          emi = principal * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, period) / (Math.pow(1 + monthlyInterestRate, period) - 1);
         } else {
           emi = principal / period;
         }
       }
       
-      pdf.text(`Monthly EMI: Rs ${Math.round(emi)}`, 250, y);
+      pdf.text(`Expected Monthly EMI: Rs ${Math.round(emi)}`, 250, y);
       y += 30;
       
       pdf.setFontSize(12);
@@ -217,12 +224,14 @@ export function ProcessDocument() {
       pdf.setFont("helvetica", "normal");
       
       let currentRemaining = principal;
-      const totalOverallInterest = principal * (interestRate / 100) * (period / 12);
-      const monthlyInterest = interestRate > 0 ? (totalOverallInterest / period) : 0;
-      const monthlyPrincipal = interestRate > 0 ? (principal / period) : emi;
       
       for (let i = 1; i <= period; i++) {
+        const monthlyInterest = currentRemaining * monthlyInterestRate;
+        let monthlyPrincipal = emi - monthlyInterest;
+        if (interestRate === 0) monthlyPrincipal = emi;
+        
         currentRemaining -= monthlyPrincipal;
+        if (currentRemaining < 0) currentRemaining = 0;
         
         pdf.text(i.toString(), 45, y);
         pdf.text(Math.round(emi).toString(), 150, y);
@@ -620,6 +629,27 @@ export function ProcessDocument() {
            customer?.contactNumber?.includes(searchLow);
   });
 
+  // Sort Sold Vehicles: assume we sort by Date (newest first) or File number
+  const sortedSoldSales = [...filteredSales].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  
+  // Pagination logic for Sold Vehicles
+  const totalSold = sortedSoldSales.length;
+  const soldTotalPages = soldItemsPerPage === 'all' ? 1 : Math.ceil(totalSold / soldItemsPerPage);
+  const currentSoldSales = soldItemsPerPage === 'all' 
+    ? sortedSoldSales 
+    : sortedSoldSales.slice((soldCurrentPage - 1) * soldItemsPerPage, soldCurrentPage * soldItemsPerPage);
+
+  // Completed Sales
+  const completedSalesRaw = sales.filter(s => s.documentationCompleted);
+  const sortedCompletedSales = [...completedSalesRaw].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  
+  // Pagination logic for Completed Sales
+  const totalCompleted = sortedCompletedSales.length;
+  const completedTotalPages = completedItemsPerPage === 'all' ? 1 : Math.ceil(totalCompleted / completedItemsPerPage);
+  const currentCompletedSales = completedItemsPerPage === 'all' 
+    ? sortedCompletedSales 
+    : sortedCompletedSales.slice((completedCurrentPage - 1) * completedItemsPerPage, completedCurrentPage * completedItemsPerPage);
+
   return (
     <div className="flex flex-col h-[599px] overflow-hidden md:p-2 pt-[8px] pb-0 md:pb-0 lg:pt-[10px]">
       <div className="flex items-center gap-3 text-slate-800 dark:text-slate-200 shrink-0 mb-[10px]">
@@ -687,31 +717,33 @@ export function ProcessDocument() {
         })()}
 
         {activeTab === 'sold_vehicle' && (
-          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
-            <div className="overflow-x-auto w-full max-md:mt-0">
-              <div className="min-w-[600px]">
-                <div className="grid grid-cols-3 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
+            <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
+              <div className="min-w-[700px] flex-1 flex flex-col">
+                <div className="grid grid-cols-4 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
+                  <div>File No.</div>
                   <div>Chassis Number</div>
                   <div>Customer Name</div>
                   <div>Contact Number</div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto">
-                  {filteredSales.length === 0 ? (
+                  {currentSoldSales.length === 0 ? (
                     <div className="h-full flex items-center justify-center p-8">
                       <div className="text-slate-500 font-medium">No Data Available</div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60 p-2">
-                      {filteredSales.map(sale => {
+                      {currentSoldSales.map(sale => {
                         const customer = customers.find(c => c.id === sale.customerId);
                         const isSelected = selectedSale?.id === sale.id;
                         return (
                           <div 
                             key={sale.id}
                             onClick={() => setSelectedSale(sale)}
-                            className={`grid grid-cols-3 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
+                            className={`grid grid-cols-4 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                           >
+                        <div className="font-bold text-blue-600 dark:text-blue-400">#{sale.fileNumber}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
                         <div className="text-slate-500 dark:text-slate-400 font-medium">{customer?.contactNumber || '---'}</div>
@@ -720,9 +752,18 @@ export function ProcessDocument() {
                   })}
                 </div>
               )}
+                </div>
+              </div>
             </div>
-          </div>
-          </div>
+          
+            <Pagination 
+              currentPage={soldCurrentPage}
+              totalPages={soldTotalPages}
+              onPageChange={setSoldCurrentPage}
+              itemsPerPage={soldItemsPerPage}
+              setItemsPerPage={setSoldItemsPerPage}
+              totalItems={totalSold}
+            />
           </div>
         )}
 
@@ -1210,9 +1251,9 @@ export function ProcessDocument() {
         )}
 
         {activeTab === 'completed' && (
-          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px]">
-            <div className="overflow-x-auto w-full max-md:mt-0">
-              <div className="min-w-[800px]">
+          <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
+            <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
+              <div className="min-w-[800px] flex-1 flex flex-col">
                 <div className="grid grid-cols-6 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                    <div>SN.</div>
                    <div>File No.</div>
@@ -1223,21 +1264,22 @@ export function ProcessDocument() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-2">
-                  {sales.filter(s => s.documentationCompleted).length === 0 ? (
+                  {currentCompletedSales.length === 0 ? (
                     <div className="h-full flex items-center justify-center p-8">
                       <div className="text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60">
-                      {sales.filter(s => s.documentationCompleted).map((sale, idx) => {
+                      {currentCompletedSales.map((sale, idx) => {
                         const customer = customers.find(c => c.id === sale.customerId);
+                        const displayIdx = completedItemsPerPage === 'all' ? idx + 1 : (completedCurrentPage - 1) * completedItemsPerPage + idx + 1;
                         return (
                           <div 
                             key={sale.id}
                             onClick={() => setSelectedSale(sale)}
                             className={`grid grid-cols-6 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
                           >
-                        <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{idx + 1}</div>
+                        <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{displayIdx}</div>
                         <div className="font-bold text-blue-600 dark:text-blue-400">#{sale.fileNumber}</div>
                         <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
                         <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
@@ -1263,9 +1305,18 @@ export function ProcessDocument() {
                   })}
                 </div>
               )}
+                </div>
+              </div>
             </div>
-          </div>
-          </div>
+          
+            <Pagination 
+              currentPage={completedCurrentPage}
+              totalPages={completedTotalPages}
+              onPageChange={setCompletedCurrentPage}
+              itemsPerPage={completedItemsPerPage}
+              setItemsPerPage={setCompletedItemsPerPage}
+              totalItems={totalCompleted}
+            />
           </div>
         )}
       </Card>
