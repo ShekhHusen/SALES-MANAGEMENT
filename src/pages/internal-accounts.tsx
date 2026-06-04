@@ -431,7 +431,8 @@ export function InternalAccounts() {
         });
 
         parties.forEach(p => {
-            if (!addedNames.has(p.name.toLowerCase())) {
+            const isPartyMapped = Object.values(mappings).includes(p.id);
+            if (!isPartyMapped && !addedNames.has(p.name.toLowerCase())) {
                 options.push({
                     label: p.name,
                     value: p.name,
