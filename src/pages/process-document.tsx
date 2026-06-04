@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -80,9 +80,27 @@ export function ProcessDocument() {
   const [soldCurrentPage, setSoldCurrentPage] = useState(1);
   const [soldItemsPerPage, setSoldItemsPerPage] = useState<number | 'all'>(20);
 
+  // Sorting State for Sold Vehicles
+  const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
+
   // Pagination State for Completed
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(20);
+
+  // Sorting State for Completed
+  const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
+
+  const handleSoldSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (soldSortConfig.key === key && soldSortConfig.direction === 'asc') direction = 'desc';
+    setSoldSortConfig({ key, direction });
+  };
+
+  const handleCompletedSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (completedSortConfig.key === key && completedSortConfig.direction === 'asc') direction = 'desc';
+    setCompletedSortConfig({ key, direction });
+  };
 
   // PDF generation state
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -629,8 +647,29 @@ export function ProcessDocument() {
            customer?.contactNumber?.includes(searchLow);
   });
 
-  // Sort Sold Vehicles: assume we sort by Date (newest first) or File number
-  const sortedSoldSales = [...filteredSales].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  // Sort Sold Vehicles: dynamic sort based on configurable columns
+  const sortedSoldSales = [...filteredSales].sort((a, b) => {
+    let aVal: any = a[soldSortConfig.key as keyof Sale];
+    let bVal: any = b[soldSortConfig.key as keyof Sale];
+    
+    if (soldSortConfig.key === 'customerName') {
+      aVal = customers.find(c => c.id === a.customerId)?.name || '';
+      bVal = customers.find(c => c.id === b.customerId)?.name || '';
+    } else if (soldSortConfig.key === 'contactNumber') {
+      aVal = customers.find(c => c.id === a.customerId)?.contactNumber || '';
+      bVal = customers.find(c => c.id === b.customerId)?.contactNumber || '';
+    } else if (soldSortConfig.key === 'createdAt') {
+      aVal = a.createdAt?.toMillis() || 0;
+      bVal = b.createdAt?.toMillis() || 0;
+    } else if (soldSortConfig.key === 'fileNumber') {
+      aVal = Number(a.fileNumber) || 0;
+      bVal = Number(b.fileNumber) || 0;
+    }
+
+    if (aVal < bVal) return soldSortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return soldSortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
   
   // Pagination logic for Sold Vehicles
   const totalSold = sortedSoldSales.length;
@@ -641,7 +680,25 @@ export function ProcessDocument() {
 
   // Completed Sales
   const completedSalesRaw = sales.filter(s => s.documentationCompleted);
-  const sortedCompletedSales = [...completedSalesRaw].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  const sortedCompletedSales = [...completedSalesRaw].sort((a, b) => {
+    let aVal: any = a[completedSortConfig.key as keyof Sale];
+    let bVal: any = b[completedSortConfig.key as keyof Sale];
+    
+    if (completedSortConfig.key === 'customerName') {
+      aVal = customers.find(c => c.id === a.customerId)?.name || '';
+      bVal = customers.find(c => c.id === b.customerId)?.name || '';
+    } else if (completedSortConfig.key === 'createdAt') {
+      aVal = a.createdAt?.toMillis() || 0;
+      bVal = b.createdAt?.toMillis() || 0;
+    } else if (completedSortConfig.key === 'fileNumber') {
+      aVal = Number(a.fileNumber) || 0;
+      bVal = Number(b.fileNumber) || 0;
+    }
+
+    if (aVal < bVal) return completedSortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return completedSortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
   
   // Pagination logic for Completed Sales
   const totalCompleted = sortedCompletedSales.length;
@@ -721,10 +778,22 @@ export function ProcessDocument() {
             <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
               <div className="min-w-[700px] flex-1 flex flex-col">
                 <div className="grid grid-cols-4 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
-                  <div>File No.</div>
-                  <div>Chassis Number</div>
-                  <div>Customer Name</div>
-                  <div>Contact Number</div>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('fileNumber')}>
+                    File No.
+                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('chassisNumber')}>
+                    Chassis Number
+                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('customerName')}>
+                    Customer Name
+                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} />
+                  </div>
+                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('contactNumber')}>
+                    Contact Number
+                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'contactNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
+                  </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto">
@@ -1256,9 +1325,18 @@ export function ProcessDocument() {
               <div className="min-w-[800px] flex-1 flex flex-col">
                 <div className="grid grid-cols-6 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
                    <div>SN.</div>
-                   <div>File No.</div>
-                   <div>Chassis Details</div>
-                   <div>Customer Details</div>
+                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('fileNumber')}>
+                     File No.
+                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
+                   </div>
+                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('chassisNumber')}>
+                     Chassis Details
+                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
+                   </div>
+                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('customerName')}>
+                     Customer Details
+                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} />
+                   </div>
                    <div>Document Status</div>
                    <div>Action</div>
                 </div>
