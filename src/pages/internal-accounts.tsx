@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText, Eye, EyeOff } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -145,6 +145,7 @@ export function InternalAccounts() {
     const [openings, setOpenings] = useState<OpeningBalance[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [mappings, setMappings] = useState<Record<string, string>>({});
+    const [hiddenParties, setHiddenParties] = useState<string[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [sales, setSales] = useState<Sale[]>([]);
     const [otherDetails, setOtherDetails] = useState<OtherDetails[]>([]);
@@ -176,6 +177,7 @@ export function InternalAccounts() {
     // Mapping specific states
     const [mappingPage, setMappingPage] = useState(1);
     const [mappingSearchQuery, setMappingSearchQuery] = useState('');
+    const [showHiddenParties, setShowHiddenParties] = useState(false);
     const [linkedMappingSearchQuery, setLinkedMappingSearchQuery] = useState('');
     const [openingSearchQuery, setOpeningSearchQuery] = useState('');
 
@@ -232,6 +234,7 @@ export function InternalAccounts() {
             onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
                  if (snap.exists()) {
                      setMappings(snap.data()?.mappings || {});
+                     setHiddenParties(snap.data()?.hiddenParties || []);
                  }
                  setLoading(false);
             })
@@ -1520,7 +1523,7 @@ export function InternalAccounts() {
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto p-6 space-y-8">
                             {(() => {
-                                const unlinkedParties = parties.filter(p => !Object.values(mappings).includes(p.id));
+                                const unlinkedParties = parties.filter(p => !Object.values(mappings).includes(p.id) && (showHiddenParties ? true : !hiddenParties.includes(p.id)));
                                 const filteredParties = unlinkedParties.filter(p => 
                                     p.name.toLowerCase().includes(mappingSearchQuery.toLowerCase()) || 
                                     (p.contactNumber && p.contactNumber.includes(mappingSearchQuery))
@@ -1537,46 +1540,87 @@ export function InternalAccounts() {
                                                 <span>Pending Parties (Unlinked)</span>
                                                 <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-full text-xs font-black">{unlinkedParties.length}</span>
                                             </h3>
-                                            <div className="relative w-full sm:w-64">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                                <Input 
-                                                    placeholder="Search pending parties..."
-                                                    value={mappingSearchQuery}
-                                                    onChange={(e) => {
-                                                        setMappingSearchQuery(e.target.value);
-                                                        setMappingPage(1);
-                                                    }}
-                                                    className="pl-9 h-10 rounded-xl"
-                                                />
+                                            <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    onClick={() => setShowHiddenParties(!showHiddenParties)}
+                                                    className="h-10 rounded-xl whitespace-nowrap"
+                                                >
+                                                    {showHiddenParties ? "Hide Ignored" : "Show Ignored"}
+                                                </Button>
+                                                <div className="relative w-full sm:w-64">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                                    <Input 
+                                                        placeholder="Search pending parties..."
+                                                        value={mappingSearchQuery}
+                                                        onChange={(e) => {
+                                                            setMappingSearchQuery(e.target.value);
+                                                            setMappingPage(1);
+                                                        }}
+                                                        className="pl-9 h-10 rounded-xl"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                         
                                         <div className="bg-slate-50 dark:bg-[#0f172a] rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
                                             {paginatedParties.map(party => (
                                                 <div key={party.id} className="flex justify-between items-center bg-white dark:bg-slate-950 p-3 sm:p-4 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all hover:shadow-md gap-4 flex-wrap sm:flex-nowrap">
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="font-bold text-slate-700 dark:text-slate-300 truncate">{party.name}</p>
-                                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{party.contactNumber || 'No contact'}</p>
+                                                    <div className="min-w-0 flex-1 flex items-center gap-2">
+                                                        <div>
+                                                            <p className="font-bold text-slate-700 dark:text-slate-300 truncate">
+                                                                {party.name}
+                                                                {hiddenParties.includes(party.id) && (
+                                                                    <span className="ml-2 bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold">Ignored</span>
+                                                                )}
+                                                            </p>
+                                                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{party.contactNumber || 'No contact'}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="w-full sm:w-64 shrink-0">
-                                                        <SearchableSelect 
-                                                            options={accountOptions.filter(opt => !mappings[opt.value])}
-                                                            value=""
-                                                            onChange={async (val) => {
-                                                                if (val) {
-                                                                    try {
-                                                                        await updateDoc(doc(db, 'internal_data', 'mappings'), 
-                                                                            new FieldPath('mappings', val), party.id
-                                                                        );
-                                                                    } catch (err: any) {
-                                                                        if (err.code === 'not-found') {
-                                                                            await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [val]: party.id } });
+                                                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                                                        <div className="w-full sm:w-64">
+                                                            <SearchableSelect 
+                                                                options={accountOptions.filter(opt => !mappings[opt.value])}
+                                                                value=""
+                                                                onChange={async (val) => {
+                                                                    if (val) {
+                                                                        try {
+                                                                            await updateDoc(doc(db, 'internal_data', 'mappings'), 
+                                                                                new FieldPath('mappings', val), party.id
+                                                                            );
+                                                                        } catch (err: any) {
+                                                                            if (err.code === 'not-found') {
+                                                                                await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [val]: party.id } });
+                                                                            }
                                                                         }
+                                                                    }
+                                                                }}
+                                                                placeholder="Link to account..."
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-10 w-10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0"
+                                                            title={hiddenParties.includes(party.id) ? "Unhide" : "Hide"}
+                                                            onClick={async () => {
+                                                                const ref = doc(db, 'internal_data', 'mappings');
+                                                                try {
+                                                                    if (hiddenParties.includes(party.id)) {
+                                                                        await updateDoc(ref, { hiddenParties: arrayRemove(party.id) });
+                                                                    } else {
+                                                                        await updateDoc(ref, { hiddenParties: arrayUnion(party.id) });
+                                                                    }
+                                                                } catch (err: any) {
+                                                                    if (err.code === 'not-found') {
+                                                                        await setDoc(ref, { mappings: {}, hiddenParties: [party.id] });
                                                                     }
                                                                 }
                                                             }}
-                                                            placeholder="Link Account..."
-                                                        />
+                                                        >
+                                                            {hiddenParties.includes(party.id) ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 opacity-50" />}
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             ))}
