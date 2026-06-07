@@ -25,6 +25,9 @@ export function FollowUps() {
     const [newFollowupTime, setNewFollowupTime] = useState('');
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
     const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null);
+    const [fullHistoryOpen, setFullHistoryOpen] = useState(false);
+    const [historyStartDate, setHistoryStartDate] = useState('');
+    const [historyEndDate, setHistoryEndDate] = useState('');
     const [taskCompleted, setTaskCompleted] = useState(false);
     
     // UI states
@@ -230,6 +233,16 @@ export function FollowUps() {
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Active Follow-ups</h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">Manage, track, and assign follow-up tasks.</p>
                     </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="outline" 
+                        onClick={() => setFullHistoryOpen(true)}
+                        className="bg-white dark:bg-slate-950 font-semibold"
+                    >
+                        <HistoryIcon className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
+                        Full History
+                    </Button>
                 </div>
             </div>
 
@@ -569,6 +582,111 @@ export function FollowUps() {
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* Full History Dialog */}
+            <Dialog open={fullHistoryOpen} onOpenChange={setFullHistoryOpen}>
+                <DialogContent className="max-w-[100vw] w-screen h-screen m-0 rounded-none flex flex-col p-4 sm:p-6 shadow-none">
+                    <DialogHeader className="shrink-0 space-y-3">
+                        <DialogTitle>Full Follow-up History</DialogTitle>
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                            <div className="space-y-1.5 flex-1 max-w-[200px]">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">From Date</Label>
+                                <Input type="date" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5 flex-1">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">To Date</Label>
+                                <Input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
+                            </div>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 mt-4">
+                        {(() => {
+                            let filtered = followups;
+                            if (historyStartDate) {
+                                const start = new Date(historyStartDate);
+                                start.setHours(0,0,0,0);
+                                filtered = filtered.filter(f => {
+                                    const t = (f.createdAt as any)?.toDate?.() || new Date(f.createdAt as any);
+                                    return t >= start;
+                                });
+                            }
+                            if (historyEndDate) {
+                                const end = new Date(historyEndDate);
+                                end.setHours(23,59,59,999);
+                                filtered = filtered.filter(f => {
+                                    const t = (f.createdAt as any)?.toDate?.() || new Date(f.createdAt as any);
+                                    return t <= end;
+                                });
+                            }
+
+                            // Sort by date descending
+                            filtered.sort((a, b) => {
+                                const timeA = (a.createdAt as any)?.toMillis?.() || 0;
+                                const timeB = (b.createdAt as any)?.toMillis?.() || 0;
+                                return timeB - timeA;
+                            });
+
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="text-center py-12">
+                                        <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <HistoryIcon className="w-8 h-8 text-slate-400" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-1">No follow-ups found</h3>
+                                        <p className="text-slate-500 text-sm">Try adjusting your date range.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                    {filtered.map(f => {
+                                        const party = parties.find(p => p.id === f.partyId);
+                                        return (
+                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-col gap-1.5 transition-all hover:shadow-md">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{party?.name || 'Unknown Party'}</p>
+                                                    <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-sm shrink-0">
+                                                        <CalendarIcon className="w-3 h-3" />
+                                                        {(f.createdAt as any)?.toDate?.().toLocaleDateString() || new Date(f.createdAt as any).toLocaleDateString()}
+                                                        {' '}
+                                                        {(f.createdAt as any)?.toDate?.().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) || new Date(f.createdAt as any).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#0f172a] p-2 rounded-lg border border-slate-100 dark:border-slate-800 mt-1 whitespace-pre-wrap line-clamp-3">
+                                                    {f.message}
+                                                </div>
+                                                <div className="flex flex-wrap gap-x-2 gap-y-1 mt-auto pt-1">
+                                                    <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                                                        <UserIcon className="w-3 h-3 text-slate-400" />
+                                                        By: <span className="text-slate-700 dark:text-slate-300 truncate max-w-[60px]">{f.createdByName || 'Unknown'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium ml-2">
+                                                        <UserIcon className="w-3 h-3 text-slate-400" />
+                                                        Assignee: <span className="text-slate-700 dark:text-slate-300 truncate max-w-[60px]">{f.assignedToName || 'Unassigned'}</span>
+                                                    </div>
+                                                    {f.isCompleted && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold ml-auto bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                            Done
+                                                        </div>
+                                                    )}
+                                                    {!f.isCompleted && f.nextFollowUpDate && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold ml-auto bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">
+                                                            <Clock className="w-3 h-3 text-blue-500" />
+                                                            Due: {(f.nextFollowUpDate as any)?.toDate?.().toLocaleDateString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
