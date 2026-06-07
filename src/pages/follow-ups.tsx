@@ -1,22 +1,122 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
-import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+
+interface OpeningBalance {
+    id: string;
+    accountName: string;
+}
+interface Transaction {
+    id: string;
+    particulars: string;
+}
+
+const SearchableSelect = ({ options, value, onChange, placeholder }: { options: { label: string, value: string, category: string }[], value: string, onChange: (val: string) => void, placeholder: string }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ "Parties": true, "Un-linked Parties": true, "Internal Accounts": true });
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = options.filter(opt => opt.label.toLowerCase().includes(search.toLowerCase()));
+    const groupedOptions = Object.entries(filteredOptions.reduce((acc, opt) => {
+        if (!acc[opt.category]) acc[opt.category] = [];
+        acc[opt.category].push(opt);
+        return acc;
+    }, {} as Record<string, typeof options>)).sort(([a], [b]) => a === "Parties" ? -1 : b === "Parties" ? 1 : 0);
+
+    const toggleCategory = (e: React.MouseEvent, category: string) => {
+        e.stopPropagation();
+        setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+    };
+
+    return (
+        <div className="relative w-full" ref={containerRef}>
+            <div className="min-h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-between cursor-pointer shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-colors" onClick={() => setIsOpen(!isOpen)}>
+                <span className="truncate max-w-[calc(100%-20px)] font-medium text-slate-700 dark:text-slate-300">{options.find(o => o.value === value)?.label || placeholder}</span>
+                {value ? (
+                    <X className="w-4 h-4 text-slate-400 hover:text-slate-600" onClick={(e) => { e.stopPropagation(); onChange(''); }} />
+                ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                )}
+            </div>
+            {isOpen && (
+                <div className="absolute top-11 left-0 z-50 w-full min-w-[280px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl overflow-hidden mt-1 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <input
+                                autoFocus
+                                className="w-full pl-8 pr-3 py-1.5 text-sm bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                placeholder="Search..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto w-full">
+                        {groupedOptions.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-slate-500 bg-slate-50 dark:bg-slate-900 font-medium">No results found.</div>
+                        ) : (
+                            groupedOptions.map(([category, items]) => (
+                                <div key={category}>
+                                    <div 
+                                        className="px-3 py-2 bg-slate-100 dark:bg-slate-800/80 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase shrink-0 sticky top-0 z-10 flex cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 select-none items-center justify-between tracking-wider shadow-sm"
+                                        onClick={(e) => toggleCategory(e, category)}
+                                    >
+                                        <span>{category} <span className="ml-1 opacity-60 text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded-full">{items.length}</span></span>
+                                        {expandedCategories[category] ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                                    </div>
+                                    {expandedCategories[category] && items.map(opt => (
+                                        <div
+                                            key={opt.value}
+                                            className={`px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 transition-colors ${value === opt.value ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold border-l-2 border-blue-500' : 'text-slate-700 dark:text-slate-300 border-l-2 border-transparent'}`}
+                                            onClick={() => {
+                                                onChange(opt.value);
+                                                setIsOpen(false);
+                                                setSearch('');
+                                            }}
+                                        >
+                                            <span className="truncate block whitespace-normal break-words leading-tight">{opt.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export function FollowUps() {
     const { userProfile } = useAuth();
     const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [users, setUsers] = useState<UserProfile[]>([]);
+    const [openings, setOpenings] = useState<OpeningBalance[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [mappings, setMappings] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
     const [updatingPartyId, setUpdatingPartyId] = useState<string | null>(null);
@@ -28,6 +128,9 @@ export function FollowUps() {
     const [fullHistoryOpen, setFullHistoryOpen] = useState(false);
     const [historyStartDate, setHistoryStartDate] = useState('');
     const [historyEndDate, setHistoryEndDate] = useState('');
+    const [historyAssignBy, setHistoryAssignBy] = useState('all');
+    const [historyAssignee, setHistoryAssignee] = useState('all');
+    const [historyAccount, setHistoryAccount] = useState('');
     const [taskCompleted, setTaskCompleted] = useState(false);
     
     // UI states
@@ -48,10 +151,53 @@ export function FollowUps() {
             }),
             onSnapshot(collection(db, 'users'), snap => {
                 setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
+            }),
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
+            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+                 if (snap.exists()) {
+                     setMappings(snap.data()?.mappings || {});
+                 }
             })
         ];
         return () => unsubs.forEach(u => u());
     }, []);
+
+    const allAccountNames = useMemo(() => {
+        const names = new Set<string>();
+        openings.forEach(o => o.accountName && names.add(o.accountName.trim()));
+        transactions.forEach(t => t.particulars && names.add(t.particulars.trim()));
+        return Array.from(names).sort();
+    }, [openings, transactions]);
+
+    const accountOptions = useMemo(() => {
+        const options: { label: string, value: string, category: string }[] = [];
+        const addedNames = new Set<string>();
+
+        allAccountNames.forEach(name => {
+            const isMapped = !!mappings[name];
+            const isPartyMatch = parties.some(p => p.name.toLowerCase() === name.toLowerCase());
+            options.push({
+                label: name,
+                value: name,
+                category: (isMapped || isPartyMatch) ? "Parties" : "Internal Accounts"
+            });
+            addedNames.add(name.toLowerCase());
+        });
+
+        parties.forEach(p => {
+            const isPartyMapped = Object.values(mappings).includes(p.id);
+            if (!isPartyMapped && !addedNames.has(p.name.toLowerCase())) {
+                options.push({
+                    label: p.name,
+                    value: p.id,
+                    category: "Un-linked Parties"
+                });
+            }
+        });
+
+        return options.sort((a, b) => a.label.localeCompare(b.label));
+    }, [allAccountNames, mappings, parties]);
 
     const startUpdate = (partyId: string, currentAssignedTo?: string) => {
         const now = new Date();
@@ -585,7 +731,7 @@ export function FollowUps() {
 
             {/* Full History Dialog */}
             <Dialog open={fullHistoryOpen} onOpenChange={setFullHistoryOpen}>
-                <DialogContent className="max-w-[100vw] w-screen h-screen m-0 rounded-none flex flex-col p-4 sm:p-6 shadow-none">
+                <DialogContent className="max-w-[100vw] sm:max-w-[100vw] w-screen h-screen m-0 rounded-none flex flex-col p-4 sm:p-6 shadow-none">
                     <DialogHeader className="shrink-0 space-y-3">
                         <DialogTitle>Full Follow-up History</DialogTitle>
                         <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -593,9 +739,47 @@ export function FollowUps() {
                                 <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">From Date</Label>
                                 <Input type="date" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
                             </div>
-                            <div className="space-y-1.5 flex-1">
+                            <div className="space-y-1.5 flex-1 max-w-[200px]">
                                 <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">To Date</Label>
                                 <Input type="date" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5 flex-1 max-w-[250px]">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">Account Name</Label>
+                                <SearchableSelect 
+                                    options={accountOptions}
+                                    value={historyAccount}
+                                    onChange={(v) => setHistoryAccount(v)}
+                                    placeholder="All Accounts"
+                                />
+                            </div>
+                            <div className="space-y-1.5 flex-1 max-w-[200px]">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">Assigned By</Label>
+                                <Select value={historyAssignBy} onValueChange={setHistoryAssignBy}>
+                                    <SelectTrigger className="bg-white dark:bg-slate-950">
+                                        <SelectValue placeholder="All Users" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Users</SelectItem>
+                                        {users.map(u => (
+                                            <SelectItem key={u.uid} value={u.uid}>{u.displayName || u.email}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5 flex-1 max-w-[200px]">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">Assignee</Label>
+                                <Select value={historyAssignee} onValueChange={setHistoryAssignee}>
+                                    <SelectTrigger className="bg-white dark:bg-slate-950">
+                                        <SelectValue placeholder="All Assignees" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Assignees</SelectItem>
+                                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                                        {users.map(u => (
+                                            <SelectItem key={u.uid} value={u.uid}>{u.displayName || u.email}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </DialogHeader>
@@ -617,6 +801,23 @@ export function FollowUps() {
                                     const t = (f.createdAt as any)?.toDate?.() || new Date(f.createdAt as any);
                                     return t <= end;
                                 });
+                            }
+                            if (historyAccount && historyAccount !== 'all') {
+                                filtered = filtered.filter(f => {
+                                    const party = parties.find(p => p.id === f.partyId);
+                                    const accountNameMatch = (party?.name || f.partyId).toLowerCase();
+                                    return f.partyId === historyAccount || accountNameMatch === historyAccount.toLowerCase();
+                                });
+                            }
+                            if (historyAssignBy && historyAssignBy !== 'all') {
+                                filtered = filtered.filter(f => f.createdByUid === historyAssignBy);
+                            }
+                            if (historyAssignee && historyAssignee !== 'all') {
+                                if (historyAssignee === 'unassigned') {
+                                    filtered = filtered.filter(f => !f.assignedToId || f.assignedToId === 'unassigned');
+                                } else {
+                                    filtered = filtered.filter(f => f.assignedToId === historyAssignee);
+                                }
                             }
 
                             // Sort by date descending
