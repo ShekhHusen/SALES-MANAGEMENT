@@ -111,4 +111,5 @@ export interface FollowUp {
   assignedToId?: string; // Users id (uid)
   assignedToName?: string;
   isCompleted?: boolean;
+  priority?: 'high' | 'medium' | 'low';
 }

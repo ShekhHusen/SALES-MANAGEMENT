@@ -124,6 +124,7 @@ export function FollowUps() {
     const [newFollowupDate, setNewFollowupDate] = useState('');
     const [newFollowupTime, setNewFollowupTime] = useState('');
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
+    const [newFollowupPriority, setNewFollowupPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null);
     const [fullHistoryOpen, setFullHistoryOpen] = useState(false);
     const [historyStartDate, setHistoryStartDate] = useState('');
@@ -131,6 +132,9 @@ export function FollowUps() {
     const [historyAssignBy, setHistoryAssignBy] = useState('all');
     const [historyAssignee, setHistoryAssignee] = useState('all');
     const [historyAccount, setHistoryAccount] = useState('');
+    const [historyStatus, setHistoryStatus] = useState('all');
+    const [quickNotes, setQuickNotes] = useState<Record<string, string>>({});
+    const [savingNoteFor, setSavingNoteFor] = useState<string | null>(null);
     const [taskCompleted, setTaskCompleted] = useState(false);
     
     // UI states
@@ -199,12 +203,36 @@ export function FollowUps() {
         return options.sort((a, b) => a.label.localeCompare(b.label));
     }, [allAccountNames, mappings, parties]);
 
+    const handleSaveQuickNote = async (followupId: string, currentMessage: string) => {
+        const note = quickNotes[followupId];
+        if (!note?.trim()) return;
+        
+        setSavingNoteFor(followupId);
+        try {
+            const timestamp = new Date().toLocaleString();
+            const userName = userProfile?.displayName || userProfile?.email || 'Unknown';
+            const updatedMessage = `${currentMessage}\n\n[Note ${timestamp} by ${userName}]:\n${note.trim()}`;
+            
+            await updateDoc(doc(db, 'followups', followupId), {
+                message: updatedMessage
+            });
+            
+            setQuickNotes(prev => ({ ...prev, [followupId]: '' }));
+            toast.success("Note added successfully");
+        } catch (error) {
+            toast.error("Failed to add note");
+        } finally {
+            setSavingNoteFor(null);
+        }
+    };
+
     const startUpdate = (partyId: string, currentAssignedTo?: string) => {
         const now = new Date();
         setNewFollowupDate(now.toLocaleDateString('en-CA'));
         setNewFollowupTime(now.toTimeString().slice(0, 5));
         setNewFollowupMsg('');
         setNewFollowupAssignedTo(currentAssignedTo || 'unassigned');
+        setNewFollowupPriority('medium');
         setTaskCompleted(false);
         setUpdatingPartyId(partyId);
     };
@@ -241,7 +269,8 @@ export function FollowUps() {
                 createdByName: userProfile?.displayName || userProfile?.email || 'Unknown User',
                 assignedToId,
                 assignedToName,
-                isCompleted: taskCompleted
+                isCompleted: taskCompleted,
+                priority: newFollowupPriority
             });
 
             toast.success('Follow-up updated');
@@ -554,21 +583,35 @@ export function FollowUps() {
                                         </div>
                                     )}
 
-                                    {userProfile?.role === 'admin' && (
-                                        <div className="space-y-1.5">
-                                            <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
+                                    <div className="flex gap-3 mt-2">
+                                        {userProfile?.role === 'admin' && (
+                                            <div className="space-y-1.5 flex-1">
+                                                <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assign To</Label>
+                                                <select 
+                                                    value={newFollowupAssignedTo}
+                                                    onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
+                                                    className="flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950"
+                                                >
+                                                    <option value="unassigned">Anyone (Global)</option>
+                                                    {users.map(u => (
+                                                        <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="space-y-1.5 flex-1">
+                                            <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Priority</Label>
                                             <select 
-                                                value={newFollowupAssignedTo}
-                                                onChange={(e) => setNewFollowupAssignedTo(e.target.value)}
-                                                className="flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950"
+                                                value={newFollowupPriority}
+                                                onChange={(e) => setNewFollowupPriority(e.target.value as any)}
+                                                className="flex h-8 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
                                             >
-                                                <option value="unassigned">Anyone (Global)</option>
-                                                {users.map(u => (
-                                                    <option key={u.uid} value={u.uid}>{u.displayName || u.email}</option>
-                                                ))}
+                                                <option value="high">🔴 High</option>
+                                                <option value="medium">🟡 Medium</option>
+                                                <option value="low">🟢 Low</option>
                                             </select>
                                         </div>
-                                    )}
+                                    </div>
                                     <div className="flex gap-2 pt-2">
                                         <Button variant="outline" size="sm" className="flex-1 h-8" onClick={() => setUpdatingPartyId(null)}>Cancel</Button>
                                         <Button size="sm" className="flex-1 h-8 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleSaveFollowup(party.id)}>Save Task</Button>
@@ -781,6 +824,19 @@ export function FollowUps() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="space-y-1.5 flex-1 max-w-[150px]">
+                                <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider">Status</Label>
+                                <Select value={historyStatus} onValueChange={setHistoryStatus}>
+                                    <SelectTrigger className="bg-white dark:bg-slate-950">
+                                        <SelectValue placeholder="All Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Status</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="due">Due</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto space-y-4 pr-2 mt-4">
@@ -819,6 +875,13 @@ export function FollowUps() {
                                     filtered = filtered.filter(f => f.assignedToId === historyAssignee);
                                 }
                             }
+                            if (historyStatus !== 'all') {
+                                if (historyStatus === 'completed') {
+                                    filtered = filtered.filter(f => f.isCompleted);
+                                } else if (historyStatus === 'due') {
+                                    filtered = filtered.filter(f => !f.isCompleted);
+                                }
+                            }
 
                             // Sort by date descending
                             filtered.sort((a, b) => {
@@ -843,10 +906,16 @@ export function FollowUps() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                     {filtered.map(f => {
                                         const party = parties.find(p => p.id === f.partyId);
+                                        const urgency = f.priority || 'medium';
                                         return (
-                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-col gap-1.5 transition-all hover:shadow-md">
+                                            <div key={f.id} className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-col gap-1.5 transition-all hover:shadow-md relative">
                                                 <div className="flex justify-between items-start gap-4">
-                                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{party?.name || 'Unknown Party'}</p>
+                                                    <div className="flex items-center gap-2 max-w-[calc(100%-110px)]">
+                                                        {urgency === 'high' && <span className="bg-red-100 text-red-700 border border-red-200/60 dark:bg-red-900/30 dark:border-red-800/50 dark:text-red-400 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0">High</span>}
+                                                        {urgency === 'medium' && <span className="bg-yellow-100 text-yellow-700 border border-yellow-200/60 dark:bg-yellow-900/30 dark:border-yellow-800/50 dark:text-yellow-400 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0">Med</span>}
+                                                        {urgency === 'low' && <span className="bg-emerald-100 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-900/30 dark:border-emerald-800/50 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0">Low</span>}
+                                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{party?.name || 'Unknown Party'}</p>
+                                                    </div>
                                                     <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-sm shrink-0">
                                                         <CalendarIcon className="w-3 h-3" />
                                                         {(f.createdAt as any)?.toDate?.().toLocaleDateString() || new Date(f.createdAt as any).toLocaleDateString()}
@@ -878,6 +947,27 @@ export function FollowUps() {
                                                             Due: {(f.nextFollowUpDate as any)?.toDate?.().toLocaleDateString()}
                                                         </div>
                                                     )}
+                                                </div>
+                                                <div className="mt-1 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+                                                    <Input
+                                                        placeholder="Add quick note..."
+                                                        className="h-6 text-[10px] w-full px-2"
+                                                        value={quickNotes[f.id] || ''}
+                                                        onChange={(e) => setQuickNotes(prev => ({ ...prev, [f.id]: e.target.value }))}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleSaveQuickNote(f.id, f.message);
+                                                        }}
+                                                        disabled={savingNoteFor === f.id}
+                                                    />
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="secondary" 
+                                                        className="h-6 text-[10px] px-2.5 shadow-none shrink-0"
+                                                        onClick={() => handleSaveQuickNote(f.id, f.message)}
+                                                        disabled={savingNoteFor === f.id || !quickNotes[f.id]?.trim()}
+                                                    >
+                                                        {savingNoteFor === f.id ? <div className="w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" /> : 'Save'}
+                                                    </Button>
                                                 </div>
                                             </div>
                                         );

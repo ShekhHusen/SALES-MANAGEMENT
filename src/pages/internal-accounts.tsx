@@ -129,6 +129,13 @@ interface OpeningBalance {
     credit: number;
 }
 
+interface TransactionItem {
+    name: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+}
+
 interface Transaction {
     id: string;
     date: string;
@@ -138,6 +145,7 @@ interface Transaction {
     debit: number;
     credit: number;
     narration: string;
+    items?: TransactionItem[];
 }
 
 export function InternalAccounts() {
@@ -180,6 +188,8 @@ export function InternalAccounts() {
     const [showHiddenParties, setShowHiddenParties] = useState(false);
     const [linkedMappingSearchQuery, setLinkedMappingSearchQuery] = useState('');
     const [openingSearchQuery, setOpeningSearchQuery] = useState('');
+    const [summarySearchQuery, setSummarySearchQuery] = useState('');
+    const [expandedTxnIds, setExpandedTxnIds] = useState<Set<string>>(new Set());
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
     const [openingsSort, setOpeningsSort] = useState<SortConfig>(null);
@@ -195,7 +205,7 @@ export function InternalAccounts() {
     const passedState = location.state as { selectedPartyId?: string, activeTab?: string };
 
     // Tab state
-    const [activeTab, setActiveTab] = useState('opening');
+    const [activeTab, setActiveTab] = useState('summary');
     
     // Statement state
     const [selectedAccount, setSelectedAccount] = useState<string>('');
@@ -314,17 +324,43 @@ export function InternalAccounts() {
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json<any>(ws, { raw: false, dateNF: 'yyyy-mm-dd' });
                 
-                const newTxns = data.map(row => ({
-                    date: row['Date'] || '',
-                    vchType: row['Vch Type'] || '',
-                    vchNo: row['Vch No.'] || row['Vch No'] || '',
-                    particulars: (row['Particulars'] || '').toString().trim(),
-                    debit: Number(row['Debit']) || 0,
-                    credit: Number(row['Credit']) || 0,
-                    narration: row['Narration'] || ''
-                })).filter(t => t.particulars);
+                const newTxns: any[] = [];
+                let currentTxn: any = null;
 
-                if (newTxns.length === 0) {
+                data.forEach(row => {
+                    const vchNo = row['Vch No.'] || row['Vch No'] || '';
+                    const particulars = (row['Particulars'] || '').toString().trim();
+                    const debit = Number(row['Debit']) || 0;
+                    const credit = Number(row['Credit']) || 0;
+                    const itemName = (row['Item Name'] || row['Item'] || '').toString().trim();
+
+                    if (particulars) {
+                        currentTxn = {
+                            date: row['Date'] || '',
+                            vchType: row['Vch Type'] || '',
+                            vchNo,
+                            particulars,
+                            debit,
+                            credit,
+                            narration: row['Narration'] || '',
+                            items: []
+                        };
+                        newTxns.push(currentTxn);
+                    }
+
+                    if (currentTxn && (itemName || Number(row['Amount']) || Number(row['Item Amount']))) {
+                        currentTxn.items.push({
+                            name: itemName,
+                            quantity: Number(row['Qty'] || row['Quantity']) || 0,
+                            rate: Number(row['Rate']) || 0,
+                            amount: Number(row['Amount'] || row['Item Amount']) || 0
+                        });
+                    }
+                });
+
+                const validTxns = newTxns.filter(t => t.particulars);
+
+                if (validTxns.length === 0) {
                     toast.info("No valid transactions found to import");
                     return;
                 }
@@ -332,7 +368,7 @@ export function InternalAccounts() {
                 const existingAccountNames = new Set(openings.map(o => o.accountName.toLowerCase()));
                 const newOpeningsToCreate: any[] = [];
                 
-                newTxns.forEach(txn => {
+                validTxns.forEach(txn => {
                     const accNameLower = txn.particulars.toLowerCase();
                     if (!existingAccountNames.has(accNameLower)) {
                         existingAccountNames.add(accNameLower);
@@ -350,9 +386,9 @@ export function InternalAccounts() {
                 let promises = [];
                 
                 // Save New Txns
-                for (let i = 0; i < newTxns.length; i += batchLimit) {
+                for (let i = 0; i < validTxns.length; i += batchLimit) {
                     const batch = writeBatch(db);
-                    const chunk = newTxns.slice(i, i + batchLimit);
+                    const chunk = validTxns.slice(i, i + batchLimit);
                     chunk.forEach(t => {
                         const ref = doc(collection(db, 'internal_transactions'));
                         batch.set(ref, t);
@@ -372,7 +408,7 @@ export function InternalAccounts() {
                 }
                 
                 await Promise.all(promises);
-                toast.success(`Imported ${newTxns.length} transactions` + (newOpeningsToCreate.length ? ` and created ${newOpeningsToCreate.length} new accounts` : ''));
+                toast.success(`Imported ${validTxns.length} transactions` + (newOpeningsToCreate.length ? ` and created ${newOpeningsToCreate.length} new accounts` : ''));
             } catch (error) {
                  console.error("Failed to parse or save transactions", error);
                  toast.error("Failed to parse Excel file or save data");
@@ -397,15 +433,34 @@ export function InternalAccounts() {
     };
 
     const downloadTransactionTemplate = () => {
-        const ws = XLSX.utils.json_to_sheet([{
-            'Date': 'YYYY-MM-DD',
-            'Vch Type': 'Payment',
-            'Vch No.': '101',
-            'Particulars': 'Example Account',
-            'Debit': 500,
-            'Credit': 0,
-            'Narration': 'Example narration'
-        }]);
+        const ws = XLSX.utils.json_to_sheet([
+            {
+                'Date': 'YYYY-MM-DD',
+                'Vch Type': 'Sales',
+                'Vch No.': '101',
+                'Particulars': 'Example Account',
+                'Debit': 500,
+                'Credit': 0,
+                'Narration': 'Example narration',
+                'Item Name': 'Product A',
+                'Qty': 2,
+                'Rate': 250,
+                'Amount': 500
+            },
+            {
+                'Date': '',
+                'Vch Type': '',
+                'Vch No.': '',
+                'Particulars': '',
+                'Debit': '',
+                'Credit': '',
+                'Narration': '',
+                'Item Name': 'Product B',
+                'Qty': 1,
+                'Rate': 100,
+                'Amount': 100
+            }
+        ]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Transactions");
         XLSX.writeFile(wb, "Transactions_Template.xlsx");
@@ -662,6 +717,41 @@ export function InternalAccounts() {
         return sales.filter(s => s.customerId === linkedParty.id);
     }, [linkedParty, sales]);
 
+    const accountSummaries = useMemo(() => {
+        const accMap = new Map<string, { opening: number, debit: number, credit: number }>();
+
+        allAccountNames.forEach(name => {
+            accMap.set(name, { opening: 0, debit: 0, credit: 0 });
+        });
+
+        openings.forEach(o => {
+            if (o.accountName && accMap.has(o.accountName)) {
+                const acc = accMap.get(o.accountName)!;
+                acc.opening += (o.debit || 0) - (o.credit || 0);
+            }
+        });
+
+        transactions.forEach(t => {
+            if (t.particulars && accMap.has(t.particulars)) {
+                const acc = accMap.get(t.particulars)!;
+                acc.debit += (t.debit || 0);
+                acc.credit += (t.credit || 0);
+            }
+        });
+
+        const list = Array.from(accMap.entries()).map(([name, data]) => ({
+            name,
+            opening: data.opening,
+            debit: data.debit,
+            credit: data.credit,
+            closing: data.opening + data.debit - data.credit
+        }));
+        
+        if (summarySearchQuery.trim() === '') return list;
+        const q = summarySearchQuery.toLowerCase();
+        return list.filter(a => a.name.toLowerCase().includes(q));
+    }, [allAccountNames, openings, transactions, summarySearchQuery]);
+
     const totals = useMemo(() => {
         const opDb = statementOpening?.debit || 0;
         const opCr = statementOpening?.credit || 0;
@@ -830,11 +920,75 @@ export function InternalAccounts() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                 <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 pt-0 pb-0 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-[83px] mb-0 md:mb-0 w-full sm:w-auto gap-1 max-md:pt-0 max-md:h-[106px] lg:bg-[#eee9e9] dark:lg:bg-[#0f172a] lg:pl-[24px] lg:pr-[34px] lg:w-[800px] lg:pt-[5px] lg:pb-[5px] lg:h-[42px]">
+                    <TabsTrigger value="summary" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-0 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">All Accounts</TabsTrigger>
                     {userProfile?.role === 'admin' && <TabsTrigger value="opening" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-[10px] py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Account Opening</TabsTrigger>}
                     {userProfile?.role === 'admin' && <TabsTrigger value="transactions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-[10px] py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Transactions</TabsTrigger>}
                     <TabsTrigger value="statement" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-0 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Account Statement</TabsTrigger>
                     {userProfile?.role === 'admin' && <TabsTrigger value="mapping" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Customer Mapping</TabsTrigger>}
                 </TabsList>
+
+                {/* --- SUMMARY --- */}
+                <TabsContent value="summary" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
+                    <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden pt-[5px] pb-0">
+                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4 px-6 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 pt-[5px] pb-2">
+                            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">All Accounts</CardTitle>
+                            <div className="relative w-full sm:w-80 border border-transparent">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input 
+                                    type="text"
+                                    placeholder="Search by account name..."
+                                    value={summarySearchQuery}
+                                    onChange={(e) => setSummarySearchQuery(e.target.value)}
+                                    className="w-full pl-9 h-10 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
+                                />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
+                            <div className="flex-1 overflow-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10 border-b">
+                                        <tr>
+                                            <th className="px-6 py-4">Account Name</th>
+                                            <th className="px-6 py-4 text-right">Opening Balance</th>
+                                            <th className="px-6 py-4 text-right">Total Debit</th>
+                                            <th className="px-6 py-4 text-right">Total Credit</th>
+                                            <th className="px-6 py-4 text-right">Closing Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {accountSummaries.length === 0 && (
+                                            <tr><td colSpan={5} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
+                                        )}
+                                        {accountSummaries.map((acc, i) => (
+                                            <tr 
+                                                key={i} 
+                                                onClick={() => {
+                                                    setSelectedAccount(acc.name);
+                                                    setActiveTab('statement');
+                                                }}
+                                                className="border-b last:border-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors group"
+                                            >
+                                                <td className="px-6 py-4 font-bold text-blue-600 dark:text-blue-400 group-hover:underline">
+                                                    {acc.name}
+                                                    {acc.isParty && <span className="ml-2 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">Mapped</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-medium">{Math.abs(acc.opening).toFixed(2)} {acc.opening >= 0 ? (acc.opening > 0 ? 'Dr' : '') : 'Cr'}</td>
+                                                <td className="px-6 py-4 text-right font-medium">{acc.debit.toFixed(2)}</td>
+                                                <td className="px-6 py-4 text-right font-medium">{acc.credit.toFixed(2)}</td>
+                                                <td className="px-6 py-4 text-right font-bold space-x-1">
+                                                    <span className={acc.closing > 0 ? 'text-red-600' : acc.closing < 0 ? 'text-emerald-600' : ''}>
+                                                        {Math.abs(acc.closing).toFixed(2)}
+                                                    </span>
+                                                    <span className="text-slate-400 text-xs">{acc.closing >= 0 ? (acc.closing > 0 ? 'Dr' : '') : 'Cr'}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
                 {/* --- ACCOUNT OPENING --- */}
                 <TabsContent value="opening" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
@@ -1440,19 +1594,70 @@ export function InternalAccounts() {
                                                 </tr>
 
                                                 {/* Transaction Rows */}
-                                                {paginatedStatementTxns.map((tx, i) => (
-                                                    <tr key={tx.id} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
-                                                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{tx.date}</td>
+                                                {paginatedStatementTxns.map((tx, i) => {
+                                                    const hasItems = tx.items && tx.items.length > 0;
+                                                    const isExpanded = expandedTxnIds.has(tx.id);
+                                                    return (
+                                                    <React.Fragment key={tx.id}>
+                                                    <tr 
+                                                        className={`border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors ${hasItems ? 'cursor-pointer' : ''}`}
+                                                        onClick={() => {
+                                                            if (!hasItems) return;
+                                                            const newSet = new Set(expandedTxnIds);
+                                                            if (newSet.has(tx.id)) newSet.delete(tx.id);
+                                                            else newSet.add(tx.id);
+                                                            setExpandedTxnIds(newSet);
+                                                        }}
+                                                    >
+                                                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                                                            <div className="flex items-center gap-2">
+                                                                {hasItems && (
+                                                                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                )}
+                                                                {tx.date}
+                                                            </div>
+                                                        </td>
                                                         <td className="px-4 py-3">
-                                                            <div>{tx.particulars}</div>
+                                                            <div className="font-medium text-slate-700 dark:text-slate-200">{tx.particulars}</div>
                                                             {tx.narration && <div className="text-xs text-slate-400 mt-0.5 max-w-sm truncate" title={tx.narration}>{tx.narration}</div>}
                                                         </td>
-                                                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{tx.vchType}</td>
+                                                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                                                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-semibold">{tx.vchType}</span>
+                                                        </td>
                                                         <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{tx.vchNo}</td>
-                                                        <td className="px-4 py-3 text-right">{tx.debit ? tx.debit.toFixed(2) : ''}</td>
-                                                        <td className="px-4 py-3 text-right">{tx.credit ? tx.credit.toFixed(2) : ''}</td>
+                                                        <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.debit ? tx.debit.toFixed(2) : ''}</td>
+                                                        <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.credit ? tx.credit.toFixed(2) : ''}</td>
                                                     </tr>
-                                                ))}
+                                                    {isExpanded && hasItems && (
+                                                        <tr className="bg-slate-50/50 dark:bg-[#0f172a] border-b">
+                                                            <td colSpan={6} className="p-0">
+                                                                <div className="px-8 py-3 bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-900/10">
+                                                                    <table className="w-full text-xs text-left">
+                                                                        <thead>
+                                                                            <tr className="text-slate-500 font-bold uppercase tracking-wider">
+                                                                                <th className="pb-2">Item Name</th>
+                                                                                <th className="pb-2 text-right">Quantity</th>
+                                                                                <th className="pb-2 text-right">Rate</th>
+                                                                                <th className="pb-2 text-right">Amount</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {tx.items!.map((item, idx) => (
+                                                                                <tr key={idx} className="border-t border-slate-200/60 dark:border-slate-700/60">
+                                                                                    <td className="py-2 text-slate-700 dark:text-slate-300">{item.name}</td>
+                                                                                    <td className="py-2 text-right text-slate-600 dark:text-slate-400">{item.quantity}</td>
+                                                                                    <td className="py-2 text-right text-slate-600 dark:text-slate-400">{item.rate ? item.rate.toFixed(2) : ''}</td>
+                                                                                    <td className="py-2 text-right font-semibold text-slate-700 dark:text-slate-300">{item.amount ? item.amount.toFixed(2) : ''}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    </React.Fragment>
+                                                )})}
                                                 
                                                 {statementTransactions.length === 0 && (
                                                     <tr>
