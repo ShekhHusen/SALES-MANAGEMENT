@@ -980,6 +980,50 @@ export function InternalAccounts() {
         doc.save(`Statement_With_Vehicles_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     };
 
+    const downloadVoucherPDF = (e: React.MouseEvent, tx: Transaction) => {
+        e.stopPropagation();
+        const doc = new jsPDF();
+        
+        doc.setFontSize(20);
+        doc.text("Voucher", 14, 22);
+        
+        doc.setFontSize(10);
+        doc.text(`Date: ${tx.date && (tx.date as any).toDate ? (tx.date as any).toDate().toLocaleDateString('en-GB') : tx.date}`, 14, 32);
+        doc.text(`Voucher No: ${tx.vchNo || '-'}`, 14, 38);
+        doc.text(`Voucher Type: ${tx.vchType || '-'}`, 14, 44);
+        
+        doc.text(`Account: ${tx.particulars || '-'}`, 14, 54);
+        doc.text(`Debit: ${tx.debit ? tx.debit.toFixed(2) : '0.00'}`, 14, 60);
+        doc.text(`Credit: ${tx.credit ? tx.credit.toFixed(2) : '0.00'}`, 14, 66);
+        
+        let startY = 76;
+        if (tx.narration) {
+            doc.text("Narration:", 14, startY);
+            const splitNarration = doc.splitTextToSize(tx.narration, 180);
+            doc.text(splitNarration, 14, startY + 6);
+            startY += 6 + (splitNarration.length * 5) + 6;
+        }
+        
+        if (tx.items && tx.items.length > 0) {
+            const itemRows = tx.items.map(item => [
+                item.name,
+                item.quantity,
+                item.rate ? item.rate.toFixed(2) : '',
+                item.amount ? item.amount.toFixed(2) : ''
+            ]);
+            
+            autoTable(doc, {
+                startY: startY,
+                head: [['Item Name', 'Quantity', 'Rate', 'Amount']],
+                body: itemRows,
+                theme: 'grid',
+                headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255] }
+            });
+        }
+        
+        doc.save(`Voucher_${tx.vchNo || 'Unknown'}.pdf`);
+    };
+
     return (
         <div className="flex flex-col gap-6 h-full p-4 md:p-6 overflow-hidden bg-slate-50/50 dark:bg-[#0f172a] lg:pt-[10px] lg:pb-[10px]">
             <div className="flex items-center justify-between">
@@ -1756,6 +1800,7 @@ export function InternalAccounts() {
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
                                                     </th>
+                                                    <th className="px-4 py-3 border-b text-center w-[80px]">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1771,6 +1816,7 @@ export function InternalAccounts() {
                                                     <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
                                                         {statementOpening?.credit ? statementOpening.credit.toFixed(2) : ''}
                                                     </td>
+                                                    <td className="px-4 py-3"></td>
                                                 </tr>
 
                                                 {/* Transaction Rows */}
@@ -1807,10 +1853,21 @@ export function InternalAccounts() {
                                                         <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{tx.vchNo}</td>
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.debit ? tx.debit.toFixed(2) : ''}</td>
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.credit ? tx.credit.toFixed(2) : ''}</td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="sm" 
+                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
+                                                                title="Download Voucher PDF"
+                                                                onClick={(e) => downloadVoucherPDF(e, tx)}
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                        </td>
                                                     </tr>
                                                     {isExpanded && hasItems && (
                                                         <tr className="bg-slate-50/50 dark:bg-[#0f172a] border-b">
-                                                            <td colSpan={6} className="p-0">
+                                                            <td colSpan={7} className="p-0">
                                                                 <div className="px-8 py-3 bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-900/10">
                                                                     <table className="w-full text-xs text-left">
                                                                         <thead>
@@ -1841,7 +1898,7 @@ export function InternalAccounts() {
                                                 
                                                 {statementTransactions.length === 0 && (
                                                     <tr>
-                                                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">No transactions recorded.</td>
+                                                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">No transactions recorded.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
