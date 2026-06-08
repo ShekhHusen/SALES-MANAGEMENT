@@ -189,11 +189,13 @@ export function InternalAccounts() {
     const [linkedMappingSearchQuery, setLinkedMappingSearchQuery] = useState('');
     const [openingSearchQuery, setOpeningSearchQuery] = useState('');
     const [summarySearchQuery, setSummarySearchQuery] = useState('');
+    const [summaryFilter, setSummaryFilter] = useState('all');
     const [expandedTxnIds, setExpandedTxnIds] = useState<Set<string>>(new Set());
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
     const [openingsSort, setOpeningsSort] = useState<SortConfig>(null);
     const [transactionsSort, setTransactionsSort] = useState<SortConfig>(null);
+    const [summarySort, setSummarySort] = useState<SortConfig>(null);
 
     const handleSort = (key: string, currentSort: SortConfig, setSort: (s: SortConfig) => void) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -718,10 +720,10 @@ export function InternalAccounts() {
     }, [linkedParty, sales]);
 
     const accountSummaries = useMemo(() => {
-        const accMap = new Map<string, { opening: number, debit: number, credit: number }>();
+        const accMap = new Map<string, { opening: number, debit: number, credit: number, lastActivity: Date | null, isParty: boolean }>();
 
         allAccountNames.forEach(name => {
-            accMap.set(name, { opening: 0, debit: 0, credit: 0 });
+            accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: !!mappings[name] || parties.some(p => p.name.toLowerCase() === name.toLowerCase()) });
         });
 
         openings.forEach(o => {
@@ -736,21 +738,72 @@ export function InternalAccounts() {
                 const acc = accMap.get(t.particulars)!;
                 acc.debit += (t.debit || 0);
                 acc.credit += (t.credit || 0);
+                
+                let tDate: Date | null = null;
+                if (t.date) {
+                    if ((t.date as any).toDate) {
+                        tDate = (t.date as any).toDate();
+                    } else if (typeof t.date === 'string') {
+                        tDate = new Date(t.date);
+                    }
+                }
+                
+                if (tDate) {
+                    if (!acc.lastActivity || tDate > acc.lastActivity) {
+                        acc.lastActivity = tDate;
+                    }
+                }
             }
         });
 
-        const list = Array.from(accMap.entries()).map(([name, data]) => ({
+        let list = Array.from(accMap.entries()).map(([name, data]) => ({
             name,
             opening: data.opening,
             debit: data.debit,
             credit: data.credit,
-            closing: data.opening + data.debit - data.credit
+            closing: data.opening + data.debit - data.credit,
+            lastActivity: data.lastActivity,
+            isParty: data.isParty
         }));
         
-        if (summarySearchQuery.trim() === '') return list;
-        const q = summarySearchQuery.toLowerCase();
-        return list.filter(a => a.name.toLowerCase().includes(q));
-    }, [allAccountNames, openings, transactions, summarySearchQuery]);
+        if (summarySearchQuery.trim() !== '') {
+            const q = summarySearchQuery.toLowerCase();
+            list = list.filter(a => a.name.toLowerCase().includes(q));
+        }
+
+        if (summaryFilter !== 'all') {
+            if (summaryFilter === 'receivable') {
+                list = list.filter(a => a.closing > 0);
+            } else if (summaryFilter === 'payable') {
+                list = list.filter(a => a.closing < 0);
+            } else if (summaryFilter === 'above_1l_receivable') {
+                list = list.filter(a => a.closing > 100000);
+            } else if (summaryFilter === 'above_1l_payable') {
+                list = list.filter(a => a.closing < -100000);
+            }
+        }
+
+        if (summarySort) {
+            list.sort((a, b) => {
+                let valA: any = a[summarySort.key as keyof typeof a];
+                let valB: any = b[summarySort.key as keyof typeof b];
+
+                if (summarySort.key === 'closing_abs') {
+                    valA = Math.abs(a.closing);
+                    valB = Math.abs(b.closing);
+                } else if (summarySort.key === 'lastActivity') {
+                    valA = valA ? valA.getTime() : 0;
+                    valB = valB ? valB.getTime() : 0;
+                }
+
+                if (valA < valB) return summarySort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return summarySort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return list;
+    }, [allAccountNames, openings, transactions, summarySearchQuery, mappings, parties, summaryFilter, summarySort]);
 
     const totals = useMemo(() => {
         const opDb = statementOpening?.debit || 0;
@@ -932,15 +985,29 @@ export function InternalAccounts() {
                     <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden pt-[5px] pb-0">
                         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4 px-6 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 pt-[5px] pb-2">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">All Accounts</CardTitle>
-                            <div className="relative w-full sm:w-80 border border-transparent">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <input 
-                                    type="text"
-                                    placeholder="Search by account name..."
-                                    value={summarySearchQuery}
-                                    onChange={(e) => setSummarySearchQuery(e.target.value)}
-                                    className="w-full pl-9 h-10 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
-                                />
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <Select value={summaryFilter} onValueChange={setSummaryFilter}>
+                                    <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                                        <SelectValue placeholder="All Accounts" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Accounts</SelectItem>
+                                        <SelectItem value="receivable">Receivables (Dr)</SelectItem>
+                                        <SelectItem value="payable">Payables (Cr)</SelectItem>
+                                        <SelectItem value="above_1l_receivable">Due &gt; 1 Lakh</SelectItem>
+                                        <SelectItem value="above_1l_payable">Payable &gt; 1 Lakh</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="relative w-full sm:w-80 border border-transparent">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <input 
+                                        type="text"
+                                        placeholder="Search by account name..."
+                                        value={summarySearchQuery}
+                                        onChange={(e) => setSummarySearchQuery(e.target.value)}
+                                        className="w-full pl-9 h-10 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
+                                    />
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1 flex flex-col min-h-0 p-0 overflow-hidden relative">
@@ -948,16 +1015,47 @@ export function InternalAccounts() {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10 border-b">
                                         <tr>
-                                            <th className="px-6 py-4">Account Name</th>
-                                            <th className="px-6 py-4 text-right">Opening Balance</th>
-                                            <th className="px-6 py-4 text-right">Total Debit</th>
-                                            <th className="px-6 py-4 text-right">Total Credit</th>
-                                            <th className="px-6 py-4 text-right">Closing Balance</th>
+                                            <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('name', summarySort, setSummarySort)}>
+                                                <div className="flex items-center gap-2">
+                                                    Account Name
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'name' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('opening', summarySort, setSummarySort)}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Opening Balance
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'opening' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('debit', summarySort, setSummarySort)}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Total Debit
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'debit' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('credit', summarySort, setSummarySort)}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Total Credit
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'credit' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('closing_abs', summarySort, setSummarySort)}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Closing Balance
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'closing_abs' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
+                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lastActivity', summarySort, setSummarySort)}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Last Activity
+                                                    <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'lastActivity' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {accountSummaries.length === 0 && (
-                                            <tr><td colSpan={5} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
+                                            <tr><td colSpan={6} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
                                         )}
                                         {accountSummaries.map((acc, i) => (
                                             <tr 
@@ -980,6 +1078,9 @@ export function InternalAccounts() {
                                                         {Math.abs(acc.closing).toFixed(2)}
                                                     </span>
                                                     <span className="text-slate-400 text-xs">{acc.closing >= 0 ? (acc.closing > 0 ? 'Dr' : '') : 'Cr'}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-medium text-slate-600 dark:text-slate-400">
+                                                    {acc.lastActivity ? acc.lastActivity.toLocaleDateString() : '-'}
                                                 </td>
                                             </tr>
                                         ))}
