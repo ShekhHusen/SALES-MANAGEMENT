@@ -147,6 +147,8 @@ interface Transaction {
     credit: number;
     narration: string;
     items?: TransactionItem[];
+    runningBalance?: string;
+    runningBalanceType?: string;
 }
 
 export function InternalAccounts() {
@@ -521,8 +523,30 @@ export function InternalAccounts() {
 
     const statementTransactions = useMemo(() => {
         if (!selectedAccount) return [];
-        const filtered = transactions.filter(t => (t.particulars || '').trim() === selectedAccount);
+        let filtered = transactions.filter(t => (t.particulars || '').trim() === selectedAccount);
         
+        // 1. Sort chronologically to compute running balance
+        filtered.sort((a, b) => {
+            const dateA = a.date && (a.date as any).toDate ? (a.date as any).toDate().getTime() : new Date(a.date).getTime();
+            const dateB = b.date && (b.date as any).toDate ? (b.date as any).toDate().getTime() : new Date(b.date).getTime();
+            return dateA - dateB;
+        });
+
+        // 2. Compute running balance
+        let runDb = statementOpening?.debit || 0;
+        let runCr = statementOpening?.credit || 0;
+        filtered = filtered.map(t => {
+            runDb += (t.debit || 0);
+            runCr += (t.credit || 0);
+            const bal = runDb - runCr;
+            return {
+                ...t,
+                runningBalance: Math.abs(bal).toFixed(2),
+                runningBalanceType: bal >= 0 ? 'Dr' : 'Cr'
+            };
+        });
+
+        // 3. User sort
         return filtered.sort((a, b) => {
             if (!statementSort) return 0;
             const dir = statementSort.direction === 'asc' ? 1 : -1;
@@ -540,7 +564,7 @@ export function InternalAccounts() {
             if (valA > valB) return 1 * dir;
             return 0;
         });
-    }, [selectedAccount, transactions, statementSort]);
+    }, [selectedAccount, transactions, statementSort, statementOpening]);
 
     useEffect(() => {
         setStatementPage(1);
@@ -891,10 +915,12 @@ export function InternalAccounts() {
         let startY = 30;
 
         // 1. Vehicle Details (Top)
-        const vehicleColumns = ["Sale Date", "File No", "Chassis No", "Company & Model", "Color & Reg No", "Doc Status", "Battery Info", "Price"];
-        const vehicleRows: any[] = [];
+        const hasVehicles = linkedParty && linkedSales.length > 0;
         
-        if (linkedParty && linkedSales.length > 0) {
+        if (hasVehicles) {
+            const vehicleColumns = ["Sale Date", "File No", "Chassis No", "Company & Model", "Color & Reg No", "Doc Status", "Battery Info", "Price"];
+            const vehicleRows: any[] = [];
+            
             linkedSales.forEach(s => {
                 const vehicle = vehicles.find(v => v.chassisNumber === s.chassisNumber);
                 const model = vehicle ? models.find(m => m.id === vehicle.modelId) : null;
@@ -918,34 +944,36 @@ export function InternalAccounts() {
                     otherDetail?.price ? otherDetail.price.toFixed(2) : '0.00'
                 ]);
             });
-        } else {
-            vehicleRows.push(["", "No vehicle sales linked to this account.", "", "", "", "", "", ""]);
+
+            doc.setFontSize(14);
+            doc.text("Vehicle Details", 14, startY);
+            startY += 8;
+
+            autoTable(doc, {
+                head: [vehicleColumns],
+                body: vehicleRows,
+                startY: startY,
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+            });
+
+            startY = (doc as any).lastAutoTable.finalY + 15;
         }
 
-        doc.setFontSize(14);
-        doc.text("Vehicle Details", 14, startY);
-        startY += 8;
-
-        autoTable(doc, {
-            head: [vehicleColumns],
-            body: vehicleRows,
-            startY: startY,
-            styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-        });
-
-        startY = (doc as any).lastAutoTable.finalY + 15;
-
         // 2. Statement Transactions (Bottom)
-        const statementColumns = ["Date", "Particulars", "Vch Type", "Debit", "Credit"];
+        const statementColumns = ["Date", "Particulars", "Vch Type", "Debit", "Credit", "Balance"];
         const statementRows: any[] = [];
         
         if (statementOpening) {
+            const db = statementOpening.debit || 0;
+            const cr = statementOpening.credit || 0;
+            const isDr = db >= cr;
             statementRows.push([
                 (statementOpening.date && (statementOpening.date as any).toDate) ? (statementOpening.date as any).toDate().toLocaleDateString('en-GB') : statementOpening.date,
                 "OPENING BALANCE",
                 "Opening",
                 statementOpening.debit ? statementOpening.debit.toFixed(2) : '0.00',
-                statementOpening.credit ? statementOpening.credit.toFixed(2) : '0.00'
+                statementOpening.credit ? statementOpening.credit.toFixed(2) : '0.00',
+                `${Math.abs(db - cr).toFixed(2)} ${isDr ? 'Dr' : 'Cr'}`
             ]);
         }
         
@@ -953,20 +981,22 @@ export function InternalAccounts() {
             statementRows.push([
                 (t.date && (t.date as any).toDate) ? (t.date as any).toDate().toLocaleDateString('en-GB') : t.date,
                 t.particulars,
-                t.voucherType,
+                t.voucherType || t.vchType, // Fallback if voucherType isn't fully defined
                 t.debit ? t.debit.toFixed(2) : '0.00',
-                t.credit ? t.credit.toFixed(2) : '0.00'
+                t.credit ? t.credit.toFixed(2) : '0.00',
+                `${t.runningBalance || ''} ${t.runningBalanceType || ''}`.trim()
             ]);
         });
         
         if (statementRows.length === 0) {
-            statementRows.push(["", "No statement records found.", "", "", ""]);
+            statementRows.push(["", "No statement records found.", "", "", "", ""]);
         } else {
              statementRows.push(["", "CLOSING BALANCE", "", 
                  totals.isDebitBal ? '' : totals.balance.toFixed(2), 
-                 totals.isDebitBal ? totals.balance.toFixed(2) : ''
+                 totals.isDebitBal ? totals.balance.toFixed(2) : '',
+                 `${totals.balance.toFixed(2)} ${totals.isDebitBal ? 'Dr' : 'Cr'}`
              ]);
-             statementRows.push(["", "TOTAL", "", totals.totalDb.toFixed(2), totals.totalCr.toFixed(2)]);
+             statementRows.push(["", "TOTAL", "", totals.totalDb.toFixed(2), totals.totalCr.toFixed(2), ""]);
         }
 
         doc.setFontSize(14);
@@ -979,7 +1009,7 @@ export function InternalAccounts() {
             startY: startY,
         });
 
-        doc.save(`Statement_With_Vehicles_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+        doc.save(`Statement_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     };
 
     const getClosingBalanceAsOnDate = (date: any) => {
@@ -1829,6 +1859,11 @@ export function InternalAccounts() {
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
                                                     </th>
+                                                    <th className="px-4 py-3 border-b text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            Balance
+                                                        </div>
+                                                    </th>
                                                     <th className="px-4 py-3 border-b text-center w-[80px]">Action</th>
                                                 </tr>
                                             </thead>
@@ -1844,6 +1879,14 @@ export function InternalAccounts() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
                                                         {statementOpening?.credit ? statementOpening.credit.toFixed(2) : ''}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
+                                                        {(() => {
+                                                            const db = statementOpening?.debit || 0;
+                                                            const cr = statementOpening?.credit || 0;
+                                                            const isDr = db >= cr;
+                                                            return `${Math.abs(db - cr).toFixed(2)} ${isDr ? 'Dr' : 'Cr'}`;
+                                                        })()}
                                                     </td>
                                                     <td className="px-4 py-3"></td>
                                                 </tr>
@@ -1882,6 +1925,10 @@ export function InternalAccounts() {
                                                         <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{tx.vchNo}</td>
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.debit ? tx.debit.toFixed(2) : ''}</td>
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.credit ? tx.credit.toFixed(2) : ''}</td>
+                                                        <td className="px-4 py-3 text-right font-bold text-slate-800 dark:text-slate-200">
+                                                            {tx.runningBalance || ''} 
+                                                            {tx.runningBalanceType && <span className="text-xs font-medium ml-1 text-slate-500">{tx.runningBalanceType}</span>}
+                                                        </td>
                                                         <td className="px-4 py-3 text-center">
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <Button 
