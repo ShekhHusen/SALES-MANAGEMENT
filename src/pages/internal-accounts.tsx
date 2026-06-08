@@ -175,6 +175,8 @@ export function InternalAccounts() {
     // View Sheet state
     const [viewSheetOpen, setViewSheetOpen] = useState(false);
     const [viewSale, setViewSale] = useState<any>(null);
+    const [viewVoucherOpen, setViewVoucherOpen] = useState(false);
+    const [selectedVoucher, setSelectedVoucher] = useState<Transaction | null>(null);
 
     // Pagination states
     const ITEMS_PER_PAGE = 10;
@@ -1854,15 +1856,30 @@ export function InternalAccounts() {
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.debit ? tx.debit.toFixed(2) : ''}</td>
                                                         <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{tx.credit ? tx.credit.toFixed(2) : ''}</td>
                                                         <td className="px-4 py-3 text-center">
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="sm" 
-                                                                className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
-                                                                title="Download Voucher PDF"
-                                                                onClick={(e) => downloadVoucherPDF(e, tx)}
-                                                            >
-                                                                <Download className="w-4 h-4" />
-                                                            </Button>
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="sm" 
+                                                                    className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
+                                                                    title="View Voucher"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedVoucher(tx);
+                                                                        setViewVoucherOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="sm" 
+                                                                    className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600"
+                                                                    title="Download Voucher PDF"
+                                                                    onClick={(e) => downloadVoucherPDF(e, tx)}
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                     {isExpanded && hasItems && (
@@ -2186,6 +2203,95 @@ export function InternalAccounts() {
                 onOpenChange={setViewSheetOpen} 
                 viewSale={viewSale} 
             />
+
+            <Dialog open={viewVoucherOpen} onOpenChange={setViewVoucherOpen}>
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Voucher Details</DialogTitle>
+                    </DialogHeader>
+                    {selectedVoucher && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium mb-1">Date</p>
+                                    <p className="font-semibold text-slate-800 dark:text-slate-200">
+                                        {selectedVoucher.date && typeof (selectedVoucher.date as any).toDate === 'function' ? (selectedVoucher.date as any).toDate().toLocaleDateString('en-GB') : selectedVoucher.date}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium mb-1">Voucher No</p>
+                                    <p className="font-semibold text-slate-800 dark:text-slate-200">{selectedVoucher.vchNo || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium mb-1">Voucher Type</p>
+                                    <p className="font-semibold text-slate-800 dark:text-slate-200">{selectedVoucher.vchType || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium mb-1">Account</p>
+                                    <p className="font-semibold text-slate-800 dark:text-slate-200">{selectedVoucher.particulars || '-'}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider mb-1">Debit</p>
+                                    <p className="text-xl font-black text-slate-800 dark:text-slate-200">{selectedVoucher.debit ? selectedVoucher.debit.toFixed(2) : '0.00'}</p>
+                                </div>
+                                <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-1">Credit</p>
+                                    <p className="text-xl font-black text-slate-800 dark:text-slate-200">{selectedVoucher.credit ? selectedVoucher.credit.toFixed(2) : '0.00'}</p>
+                                </div>
+                            </div>
+
+                            {selectedVoucher.narration && (
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Narration</p>
+                                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
+                                        {selectedVoucher.narration}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedVoucher.items && selectedVoucher.items.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">Items</p>
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-medium">
+                                                <tr>
+                                                    <th className="px-4 py-3">Item Name</th>
+                                                    <th className="px-4 py-3 text-right">Quantity</th>
+                                                    <th className="px-4 py-3 text-right">Rate</th>
+                                                    <th className="px-4 py-3 text-right">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {selectedVoucher.items.map((item, idx) => (
+                                                    <tr key={idx} className="bg-white dark:bg-slate-950">
+                                                        <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">{item.name}</td>
+                                                        <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{item.quantity}</td>
+                                                        <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{item.rate ? item.rate.toFixed(2) : '-'}</td>
+                                                        <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">{item.amount ? item.amount.toFixed(2) : '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setViewVoucherOpen(false)}>Close</Button>
+                        <Button 
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                            onClick={(e) => { selectedVoucher && downloadVoucherPDF(e, selectedVoucher); setViewVoucherOpen(false); }}
+                        >
+                            <Download className="w-4 h-4" /> Download PDF
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
