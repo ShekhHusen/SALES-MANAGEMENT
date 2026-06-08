@@ -35,7 +35,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
     }, []);
 
     const filteredOptions = useMemo(() => {
-         return options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()) || o.value.toLowerCase().includes(search.toLowerCase()));
+         return options.filter(o => (o.label || '').toLowerCase().includes(search.toLowerCase()) || (o.value || '').toLowerCase().includes(search.toLowerCase()));
     }, [options, search]);
 
     const groupedOptions = useMemo(() => {
@@ -182,6 +182,7 @@ export function InternalAccounts() {
     const [openingsPage, setOpeningsPage] = useState(1);
     const [transactionsPage, setTransactionsPage] = useState(1);
     const [statementPage, setStatementPage] = useState(1);
+    const [summaryPage, setSummaryPage] = useState(1);
     
     // Mapping specific states
     const [mappingPage, setMappingPage] = useState(1);
@@ -368,11 +369,11 @@ export function InternalAccounts() {
                     return;
                 }
 
-                const existingAccountNames = new Set(openings.map(o => o.accountName.toLowerCase()));
+                const existingAccountNames = new Set(openings.map(o => (o.accountName || '').toLowerCase()));
                 const newOpeningsToCreate: any[] = [];
                 
                 validTxns.forEach(txn => {
-                    const accNameLower = txn.particulars.toLowerCase();
+                    const accNameLower = (txn.particulars || '').toLowerCase();
                     if (!existingAccountNames.has(accNameLower)) {
                         existingAccountNames.add(accNameLower);
                         newOpeningsToCreate.push({
@@ -471,8 +472,8 @@ export function InternalAccounts() {
 
     const allAccountNames = useMemo(() => {
         const names = new Set<string>();
-        openings.forEach(o => o.accountName && names.add(o.accountName.trim()));
-        transactions.forEach(t => t.particulars && names.add(t.particulars.trim()));
+        openings.forEach(o => o.accountName && names.add((o.accountName || '').trim()));
+        transactions.forEach(t => t.particulars && names.add((t.particulars || '').trim()));
         return Array.from(names).sort();
     }, [openings, transactions]);
 
@@ -482,24 +483,24 @@ export function InternalAccounts() {
 
         allAccountNames.forEach(name => {
             const isMapped = !!mappings[name];
-            const isPartyMatch = parties.some(p => p.name.toLowerCase() === name.toLowerCase());
+            const isPartyMatch = parties.some(p => (p.name || '').toLowerCase() === (name || '').toLowerCase());
             options.push({
                 label: name,
                 value: name,
                 category: (isMapped || isPartyMatch) ? "Parties" : "Internal Accounts"
             });
-            addedNames.add(name.toLowerCase());
+            addedNames.add((name || '').toLowerCase());
         });
 
         parties.forEach(p => {
             const isPartyMapped = Object.values(mappings).includes(p.id);
-            if (!isPartyMapped && !addedNames.has(p.name.toLowerCase())) {
+            if (!isPartyMapped && !addedNames.has((p.name || '').toLowerCase())) {
                 options.push({
                     label: p.name,
                     value: p.name,
                     category: "Un-linked Parties",
                 });
-                addedNames.add(p.name.toLowerCase());
+                addedNames.add((p.name || '').toLowerCase());
             }
         });
 
@@ -509,7 +510,7 @@ export function InternalAccounts() {
     const statementOpening = useMemo(() => {
         if (!selectedAccount) return null;
         // Sum up all openings for this account just in case there are multiple
-        const acts = openings.filter(o => o.accountName.trim() === selectedAccount);
+        const acts = openings.filter(o => (o.accountName || '').trim() === selectedAccount);
         if (acts.length === 0) return null;
         const totalDebit = acts.reduce((acc, a) => acc + (a.debit || 0), 0);
         const totalCredit = acts.reduce((acc, a) => acc + (a.credit || 0), 0);
@@ -518,7 +519,7 @@ export function InternalAccounts() {
 
     const statementTransactions = useMemo(() => {
         if (!selectedAccount) return [];
-        const filtered = transactions.filter(t => t.particulars.trim() === selectedAccount);
+        const filtered = transactions.filter(t => (t.particulars || '').trim() === selectedAccount);
         
         return filtered.sort((a, b) => {
             if (!statementSort) return 0;
@@ -549,8 +550,8 @@ export function InternalAccounts() {
         if (openingSearchQuery.trim()) {
             const query = openingSearchQuery.toLowerCase();
             sortable = sortable.filter(o => 
-                (o.accountName && o.accountName.toLowerCase().includes(query)) ||
-                (o.date && o.date.toLowerCase().includes(query))
+                (o.accountName && (o.accountName || '').toLowerCase().includes(query)) ||
+                (o.date && String(o.date).toLowerCase().includes(query))
             );
         }
 
@@ -644,7 +645,7 @@ export function InternalAccounts() {
         if (mappings[selectedAccount]) {
             return parties.find(p => p.id === mappings[selectedAccount]) || null;
         }
-        return parties.find(p => p.name.toLowerCase() === selectedAccount.toLowerCase()) || null;
+        return parties.find(p => (p.name || '').toLowerCase() === (selectedAccount || '').toLowerCase()) || null;
     }, [selectedAccount, mappings, parties]);
     
     useEffect(() => {
@@ -724,7 +725,7 @@ export function InternalAccounts() {
         const accMap = new Map<string, { opening: number, debit: number, credit: number, lastActivity: Date | null, isParty: boolean }>();
 
         allAccountNames.forEach(name => {
-            accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: !!mappings[name] || parties.some(p => p.name.toLowerCase() === name.toLowerCase()) });
+            accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: !!mappings[name] || parties.some(p => (p.name || '').toLowerCase() === (name || '').toLowerCase()) });
         });
 
         openings.forEach(o => {
@@ -769,7 +770,7 @@ export function InternalAccounts() {
         
         if (summarySearchQuery.trim() !== '') {
             const q = summarySearchQuery.toLowerCase();
-            list = list.filter(a => a.name.toLowerCase().includes(q));
+            list = list.filter(a => (a.name || '').toLowerCase().includes(q));
         }
 
         if (summaryFilter !== 'all') {
@@ -805,6 +806,21 @@ export function InternalAccounts() {
 
         return list;
     }, [allAccountNames, openings, transactions, summarySearchQuery, mappings, parties, summaryFilter, summarySort]);
+
+    const paginatedAccountSummaries = useMemo(() => {
+        const start = (summaryPage - 1) * ITEMS_PER_PAGE;
+        return accountSummaries.slice(start, start + ITEMS_PER_PAGE);
+    }, [accountSummaries, summaryPage]);
+
+    const summaryTotals = useMemo(() => {
+        let totalReceivable = 0;
+        let totalPayable = 0;
+        accountSummaries.forEach(acc => {
+            if (acc.closing > 0) totalReceivable += acc.closing;
+            if (acc.closing < 0) totalPayable += Math.abs(acc.closing);
+        });
+        return { count: accountSummaries.length, receivable: totalReceivable, payable: totalPayable };
+    }, [accountSummaries]);
 
     const totals = useMemo(() => {
         const opDb = statementOpening?.debit || 0;
@@ -987,7 +1003,10 @@ export function InternalAccounts() {
                         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4 px-6 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 pt-[5px] pb-2">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">All Accounts</CardTitle>
                             <div className="flex items-center gap-3 w-full md:w-auto">
-                                <Select value={summaryFilter} onValueChange={setSummaryFilter}>
+                                <Select value={summaryFilter} onValueChange={(v) => {
+                                    setSummaryFilter(v);
+                                    setSummaryPage(1);
+                                }}>
                                     <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                                         <SelectValue placeholder="All Accounts" />
                                     </SelectTrigger>
@@ -1005,7 +1024,10 @@ export function InternalAccounts() {
                                         type="text"
                                         placeholder="Search by account name..."
                                         value={summarySearchQuery}
-                                        onChange={(e) => setSummarySearchQuery(e.target.value)}
+                                        onChange={(e) => {
+                                            setSummarySearchQuery(e.target.value);
+                                            setSummaryPage(1);
+                                        }}
                                         className="w-full pl-9 h-10 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-400"
                                     />
                                 </div>
@@ -1058,7 +1080,7 @@ export function InternalAccounts() {
                                         {accountSummaries.length === 0 && (
                                             <tr><td colSpan={6} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
                                         )}
-                                        {accountSummaries.map((acc, i) => (
+                                        {paginatedAccountSummaries.map((acc, i) => (
                                             <tr 
                                                 key={i} 
                                                 onClick={() => {
@@ -1086,8 +1108,39 @@ export function InternalAccounts() {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    {accountSummaries.length > 0 && (
+                                        <tfoot className="bg-slate-50 dark:bg-[#0f172a] sticky bottom-0 border-t border-slate-200 dark:border-slate-700 shadow-md z-10">
+                                            <tr>
+                                                <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">Total Accounts: {summaryTotals.count}</td>
+                                                <td className="px-6 py-4 text-right"></td>
+                                                <td className="px-6 py-4 text-right"></td>
+                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                                                    <div>Dr: <span className="text-red-600">{summaryTotals.receivable.toFixed(2)}</span></div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                                                    <div>Cr: <span className="text-emerald-600">{summaryTotals.payable.toFixed(2)}</span></div>
+                                                </td>
+                                                <td className="px-6 py-4"></td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
                                 </table>
                             </div>
+                            
+                            {/* Summary Pagination */}
+                            {accountSummaries.length > ITEMS_PER_PAGE && (
+                                <div className="flex items-center justify-between px-4 py-3 lg:py-[5px] border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 z-10 shadow-sm text-sm text-slate-500">
+                                    <div>Showing {((summaryPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(summaryPage * ITEMS_PER_PAGE, accountSummaries.length)} of {accountSummaries.length} entries</div>
+                                    <div className="flex gap-1">
+                                        <Button variant="outline" size="sm" onClick={() => setSummaryPage(p => Math.max(1, p - 1))} disabled={summaryPage === 1} className="h-8">
+                                            <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => setSummaryPage(p => Math.min(Math.ceil(accountSummaries.length / ITEMS_PER_PAGE), p + 1))} disabled={summaryPage === Math.ceil(accountSummaries.length / ITEMS_PER_PAGE)} className="h-8">
+                                            Next <ChevronRight className="w-4 h-4 ml-1" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -1148,7 +1201,7 @@ export function InternalAccounts() {
                                             <tr><td colSpan={4} className="p-4 text-center text-slate-500">No opening balances found.</td></tr>
                                         )}
                                         {paginatedOpenings.map((op, i) => {
-                                            const linkedPartyId = mappings[op.accountName] || mappings[op.accountName.trim()];
+                                            const linkedPartyId = mappings[op.accountName] || mappings[(op.accountName || '').trim()];
                                             const linkedParty = linkedPartyId ? parties.find(p => p.id === linkedPartyId) : null;
                                             return (
                                                 <tr key={i} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50">
@@ -1832,7 +1885,7 @@ export function InternalAccounts() {
                             {(() => {
                                 const unlinkedParties = parties.filter(p => !Object.values(mappings).includes(p.id) && (showHiddenParties ? true : !hiddenParties.includes(p.id)));
                                 const filteredParties = unlinkedParties.filter(p => 
-                                    p.name.toLowerCase().includes(mappingSearchQuery.toLowerCase()) || 
+                                    (p.name || '').toLowerCase().includes((mappingSearchQuery || '').toLowerCase()) || 
                                     (p.contactNumber && p.contactNumber.includes(mappingSearchQuery))
                                 );
                                 
@@ -1996,7 +2049,7 @@ export function InternalAccounts() {
                                         if (!linkedMappingSearchQuery) return true;
                                         const query = linkedMappingSearchQuery.toLowerCase();
                                         const party = parties.find(p => p.id === partyId);
-                                        return accountName.toLowerCase().includes(query) || (party && party.name.toLowerCase().includes(query));
+                                        return (accountName || '').toLowerCase().includes(query) || (party && (party.name || '').toLowerCase().includes(query));
                                     }).map(([accountName, partyId]) => {
                                         const party = parties.find(p => p.id === partyId);
                                         if (!party) return null;
