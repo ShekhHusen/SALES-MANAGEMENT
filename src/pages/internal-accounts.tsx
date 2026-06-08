@@ -982,6 +982,29 @@ export function InternalAccounts() {
         doc.save(`Statement_With_Vehicles_${selectedAccount.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     };
 
+    const getClosingBalanceAsOnDate = (date: any) => {
+        if (!date) return '';
+        const targetDateObj = date && typeof (date as any).toDate === 'function' ? (date as any).toDate() : new Date(date);
+        const targetTime = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate()).getTime();
+        
+        let db = statementOpening?.debit || 0;
+        let cr = statementOpening?.credit || 0;
+        
+        statementTransactions.forEach(t => {
+            if (!t.date) return;
+            const tDateObj = t.date && typeof (t.date as any).toDate === 'function' ? (t.date as any).toDate() : new Date(t.date);
+            const tTime = new Date(tDateObj.getFullYear(), tDateObj.getMonth(), tDateObj.getDate()).getTime();
+            if (tTime <= targetTime) {
+                db += (t.debit || 0);
+                cr += (t.credit || 0);
+            }
+        });
+        
+        const balance = db - cr;
+        const balPrefix = balance >= 0 ? 'Dr' : 'Cr';
+        return `${Math.abs(balance).toFixed(2)} ${balPrefix}`;
+    };
+
     const downloadVoucherPDF = (e: React.MouseEvent, tx: Transaction) => {
         e.stopPropagation();
         const doc = new jsPDF();
@@ -989,16 +1012,20 @@ export function InternalAccounts() {
         doc.setFontSize(20);
         doc.text("Voucher", 14, 22);
         
+        const formattedDate = tx.date && (tx.date as any).toDate ? (tx.date as any).toDate().toLocaleDateString('en-GB') : tx.date;
+        const closingBalance = getClosingBalanceAsOnDate(tx.date);
+
         doc.setFontSize(10);
-        doc.text(`Date: ${tx.date && (tx.date as any).toDate ? (tx.date as any).toDate().toLocaleDateString('en-GB') : tx.date}`, 14, 32);
+        doc.text(`Date: ${formattedDate}`, 14, 32);
         doc.text(`Voucher No: ${tx.vchNo || '-'}`, 14, 38);
         doc.text(`Voucher Type: ${tx.vchType || '-'}`, 14, 44);
         
         doc.text(`Account: ${tx.particulars || '-'}`, 14, 54);
         doc.text(`Debit: ${tx.debit ? tx.debit.toFixed(2) : '0.00'}`, 14, 60);
         doc.text(`Credit: ${tx.credit ? tx.credit.toFixed(2) : '0.00'}`, 14, 66);
+        doc.text(`Closing Balance (As on ${formattedDate}): ${closingBalance}`, 14, 72);
         
-        let startY = 76;
+        let startY = 82;
         if (tx.narration) {
             doc.text("Narration:", 14, startY);
             const splitNarration = doc.splitTextToSize(tx.narration, 180);
@@ -2232,7 +2259,7 @@ export function InternalAccounts() {
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
                                     <p className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider mb-1">Debit</p>
                                     <p className="text-xl font-black text-slate-800 dark:text-slate-200">{selectedVoucher.debit ? selectedVoucher.debit.toFixed(2) : '0.00'}</p>
@@ -2240,6 +2267,17 @@ export function InternalAccounts() {
                                 <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
                                     <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-1">Credit</p>
                                     <p className="text-xl font-black text-slate-800 dark:text-slate-200">{selectedVoucher.credit ? selectedVoucher.credit.toFixed(2) : '0.00'}</p>
+                                </div>
+                                <div className="bg-indigo-50/50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+                                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mb-1">
+                                        Closing Balance
+                                        <span className="text-[10px] ml-1 font-semibold opacity-70 border border-indigo-200 dark:border-indigo-800 px-1.5 py-0.5 rounded shadow-sm bg-white/50 dark:bg-slate-900/50">
+                                            As on {selectedVoucher.date && typeof (selectedVoucher.date as any).toDate === 'function' ? (selectedVoucher.date as any).toDate().toLocaleDateString('en-GB') : selectedVoucher.date}
+                                        </span>
+                                    </p>
+                                    <p className="text-xl font-black text-slate-800 dark:text-slate-200">
+                                        {getClosingBalanceAsOnDate(selectedVoucher.date)}
+                                    </p>
                                 </div>
                             </div>
 
