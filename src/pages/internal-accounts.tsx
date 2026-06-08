@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -989,13 +989,38 @@ export function InternalAccounts() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 pt-0 pb-0 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-wrap h-[83px] mb-0 md:mb-0 w-full sm:w-auto gap-1 max-md:pt-0 max-md:h-[106px] lg:bg-[#eee9e9] dark:lg:bg-[#0f172a] lg:pl-[24px] lg:pr-[34px] lg:w-[800px] lg:pt-[5px] lg:pb-[5px] lg:h-[42px]">
-                    <TabsTrigger value="summary" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-0 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">All Accounts</TabsTrigger>
-                    {userProfile?.role === 'admin' && <TabsTrigger value="opening" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-[10px] py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Account Opening</TabsTrigger>}
-                    {userProfile?.role === 'admin' && <TabsTrigger value="transactions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-[10px] py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Transactions</TabsTrigger>}
-                    <TabsTrigger value="statement" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 max-md:px-0 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Account Statement</TabsTrigger>
-                    {userProfile?.role === 'admin' && <TabsTrigger value="mapping" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]">Customer Mapping</TabsTrigger>}
-                </TabsList>
+                <div className="relative group max-w-full flex items-center w-full pr-0 mb-0">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute left-0 z-10 rounded-full h-8 w-8 shadow-sm bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 opacity-80 hover:opacity-100 flex lg:hidden cursor-pointer transition-all"
+                        onClick={() => document.getElementById('tabs-scroll-container')?.scrollBy({ left: -200, behavior: 'smooth' })}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div 
+                        id="tabs-scroll-container" 
+                        className="overflow-x-auto overflow-y-hidden flex w-full px-8 md:px-8 lg:px-0"
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    >
+                        <style>{`#tabs-scroll-container::-webkit-scrollbar { display: none; }`}</style>
+                        <TabsList className="bg-[#e0dede] dark:bg-[#0f172a] backdrop-blur-xl px-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex flex-nowrap w-max gap-1 py-[5px] min-h-[42px] mb-0">
+                            <TabsTrigger value="summary" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all whitespace-nowrap">All Accounts</TabsTrigger>
+                            {userProfile?.role === 'admin' && <TabsTrigger value="opening" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all whitespace-nowrap">Account Opening</TabsTrigger>}
+                            {userProfile?.role === 'admin' && <TabsTrigger value="transactions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all whitespace-nowrap">Transactions</TabsTrigger>}
+                            <TabsTrigger value="statement" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all whitespace-nowrap">Account Statement</TabsTrigger>
+                            {userProfile?.role === 'admin' && <TabsTrigger value="mapping" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all whitespace-nowrap">Customer Mapping</TabsTrigger>}
+                        </TabsList>
+                    </div>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute right-0 z-10 rounded-full h-8 w-8 shadow-sm bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 opacity-80 hover:opacity-100 flex lg:hidden cursor-pointer transition-all"
+                        onClick={() => document.getElementById('tabs-scroll-container')?.scrollBy({ left: 200, behavior: 'smooth' })}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
 
                 {/* --- SUMMARY --- */}
                 <TabsContent value="summary" className="flex-1 mt-6 flex flex-col min-h-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:slide-in-from-bottom-2 duration-300">
