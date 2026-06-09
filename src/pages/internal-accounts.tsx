@@ -228,30 +228,29 @@ export function InternalAccounts() {
     const handleVerifyBalance = async (e: React.MouseEvent, accountName: string, balance: number) => {
         e.stopPropagation();
         
-        let existingMetaId = '';
         const existingMeta = accountMetadata.find(m => m.accountName === accountName);
         
         try {
             if (existingMeta?.id) {
                 await updateDoc(doc(db, 'account_metadata', existingMeta.id), {
-                    verifiedAt: new Date(),
+                    verifiedAt: serverTimestamp(),
                     verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
-                    verifiedBalance: balance
+                    verifiedBalance: balance || 0
                 });
             } else {
                 await addDoc(collection(db, 'account_metadata'), {
-                    accountName,
+                    accountName: accountName || '',
                     mobileNumber: '',
                     address: '',
-                    verifiedAt: new Date(),
+                    verifiedAt: serverTimestamp(),
                     verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
-                    verifiedBalance: balance
+                    verifiedBalance: balance || 0
                 });
             }
             toast.success(`${accountName} balance verified!`);
         } catch (error) {
             console.error(error);
-            toast.error("Failed to verify balance");
+            toast.error(`Failed to verify balance: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
@@ -932,21 +931,21 @@ export function InternalAccounts() {
         try {
             if (metaForm.id) {
                 await updateDoc(doc(db, 'account_metadata', metaForm.id), {
-                    mobileNumber: metaForm.mobileNumber,
-                    address: metaForm.address,
+                    mobileNumber: metaForm.mobileNumber || '',
+                    address: metaForm.address || '',
                 });
             } else {
                 await addDoc(collection(db, 'account_metadata'), {
-                    accountName: metaForm.accountName,
-                    mobileNumber: metaForm.mobileNumber,
-                    address: metaForm.address,
+                    accountName: metaForm.accountName || '',
+                    mobileNumber: metaForm.mobileNumber || '',
+                    address: metaForm.address || '',
                 });
             }
             toast.success("Account details updated");
             setEditMetaOpen(false);
         } catch (error) {
             console.error(error);
-            toast.error("Failed to update details");
+            toast.error(`Failed to update details: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
 
