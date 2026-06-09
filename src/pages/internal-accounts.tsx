@@ -250,7 +250,7 @@ export function InternalAccounts() {
             }
             toast.success(`${accountName} balance verified!`);
         } catch (error) {
-            handleFirestoreError(error);
+            console.error(error);
             toast.error("Failed to verify balance");
         }
     };
@@ -945,7 +945,7 @@ export function InternalAccounts() {
             toast.success("Account details updated");
             setEditMetaOpen(false);
         } catch (error) {
-            handleFirestoreError(error);
+            console.error(error);
             toast.error("Failed to update details");
         }
     };
@@ -1356,7 +1356,7 @@ export function InternalAccounts() {
                                                 <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(() => {
                                                         const meta = accountMetadata.find(m => m.accountName === acc.name);
-                                                        const isVerified = meta?.verifiedBalance === acc.closing && meta?.verifiedAt;
+                                                        const isVerified = meta?.verifiedBalance !== undefined && Math.abs(meta.verifiedBalance - acc.closing) < 0.01 && meta?.verifiedAt;
                                                         
                                                         if (isVerified) {
                                                             const verTime = meta.verifiedAt && typeof meta.verifiedAt.toDate === 'function' ? meta.verifiedAt.toDate() : new Date(meta.verifiedAt);
@@ -1738,7 +1738,8 @@ export function InternalAccounts() {
                                                     </div>
                                                     {(() => {
                                                         const meta = accountMetadata.find(m => m.accountName === selectedAccount);
-                                                        const isVerified = meta?.verifiedBalance === totals.balance && meta?.verifiedAt;
+                                                        const currentSignedBalance = totals.isDebitBal ? totals.balance : -totals.balance;
+                                                        const isVerified = meta?.verifiedBalance !== undefined && Math.abs(meta.verifiedBalance - currentSignedBalance) < 0.01 && meta?.verifiedAt;
                                                         
                                                         if (isVerified) {
                                                             const verTime = meta.verifiedAt && typeof meta.verifiedAt.toDate === 'function' ? meta.verifiedAt.toDate() : new Date(meta.verifiedAt);
@@ -1755,7 +1756,7 @@ export function InternalAccounts() {
                                                                     variant="outline" 
                                                                     size="sm" 
                                                                     className="h-6 text-xs px-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900 dark:hover:bg-emerald-900/30 font-semibold"
-                                                                    onClick={(e) => handleVerifyBalance(e, selectedAccount, totals.balance)}
+                                                                    onClick={(e) => handleVerifyBalance(e, selectedAccount, currentSignedBalance)}
                                                                 >
                                                                     Verify Balance Now (₹{totals.balance.toFixed(2)})
                                                                 </Button>
