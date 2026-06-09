@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText, Eye, EyeOff } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText, Eye, EyeOff, MapPin, Edit2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -130,6 +130,13 @@ interface OpeningBalance {
     credit: number;
 }
 
+interface AccountMetadata {
+    id: string;
+    accountName: string;
+    mobileNumber: string;
+    address: string;
+}
+
 interface TransactionItem {
     name: string;
     quantity: number;
@@ -155,8 +162,14 @@ export function InternalAccounts() {
     const { userProfile } = useAuth();
     const [openings, setOpenings] = useState<OpeningBalance[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [accountMetadata, setAccountMetadata] = useState<AccountMetadata[]>([]);
     const [mappings, setMappings] = useState<Record<string, string>>({});
     const [hiddenParties, setHiddenParties] = useState<string[]>([]);
+    
+    // Edit Metadata Dialog State
+    const [editMetaOpen, setEditMetaOpen] = useState(false);
+    const [metaForm, setMetaForm] = useState({ accountName: '', mobileNumber: '', address: '', id: '' });
+
     const [parties, setParties] = useState<Party[]>([]);
     const [sales, setSales] = useState<Sale[]>([]);
     const [otherDetails, setOtherDetails] = useState<OtherDetails[]>([]);
@@ -249,6 +262,7 @@ export function InternalAccounts() {
             onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp)))),
             onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
             onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
+            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata)))),
             onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
                  if (snap.exists()) {
                      setMappings(snap.data()?.mappings || {});
@@ -869,6 +883,40 @@ export function InternalAccounts() {
         };
     }, [statementOpening, statementTransactions]);
 
+    const handleEditMetadata = (e: React.MouseEvent, accountName: string) => {
+        e.stopPropagation();
+        const existing = accountMetadata.find(m => m.accountName === accountName);
+        setMetaForm({ 
+            accountName, 
+            mobileNumber: existing?.mobileNumber || '', 
+            address: existing?.address || '',
+            id: existing?.id || ''
+        });
+        setEditMetaOpen(true);
+    };
+
+    const saveAccountMetadata = async () => {
+        try {
+            if (metaForm.id) {
+                await updateDoc(doc(db, 'account_metadata', metaForm.id), {
+                    mobileNumber: metaForm.mobileNumber,
+                    address: metaForm.address,
+                });
+            } else {
+                await addDoc(collection(db, 'account_metadata'), {
+                    accountName: metaForm.accountName,
+                    mobileNumber: metaForm.mobileNumber,
+                    address: metaForm.address,
+                });
+            }
+            toast.success("Account details updated");
+            setEditMetaOpen(false);
+        } catch (error) {
+            handleFirestoreError(error);
+            toast.error("Failed to update details");
+        }
+    };
+
     const downloadFollowUpReport = () => {
         if (!selectedAccount) {
             toast.error("Select an account first");
@@ -1179,6 +1227,7 @@ export function InternalAccounts() {
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'name' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
                                             </th>
+                                            <th className="px-6 py-4 text-left">Contact Info</th>
                                             <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('opening', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Opening Balance
@@ -1213,7 +1262,7 @@ export function InternalAccounts() {
                                     </thead>
                                     <tbody>
                                         {accountSummaries.length === 0 && (
-                                            <tr><td colSpan={6} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
+                                            <tr><td colSpan={7} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
                                         )}
                                         {paginatedAccountSummaries.map((acc, i) => (
                                             <tr 
@@ -1227,6 +1276,39 @@ export function InternalAccounts() {
                                                 <td className="px-6 py-4 font-bold text-blue-600 dark:text-blue-400 group-hover:underline">
                                                     {acc.name}
                                                     {acc.isParty && <span className="ml-2 text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">Mapped</span>}
+                                                </td>
+                                                <td className="px-6 py-4 text-left" onClick={(e) => e.stopPropagation()}>
+                                                    {(() => {
+                                                        if (acc.isParty) {
+                                                            const party = parties.find(p => (p.name || '').toLowerCase() === (acc.name || '').toLowerCase()) || parties.find(p => p.id === mappings[acc.name]);
+                                                            return party ? (
+                                                                <div className="text-xs text-slate-500 whitespace-nowrap">
+                                                                    {party.contactNumber && <div><Phone className="w-3 h-3 inline mr-1"/>{party.contactNumber}</div>}
+                                                                    {party.address && <div className="truncate max-w-[150px]" title={party.address}><MapPin className="w-3 h-3 inline mr-1"/>{party.address}</div>}
+                                                                </div>
+                                                            ) : <span className="opacity-50">-</span>;
+                                                        } else {
+                                                            const meta = accountMetadata.find(m => m.accountName === acc.name);
+                                                            return (
+                                                                <div className="flex items-center justify-between group/contact gap-2">
+                                                                    <div className="text-xs text-slate-500 whitespace-nowrap">
+                                                                        {meta?.mobileNumber && <div><Phone className="w-3 h-3 inline mr-1"/>{meta.mobileNumber}</div>}
+                                                                        {meta?.address && <div className="truncate max-w-[150px]" title={meta.address}><MapPin className="w-3 h-3 inline mr-1"/>{meta.address}</div>}
+                                                                        {!meta?.mobileNumber && !meta?.address && <span className="opacity-50 italic">No contact info</span>}
+                                                                    </div>
+                                                                    <Button 
+                                                                        variant="ghost" 
+                                                                        size="icon" 
+                                                                        className="h-6 w-6 opacity-0 group-hover/contact:opacity-100 transition-opacity flex-shrink-0" 
+                                                                        onClick={(e) => handleEditMetadata(e, acc.name)}
+                                                                        title="Edit Contact Info"
+                                                                    >
+                                                                        <Edit2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                                                    </Button>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4 text-right font-medium">{Math.abs(acc.opening).toFixed(2)} {acc.opening >= 0 ? (acc.opening > 0 ? 'Dr' : '') : 'Cr'}</td>
                                                 <td className="px-6 py-4 text-right font-medium">{acc.debit.toFixed(2)}</td>
@@ -1247,6 +1329,7 @@ export function InternalAccounts() {
                                         <tfoot className="bg-slate-50 dark:bg-[#0f172a] sticky bottom-0 border-t border-slate-200 dark:border-slate-700 shadow-md z-10">
                                             <tr>
                                                 <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">Total Accounts: {summaryTotals.count}</td>
+                                                <td className="px-6 py-4"></td> {/* Contact Info */}
                                                 <td className="px-6 py-4 text-right"></td>
                                                 <td className="px-6 py-4 text-right"></td>
                                                 <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
@@ -1524,19 +1607,57 @@ export function InternalAccounts() {
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col h-full overflow-hidden">
-                                    {/* MAPPING SECTION */}
-                                    <div className="bg-slate-50/50 dark:bg-[#0f172a] p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between shrink-0">
-                                        <div className="flex items-center gap-3 w-full xl:w-auto">
-                                            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
-                                                <Link className="h-5 w-5" />
+                                    {/* MAPPING & CONTACT SECTION */}
+                                    <div className="bg-slate-50/50 dark:bg-[#0f172a] p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between shrink-0">
+                                        <div className="flex items-center gap-6 w-full xl:w-auto">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg text-blue-600 dark:text-blue-400">
+                                                    <Link className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Customer Mapping</p>
+                                                    {linkedParty ? (
+                                                        <p className="text-xs text-slate-500">Linked to: <span className="font-semibold text-slate-800 dark:text-slate-300">{linkedParty.name}</span></p>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-400">Not linked to any party from stakeholder management.</p>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex-1">
-                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Customer Mapping</p>
-                                                {linkedParty ? (
-                                                    <p className="text-xs text-slate-500">Linked to: <span className="font-semibold text-slate-800 dark:text-slate-300">{linkedParty.name}</span></p>
-                                                ) : (
-                                                    <p className="text-xs text-slate-400">Not linked to any party from stakeholder management.</p>
-                                                )}
+                                            
+                                            <div className="w-px h-10 border-l border-slate-200 dark:border-slate-800 hidden xl:block"></div>
+                                            
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-600 dark:text-indigo-400">
+                                                    <Phone className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-[200px]">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Contact Details</p>
+                                                        {!linkedParty && (
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-slate-200 dark:hover:bg-slate-800" onClick={(e) => handleEditMetadata(e, selectedAccount)}>
+                                                                <Edit2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                    {(() => {
+                                                        if (linkedParty) {
+                                                            return (
+                                                                <div className="text-xs text-slate-500 flex gap-4 mt-0.5">
+                                                                    {linkedParty.contactNumber ? <span>{linkedParty.contactNumber}</span> : <span className="opacity-50 italic">No mobile</span>}
+                                                                    {linkedParty.address ? <span className="truncate max-w-[150px]" title={linkedParty.address}>{linkedParty.address}</span> : <span className="opacity-50 italic">No address</span>}
+                                                                </div>
+                                                            )
+                                                        } else {
+                                                            const meta = accountMetadata.find(m => m.accountName === selectedAccount);
+                                                            return (
+                                                                <div className="text-xs text-slate-500 flex gap-4 mt-0.5">
+                                                                    {meta?.mobileNumber ? <span>{meta.mobileNumber}</span> : <span className="opacity-50 italic">No mobile</span>}
+                                                                    {meta?.address ? <span className="truncate max-w-[150px]" title={meta.address}>{meta.address}</span> : <span className="opacity-50 italic">No address</span>}
+                                                                </div>
+                                                            )
+                                                        }
+                                                    })()}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -2381,6 +2502,37 @@ export function InternalAccounts() {
                         >
                             <Download className="w-4 h-4" /> Download PDF
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Contact Metadata Dialog */}
+            <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Update Contact Info for {metaForm.accountName}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Mobile Number</label>
+                            <Input 
+                                value={metaForm.mobileNumber}
+                                onChange={(e) => setMetaForm(p => ({ ...p, mobileNumber: e.target.value }))}
+                                placeholder="Enter mobile number"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Address</label>
+                            <Input 
+                                value={metaForm.address}
+                                onChange={(e) => setMetaForm(p => ({ ...p, address: e.target.value }))}
+                                placeholder="Enter full address"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditMetaOpen(false)}>Cancel</Button>
+                        <Button onClick={saveAccountMetadata} className="bg-blue-600 text-white hover:bg-blue-700">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
