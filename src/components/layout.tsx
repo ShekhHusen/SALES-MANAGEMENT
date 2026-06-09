@@ -18,7 +18,8 @@ import {
   Shield,
   BookOpen,
   BellRing,
-  KeyRound
+  KeyRound,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
@@ -46,6 +47,7 @@ const navItems = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [topNavOpen, setTopNavOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
@@ -169,7 +171,62 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden relative">
+        {/* Top Center Nav Trigger (Large Screens Only) */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 hidden lg:flex flex-col items-center">
+          <button 
+            onClick={() => setTopNavOpen(!topNavOpen)}
+            className={cn(
+              "group flex items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-md border border-slate-200/60 dark:border-slate-800 rounded-full transition-all duration-300 ease-out overflow-hidden relative",
+              topNavOpen ? "w-12 h-12 bg-white dark:bg-slate-900 shadow-inner" : "w-12 h-12 hover:w-16 hover:bg-white dark:hover:bg-slate-800"
+            )}
+          >
+            {topNavOpen ? (
+              <X className="w-5 h-5 text-slate-600 dark:text-slate-300 animate-in fade-in zoom-in duration-200" />
+            ) : (
+              <>
+                <Menu className="w-5 h-5 text-slate-600 dark:text-slate-300 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-50" />
+                <ChevronDown className="w-5 h-5 text-blue-600 dark:text-blue-400 absolute opacity-0 scale-50 transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 animate-bounce" />
+              </>
+            )}
+          </button>
+
+          {/* Creative Animated Nav Bar */}
+          <div 
+            className={cn(
+              "absolute top-16 left-1/2 -translate-x-1/2 transition-all duration-500 ease-out origin-top",
+              topNavOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-4 pointer-events-none"
+            )}
+          >
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 dark:border-slate-800 rounded-3xl p-3 flex gap-2 items-center flex-wrap max-w-[900px] justify-center w-max">
+              {visibleNavItems.map((item, idx) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setTopNavOpen(false)}
+                    style={{ transitionDelay: `${idx * 15}ms` }}
+                    className={cn(
+                      "group/navitem relative px-4 py-2.5 rounded-2xl flex items-center gap-2 transition-all duration-300",
+                      topNavOpen ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0",
+                      isActive 
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" 
+                        : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    <item.icon className={cn("w-4 h-4 transition-transform duration-300 group-hover/navitem:scale-110", isActive ? "text-white" : "text-slate-400 group-hover/navitem:text-blue-500")} />
+                    <span className="text-xs font-bold tracking-wide whitespace-nowrap">{item.label}</span>
+                    {isActive && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Floating Menu & Theme Controls */}
         <div className="fixed top-4 right-4 z-40 flex items-center gap-1.5 bg-white/80 backdrop-blur-md dark:bg-slate-900/80 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
           <Button 
