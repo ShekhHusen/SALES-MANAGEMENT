@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText, Eye, EyeOff, MapPin, Edit2 } from 'lucide-react';
+import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown, Link, History, Calendar as CalendarIcon, Clock, Phone, MessageCircle, Search, FileText, Eye, EyeOff, MapPin, Edit2, BadgeCheck } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -135,6 +135,9 @@ interface AccountMetadata {
     accountName: string;
     mobileNumber: string;
     address: string;
+    verifiedAt?: any;
+    verifiedBy?: string;
+    verifiedBalance?: number;
 }
 
 interface TransactionItem {
@@ -220,6 +223,36 @@ export function InternalAccounts() {
         let direction: 'asc' | 'desc' = 'asc';
         if (currentSort && currentSort.key === key && currentSort.direction === 'asc') direction = 'desc';
         setSort({ key, direction });
+    };
+
+    const handleVerifyBalance = async (e: React.MouseEvent, accountName: string, balance: number) => {
+        e.stopPropagation();
+        
+        let existingMetaId = '';
+        const existingMeta = accountMetadata.find(m => m.accountName === accountName);
+        
+        try {
+            if (existingMeta?.id) {
+                await updateDoc(doc(db, 'account_metadata', existingMeta.id), {
+                    verifiedAt: new Date(),
+                    verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
+                    verifiedBalance: balance
+                });
+            } else {
+                await addDoc(collection(db, 'account_metadata'), {
+                    accountName,
+                    mobileNumber: '',
+                    address: '',
+                    verifiedAt: new Date(),
+                    verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
+                    verifiedBalance: balance
+                });
+            }
+            toast.success(`${accountName} balance verified!`);
+        } catch (error) {
+            handleFirestoreError(error);
+            toast.error("Failed to verify balance");
+        }
     };
 
     const location = useLocation();
@@ -1252,6 +1285,7 @@ export function InternalAccounts() {
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'closing_abs' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
                                             </th>
+                                            <th className="px-6 py-4 text-center">Verification</th>
                                             <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lastActivity', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Last Activity
@@ -1262,7 +1296,7 @@ export function InternalAccounts() {
                                     </thead>
                                     <tbody>
                                         {accountSummaries.length === 0 && (
-                                            <tr><td colSpan={7} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
+                                            <tr><td colSpan={8} className="p-8 text-center text-slate-500">No accounts found.</td></tr>
                                         )}
                                         {paginatedAccountSummaries.map((acc, i) => (
                                             <tr 
@@ -1319,6 +1353,38 @@ export function InternalAccounts() {
                                                     </span>
                                                     <span className="text-slate-400 text-xs">{acc.closing >= 0 ? (acc.closing > 0 ? 'Dr' : '') : 'Cr'}</span>
                                                 </td>
+                                                <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    {(() => {
+                                                        const meta = accountMetadata.find(m => m.accountName === acc.name);
+                                                        const isVerified = meta?.verifiedBalance === acc.closing && meta?.verifiedAt;
+                                                        
+                                                        if (isVerified) {
+                                                            const verTime = meta.verifiedAt && typeof meta.verifiedAt.toDate === 'function' ? meta.verifiedAt.toDate() : new Date(meta.verifiedAt);
+                                                            return (
+                                                                <div className="flex flex-col items-center group/verify cursor-help">
+                                                                    <BadgeCheck className="w-5 h-5 text-emerald-500" />
+                                                                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 truncate max-w-[80px]" title={`Verified by ${meta.verifiedBy}`}>
+                                                                        {meta.verifiedBy?.split(' ')[0]}
+                                                                    </div>
+                                                                    <div className="text-[9px] text-slate-400">
+                                                                        {!isNaN(verTime.valueOf()) ? verTime.toLocaleDateString() : ''}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        return (
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-7 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-900 dark:hover:bg-blue-900/30"
+                                                                onClick={(e) => handleVerifyBalance(e, acc.name, acc.closing)}
+                                                            >
+                                                                Verify
+                                                            </Button>
+                                                        );
+                                                    })()}
+                                                </td>
                                                 <td className="px-6 py-4 text-right font-medium text-slate-600 dark:text-slate-400">
                                                     {acc.lastActivity ? acc.lastActivity.toLocaleDateString() : '-'}
                                                 </td>
@@ -1330,15 +1396,15 @@ export function InternalAccounts() {
                                             <tr>
                                                 <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">Total Accounts: {summaryTotals.count}</td>
                                                 <td className="px-6 py-4"></td> {/* Contact Info */}
-                                                <td className="px-6 py-4 text-right"></td>
-                                                <td className="px-6 py-4 text-right"></td>
+                                                <td className="px-6 py-4"></td> {/* Opening Balance */}
+                                                <td className="px-6 py-4"></td> {/* Debit */}
+                                                <td className="px-6 py-4 text-right"></td> {/* Credit */}
                                                 <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
                                                     <div>Dr: <span className="text-red-600">{summaryTotals.receivable.toFixed(2)}</span></div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
                                                     <div>Cr: <span className="text-emerald-600">{summaryTotals.payable.toFixed(2)}</span></div>
                                                 </td>
-                                                <td className="px-6 py-4"></td>
+                                                <td className="px-6 py-4"></td> {/* Verification */}
+                                                <td className="px-6 py-4"></td> {/* Last Activity */}
                                             </tr>
                                         </tfoot>
                                     )}
@@ -1656,6 +1722,45 @@ export function InternalAccounts() {
                                                                 </div>
                                                             )
                                                         }
+                                                    })()}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="w-px h-10 border-l border-slate-200 dark:border-slate-800 hidden xl:block"></div>
+                                            
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400">
+                                                    <BadgeCheck className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-[200px]">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Verification Status</p>
+                                                    </div>
+                                                    {(() => {
+                                                        const meta = accountMetadata.find(m => m.accountName === selectedAccount);
+                                                        const isVerified = meta?.verifiedBalance === totals.balance && meta?.verifiedAt;
+                                                        
+                                                        if (isVerified) {
+                                                            const verTime = meta.verifiedAt && typeof meta.verifiedAt.toDate === 'function' ? meta.verifiedAt.toDate() : new Date(meta.verifiedAt);
+                                                            return (
+                                                                <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 whitespace-nowrap">
+                                                                    Verified by {meta.verifiedBy} on {!isNaN(verTime.valueOf()) ? verTime.toLocaleDateString() : ''}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        return (
+                                                            <div className="mt-1">
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    size="sm" 
+                                                                    className="h-6 text-xs px-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900 dark:hover:bg-emerald-900/30 font-semibold"
+                                                                    onClick={(e) => handleVerifyBalance(e, selectedAccount, totals.balance)}
+                                                                >
+                                                                    Verify Balance Now (₹{totals.balance.toFixed(2)})
+                                                                </Button>
+                                                            </div>
+                                                        );
                                                     })()}
                                                 </div>
                                             </div>

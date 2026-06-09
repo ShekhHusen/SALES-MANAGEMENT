@@ -115,5 +115,8 @@ service cloud.firestore {
     match /internal_data/{docId} {
       allow read, write: if isSignedIn();
     }
+    match /account_metadata/{docId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
