@@ -195,7 +195,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div 
             className={cn(
               "absolute top-16 left-1/2 -translate-x-1/2 transition-all duration-500 ease-out origin-top",
-              topNavOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-4 pointer-events-none"
+              topNavOpen ? "opacity-100 scale-100 translate-y-0 pointer-events-auto" : "opacity-0 scale-95 -translate-y-4 pointer-events-none"
             )}
           >
             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 dark:border-slate-800 rounded-3xl p-3 flex gap-2 items-center flex-wrap max-w-[900px] justify-center w-max">

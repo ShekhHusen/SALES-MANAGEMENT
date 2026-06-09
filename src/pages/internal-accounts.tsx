@@ -527,9 +527,11 @@ export function InternalAccounts() {
         
         // 1. Sort chronologically to compute running balance
         filtered.sort((a, b) => {
-            const dateA = a.date && (a.date as any).toDate ? (a.date as any).toDate().getTime() : new Date(a.date).getTime();
-            const dateB = b.date && (b.date as any).toDate ? (b.date as any).toDate().getTime() : new Date(b.date).getTime();
-            return dateA - dateB;
+            const timeA = a.date && typeof (a.date as any).toDate === 'function' ? (a.date as any).toDate().getTime() : (a.date ? new Date(a.date).getTime() : 0);
+            const timeB = b.date && typeof (b.date as any).toDate === 'function' ? (b.date as any).toDate().getTime() : (b.date ? new Date(b.date).getTime() : 0);
+            const numA = isNaN(timeA) ? 0 : timeA;
+            const numB = isNaN(timeB) ? 0 : timeB;
+            return numA - numB;
         });
 
         // 2. Compute running balance
@@ -552,9 +554,11 @@ export function InternalAccounts() {
             const dir = statementSort.direction === 'asc' ? 1 : -1;
             
             if (statementSort.key === 'date') {
-                const dateA = a.date && (a.date as any).toDate ? (a.date as any).toDate().getTime() : new Date(a.date).getTime();
-                const dateB = b.date && (b.date as any).toDate ? (b.date as any).toDate().getTime() : new Date(b.date).getTime();
-                return (dateA - dateB) * dir;
+                const timeA = a.date && typeof (a.date as any).toDate === 'function' ? (a.date as any).toDate().getTime() : (a.date ? new Date(a.date).getTime() : 0);
+                const timeB = b.date && typeof (b.date as any).toDate === 'function' ? (b.date as any).toDate().getTime() : (b.date ? new Date(b.date).getTime() : 0);
+                const numA = isNaN(timeA) ? 0 : timeA;
+                const numB = isNaN(timeB) ? 0 : timeB;
+                return (numA - numB) * dir;
             }
             
             const valA = a[statementSort.key as keyof typeof a];
@@ -1014,16 +1018,19 @@ export function InternalAccounts() {
 
     const getClosingBalanceAsOnDate = (date: any) => {
         if (!date) return '';
-        const targetDateObj = date && typeof (date as any).toDate === 'function' ? (date as any).toDate() : new Date(date);
-        const targetTime = new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate()).getTime();
+        const targetDateObj = date && typeof (date as any).toDate === 'function' ? (date as any).toDate() : (typeof date === 'string' || typeof date === 'number' ? new Date(date) : new Date());
+        const timeVal = targetDateObj instanceof Date && !isNaN(targetDateObj.valueOf()) ? new Date(targetDateObj.getFullYear(), targetDateObj.getMonth(), targetDateObj.getDate()).getTime() : Number.MAX_SAFE_INTEGER;
+        const targetTime = isNaN(timeVal) ? Number.MAX_SAFE_INTEGER : timeVal;
         
         let db = statementOpening?.debit || 0;
         let cr = statementOpening?.credit || 0;
         
         statementTransactions.forEach(t => {
             if (!t.date) return;
-            const tDateObj = t.date && typeof (t.date as any).toDate === 'function' ? (t.date as any).toDate() : new Date(t.date);
-            const tTime = new Date(tDateObj.getFullYear(), tDateObj.getMonth(), tDateObj.getDate()).getTime();
+            const tDateObj = t.date && typeof (t.date as any).toDate === 'function' ? (t.date as any).toDate() : (typeof t.date === 'string' || typeof t.date === 'number' ? new Date(t.date) : new Date());
+            const ttVal = tDateObj instanceof Date && !isNaN(tDateObj.valueOf()) ? new Date(tDateObj.getFullYear(), tDateObj.getMonth(), tDateObj.getDate()).getTime() : 0;
+            const tTime = isNaN(ttVal) ? 0 : ttVal;
+            
             if (tTime <= targetTime) {
                 db += (t.debit || 0);
                 cr += (t.credit || 0);
