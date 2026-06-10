@@ -111,13 +111,32 @@ export function Dashboard() {
 
   // Sales Trend (Last 6 months simplified)
   const salesByMonth = activeSales.reduce((acc: any, sale) => {
-    const month = sale.date.toDate().toLocaleString('default', { month: 'short' });
+    let dateObj;
+    try {
+      dateObj = typeof sale.date?.toDate === 'function' ? sale.date.toDate() : new Date(sale.date as any || Date.now());
+    } catch {
+      dateObj = new Date();
+    }
+    const month = dateObj.toLocaleString('default', { month: 'short' });
     acc[month] = (acc[month] || 0) + 1;
     return acc;
   }, {});
   const salesTrendData = Object.entries(salesByMonth).map(([name, sales]) => ({ name, sales }));
 
   const topModel = modelSplit[0]?.name || 'N/A';
+
+  const { loading } = useGlobalData();
+
+  if (loading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-12">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">Synchronizing Data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">

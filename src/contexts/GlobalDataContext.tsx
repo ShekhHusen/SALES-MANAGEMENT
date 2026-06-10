@@ -62,7 +62,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (s) => {
       if(active) {
-        const sorted = s.docs.map(d => ({ ...d.data(), chassisNumber: d.id } as Vehicle)).sort((a, b) => {
+        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
           const tA = (a.updatedAt as any)?.toMillis?.() || 0;
           const tB = (b.updatedAt as any)?.toMillis?.() || 0;
           return tB - tA;
