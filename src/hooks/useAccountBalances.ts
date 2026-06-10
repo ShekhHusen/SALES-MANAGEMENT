@@ -38,25 +38,32 @@ export function useAccountBalances(parties: Party[]) {
     const partyBalances = useMemo(() => {
         const accMap = new Map<string, { closing: number }>();
 
-        // We only care about mapped party accounts or accounts named exactly as party
         parties.forEach(p => {
             const mappedAccountName = Object.keys(mappings).find(key => mappings[key] === p.id);
             if (mappedAccountName) {
-                if (!accMap.has(mappedAccountName)) accMap.set(mappedAccountName, { closing: 0 });
+                const key = mappedAccountName.trim().toLowerCase();
+                if (!accMap.has(key)) accMap.set(key, { closing: 0 });
             } else if (p.name) {
-                if (!accMap.has(p.name)) accMap.set(p.name, { closing: 0 });
+                const key = p.name.trim().toLowerCase();
+                if (!accMap.has(key)) accMap.set(key, { closing: 0 });
             }
         });
 
         openings.forEach(o => {
-            if (o.accountName && accMap.has(o.accountName)) {
-                accMap.get(o.accountName)!.closing += (o.debit || 0) - (o.credit || 0);
+            if (o.accountName) {
+                const key = o.accountName.trim().toLowerCase();
+                if (accMap.has(key)) {
+                    accMap.get(key)!.closing += (o.debit || 0) - (o.credit || 0);
+                }
             }
         });
 
         transactions.forEach(t => {
-            if (t.particulars && accMap.has(t.particulars)) {
-                accMap.get(t.particulars)!.closing += (t.debit || 0) - (t.credit || 0);
+            if (t.particulars) {
+                const key = t.particulars.trim().toLowerCase();
+                if (accMap.has(key)) {
+                    accMap.get(key)!.closing += (t.debit || 0) - (t.credit || 0);
+                }
             }
         });
 
@@ -64,8 +71,13 @@ export function useAccountBalances(parties: Party[]) {
         parties.forEach(p => {
             const mappedAccountName = Object.keys(mappings).find(key => mappings[key] === p.id);
             const accountName = mappedAccountName || p.name;
-            if (accountName && accMap.has(accountName)) {
-                balancesByPartyId[p.id] = accMap.get(accountName)!.closing;
+            if (accountName) {
+                const key = accountName.trim().toLowerCase();
+                if (accMap.has(key)) {
+                    balancesByPartyId[p.id] = accMap.get(key)!.closing;
+                } else {
+                    balancesByPartyId[p.id] = 0;
+                }
             } else {
                 balancesByPartyId[p.id] = 0;
             }

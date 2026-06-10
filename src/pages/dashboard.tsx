@@ -54,8 +54,8 @@ export function Dashboard() {
 
   const pendingDuesList = useMemo(() => {
     return vehicles.map(v => {
-      const sale = activeSales.find(s => s.chassisNumber === v.id);
-      const purchase = purchases.find(p => p.chassisNumbers?.includes(v.id));
+      const sale = activeSales.find(s => s.chassisNumber === (v.chassisNumber || v.id));
+      const purchase = purchases.find(p => p.chassisNumbers?.includes(v.chassisNumber || v.id));
       const vendor = parties.find(p => p.id === purchase?.vendorId);
       const customer = parties.find(p => p.id === sale?.customerId);
       const company = companies.find(c => c.id === v.companyId);
