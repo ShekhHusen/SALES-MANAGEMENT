@@ -1,0 +1,78 @@
+import { useState, useEffect, useMemo } from 'react';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Party } from '@/types';
+
+interface OpeningBalance {
+    id: string;
+    accountName: string;
+    debit: number;
+    credit: number;
+}
+
+interface Transaction {
+    id: string;
+    particulars: string;
+    debit: number;
+    credit: number;
+}
+
+export function useAccountBalances(parties: Party[]) {
+    const [openings, setOpenings] = useState<OpeningBalance[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [mappings, setMappings] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        const unsubs = [
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
+            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+                 if (snap.exists()) {
+                     setMappings(snap.data()?.mappings || {});
+                 }
+            })
+        ];
+        return () => unsubs.forEach(u => u());
+    }, []);
+
+    const partyBalances = useMemo(() => {
+        const accMap = new Map<string, { closing: number }>();
+
+        // We only care about mapped party accounts or accounts named exactly as party
+        parties.forEach(p => {
+            const mappedAccountName = Object.keys(mappings).find(key => mappings[key] === p.id);
+            if (mappedAccountName) {
+                if (!accMap.has(mappedAccountName)) accMap.set(mappedAccountName, { closing: 0 });
+            } else if (p.name) {
+                if (!accMap.has(p.name)) accMap.set(p.name, { closing: 0 });
+            }
+        });
+
+        openings.forEach(o => {
+            if (o.accountName && accMap.has(o.accountName)) {
+                accMap.get(o.accountName)!.closing += (o.debit || 0) - (o.credit || 0);
+            }
+        });
+
+        transactions.forEach(t => {
+            if (t.particulars && accMap.has(t.particulars)) {
+                accMap.get(t.particulars)!.closing += (t.debit || 0) - (t.credit || 0);
+            }
+        });
+
+        const balancesByPartyId: Record<string, number> = {};
+        parties.forEach(p => {
+            const mappedAccountName = Object.keys(mappings).find(key => mappings[key] === p.id);
+            const accountName = mappedAccountName || p.name;
+            if (accountName && accMap.has(accountName)) {
+                balancesByPartyId[p.id] = accMap.get(accountName)!.closing;
+            } else {
+                balancesByPartyId[p.id] = 0;
+            }
+        });
+
+        return balancesByPartyId;
+    }, [parties, mappings, openings, transactions]);
+
+    return { partyBalances, mappings };
+}

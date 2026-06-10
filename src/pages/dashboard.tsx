@@ -1,7 +1,8 @@
+import React, { useState, useMemo } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Vehicle, Purchase, Sale, Company, Model } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { 
   BarChart, 
@@ -26,18 +27,55 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  UserCheck
+  UserCheck,
+  Eye,
+  User
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
+import { Link, useNavigate } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useAccountBalances } from '@/hooks/useAccountBalances';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function Dashboard() {
-  const { vehicles, purchases, sales, companies, models } = useGlobalData();
+  const { vehicles, purchases, sales, companies, models, parties } = useGlobalData();
+  const { partyBalances, mappings } = useAccountBalances(parties);
+  const navigate = useNavigate();
+
+  const [vendorFilter, setVendorFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [modelFilter, setModelFilter] = useState('all');
+  const [bluebookFilter, setBluebookFilter] = useState('all');
+  const [namsariFilter, setNamsariFilter] = useState('Pending');
 
   const activeSales = sales.filter(s => s.status !== 'returned');
+
+  const pendingDuesList = useMemo(() => {
+    return vehicles.map(v => {
+      const sale = activeSales.find(s => s.chassisNumber === v.id);
+      const purchase = purchases.find(p => p.chassisNumbers?.includes(v.id));
+      const vendor = parties.find(p => p.id === purchase?.vendorId);
+      const customer = parties.find(p => p.id === sale?.customerId);
+      const company = companies.find(c => c.id === v.companyId);
+      const model = models.find(m => m.id === v.modelId);
+      const closingBal = customer ? (partyBalances[customer.id] || 0) : 0;
+      
+      return { vehicle: v, sale, purchase, vendor, customer, company, model, closingBal };
+    }).filter(item => {
+      if (!item.sale || !item.customer) return false;
+      if (item.closingBal >= 100000) return false;
+      if (namsariFilter !== 'all' && item.vehicle.naamsariStatus !== namsariFilter) return false;
+      if (bluebookFilter !== 'all' && item.vehicle.bluebookStatus !== bluebookFilter) return false;
+      if (vendorFilter !== 'all' && item.vendor?.id !== vendorFilter) return false;
+      if (companyFilter !== 'all' && item.vehicle.companyId !== companyFilter) return false;
+      if (modelFilter !== 'all' && item.vehicle.modelId !== modelFilter) return false;
+      return true;
+    });
+  }, [vehicles, activeSales, purchases, parties, companies, models, partyBalances, namsariFilter, bluebookFilter, vendorFilter, companyFilter, modelFilter]);
+
+  const uniqueVendors = useMemo(() => Array.from(new Set(purchases.map(p => p.vendorId))).map(vId => parties.find(p => p.id === vId)).filter(Boolean), [purchases, parties]);
 
   const stats = {
     totalInventory: vehicles.length,
@@ -148,6 +186,158 @@ export function Dashboard() {
           bg="bg-emerald-50 dark:bg-emerald-500/10"
         />
       </div>
+
+      {/* Pending Due < 1 Lakh & Pending Namsari Section */}
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950 mb-4 bg-white/50 backdrop-blur-xl">
+        <CardHeader className="pb-4 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-500 to-orange-500">
+              Clear Dues & Pending Namsari
+            </CardTitle>
+            <CardDescription>
+              Vehicles with Naamsari pending and customer dues under ₹1 Lakh.
+            </CardDescription>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+            <Select value={namsariFilter} onValueChange={setNamsariFilter}>
+                <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="Namsari" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Namsari</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Names of JBMT">Names of JBMT</SelectItem>
+                    <SelectItem value="Customer Done">Customer Done</SelectItem>
+                </SelectContent>
+            </Select>
+
+            <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="Vendor" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Vendors</SelectItem>
+                    {uniqueVendors.map(v => v && (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={companyFilter} onValueChange={(val) => { setCompanyFilter(val); setModelFilter('all'); }}>
+                <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="Company" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {companies.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={modelFilter} onValueChange={setModelFilter} disabled={companyFilter === 'all'}>
+                <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="Model" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Models</SelectItem>
+                    {models.filter(m => m.companyId === companyFilter).map(m => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <Select value={bluebookFilter} onValueChange={setBluebookFilter}>
+                <SelectTrigger className="w-[140px] h-9">
+                    <SelectValue placeholder="Bluebook" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Bluebooks</SelectItem>
+                    <SelectItem value="Received">Received</SelectItem>
+                    <SelectItem value="Not Received">Not Received</SelectItem>
+                    <SelectItem value="Delivered">Delivered</SelectItem>
+                </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex flex-wrap gap-4 overflow-y-auto max-h-[350px] custom-scrollbar">
+            {pendingDuesList.length === 0 ? (
+              <div className="w-full text-center py-8 text-slate-500 text-sm">
+                No vehicles matched your filters.
+              </div>
+            ) : (
+              pendingDuesList.map(item => (
+                <div key={item.vehicle.id} className="group relative w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          #{item.sale?.fileNumber || 'N/A'}
+                        </span>
+                        <span className={cn(
+                          "text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border",
+                          item.vehicle.naamsariStatus === 'Pending' ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20" :
+                          item.vehicle.naamsariStatus === 'Names of JBMT' ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20" :
+                          "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20"
+                        )}>
+                          {item.vehicle.naamsariStatus}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-1" title={item.customer?.name}>
+                        {item.customer?.name || 'Unknown Party'}
+                      </h3>
+                    </div>
+                    
+                    <div className="flex flex-col items-end">
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase mb-0.5">Cl. Bla.</div>
+                      <div className={cn(
+                        "font-mono font-bold text-sm",
+                        item.closingBal > 0 ? "text-rose-600" : item.closingBal < 0 ? "text-emerald-600" : "text-slate-600 dark:text-slate-300"
+                      )}>
+                        {Math.abs(item.closingBal || 0).toLocaleString('en-IN')} {item.closingBal >= 0 ? (item.closingBal > 0 ? 'Dr' : '') : 'Cr'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
+                    <div>
+                      <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vehicle</div>
+                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1">{item.company?.name} {item.model?.name}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vendor</div>
+                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1" title={item.vendor?.name}>{item.vendor?.name || 'Unknown'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => navigate('/process-document', { state: { saleId: item.sale?.id } })}
+                      title="View Documents"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => navigate('/internal-accounts', { state: { selectedPartyId: item.customer?.id, activeTab: 'statement' } })}
+                      title="View Account"
+                    >
+                      <User className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Section */}
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
