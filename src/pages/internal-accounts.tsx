@@ -212,6 +212,7 @@ export function InternalAccounts() {
     const [openingSearchQuery, setOpeningSearchQuery] = useState('');
     const [summarySearchQuery, setSummarySearchQuery] = useState('');
     const [summaryFilter, setSummaryFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
     const [expandedTxnIds, setExpandedTxnIds] = useState<Set<string>>(new Set());
 
     type SortConfig = { key: string, direction: 'asc' | 'desc' } | null;
@@ -874,11 +875,15 @@ export function InternalAccounts() {
                 list = list.filter(a => a.closing > 100000);
             } else if (summaryFilter === 'above_1l_payable') {
                 list = list.filter(a => a.closing < -100000);
-            } else if (summaryFilter === 'internal_accounts') {
+            }
+        }
+
+        if (categoryFilter !== 'all') {
+            if (categoryFilter === 'internal_accounts') {
                 list = list.filter(a => !a.isParty);
-            } else if (summaryFilter === 'parties') {
+            } else if (categoryFilter === 'parties') {
                 list = list.filter(a => a.isParty && !a.isUnlinkedParty);
-            } else if (summaryFilter === 'unlinked_parties') {
+            } else if (categoryFilter === 'unlinked_parties') {
                 list = list.filter(a => a.isUnlinkedParty);
             }
         }
@@ -903,7 +908,7 @@ export function InternalAccounts() {
         }
 
         return list;
-    }, [allAccountNames, openings, transactions, summarySearchQuery, mappings, parties, summaryFilter, summarySort]);
+    }, [allAccountNames, openings, transactions, summarySearchQuery, mappings, parties, summaryFilter, categoryFilter, summarySort]);
 
     const paginatedAccountSummaries = useMemo(() => {
         const start = (summaryPage - 1) * ITEMS_PER_PAGE;
@@ -1239,19 +1244,30 @@ export function InternalAccounts() {
                     <Card className="flex-1 flex flex-col min-h-0 rounded-2xl border-slate-200/60 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 bg-white/80 dark:bg-slate-950 backdrop-blur-xl overflow-hidden pt-[5px] pb-0">
                         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 gap-4 px-6 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-[#0f172a] z-20 pt-[5px] pb-2">
                             <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300">All Accounts</CardTitle>
-                            <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                <Select value={categoryFilter} onValueChange={(v) => {
+                                    setCategoryFilter(v);
+                                    setSummaryPage(1);
+                                }}>
+                                    <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                                        <SelectValue placeholder="All Categories" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Categories</SelectItem>
+                                        <SelectItem value="internal_accounts">Internal Accounts</SelectItem>
+                                        <SelectItem value="parties">Parties</SelectItem>
+                                        <SelectItem value="unlinked_parties">Un-linked Parties</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <Select value={summaryFilter} onValueChange={(v) => {
                                     setSummaryFilter(v);
                                     setSummaryPage(1);
                                 }}>
                                     <SelectTrigger className="w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                                        <SelectValue placeholder="All Accounts" />
+                                        <SelectValue placeholder="All Balances" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Accounts</SelectItem>
-                                        <SelectItem value="internal_accounts">Internal Accounts</SelectItem>
-                                        <SelectItem value="parties">Parties</SelectItem>
-                                        <SelectItem value="unlinked_parties">Un-linked Parties</SelectItem>
+                                        <SelectItem value="all">All Balances</SelectItem>
                                         <SelectItem value="receivable">Receivables (Dr)</SelectItem>
                                         <SelectItem value="payable">Payables (Cr)</SelectItem>
                                         <SelectItem value="above_1l_receivable">Due &gt; 1 Lakh</SelectItem>
