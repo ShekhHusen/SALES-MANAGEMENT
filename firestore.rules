@@ -76,7 +76,7 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn();
     }
 
-    match /other_details/{docId} {
+    match /otherDetails/{docId} {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }

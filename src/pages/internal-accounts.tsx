@@ -233,7 +233,7 @@ export function InternalAccounts() {
         try {
             if (existingMeta?.id) {
                 await updateDoc(doc(db, 'account_metadata', existingMeta.id), {
-                    verifiedAt: serverTimestamp(),
+                    verifiedAt: new Date().toISOString(),
                     verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
                     verifiedBalance: balance || 0
                 });
@@ -242,7 +242,7 @@ export function InternalAccounts() {
                     accountName: accountName || '',
                     mobileNumber: '',
                     address: '',
-                    verifiedAt: serverTimestamp(),
+                    verifiedAt: new Date().toISOString(),
                     verifiedBy: userProfile?.displayName || userProfile?.email || 'User',
                     verifiedBalance: balance || 0
                 });
@@ -284,22 +284,25 @@ export function InternalAccounts() {
     useEffect(() => {
         setLoading(true);
         const unsubs = [
-            onSnapshot(collection(db, 'parties'), (snap) => setParties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Party)))),
-            onSnapshot(collection(db, 'sales'), (snap) => setSales(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale)))),
-            onSnapshot(collection(db, 'otherDetails'), (snap) => setOtherDetails(snap.docs.map(d => ({ id: d.id, ...d.data() } as OtherDetails)))),
-            onSnapshot(collection(db, 'vehicles'), (snap) => setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle)))),
-            onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model)))),
-            onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company)))),
-            onSnapshot(collection(db, 'users'), (snap) => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })))),
-            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp)))),
-            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
-            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
-            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata)))),
+            onSnapshot(collection(db, 'parties'), (snap) => setParties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Party))), (e) => console.error("Parties error:", e)),
+            onSnapshot(collection(db, 'sales'), (snap) => setSales(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale))), (e) => console.error("Sales error:", e)),
+            onSnapshot(collection(db, 'otherDetails'), (snap) => setOtherDetails(snap.docs.map(d => ({ id: d.id, ...d.data() } as OtherDetails))), (e) => console.error("otherDetails error:", e)),
+            onSnapshot(collection(db, 'vehicles'), (snap) => setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle))), (e) => console.error("Vehicles error:", e)),
+            onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model))), (e) => console.error("Models error:", e)),
+            onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))), (e) => console.error("Companies error:", e)),
+            onSnapshot(collection(db, 'users'), (snap) => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id }))), (e) => console.error("Users error:", e)),
+            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp))), (e) => console.error("Followups error:", e)),
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance))), (e) => console.error("internal_openings error:", e)),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))), (e) => console.error("internal_transactions error:", e)),
+            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata))), (e) => console.error("account_metadata error:", e)),
             onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
                  if (snap.exists()) {
                      setMappings(snap.data()?.mappings || {});
                      setHiddenParties(snap.data()?.hiddenParties || []);
                  }
+                 setLoading(false);
+            }, (e) => {
+                 console.error("Mappings error:", e);
                  setLoading(false);
             })
         ];
@@ -798,10 +801,22 @@ export function InternalAccounts() {
     }, [linkedParty, sales]);
 
     const accountSummaries = useMemo(() => {
-        const accMap = new Map<string, { opening: number, debit: number, credit: number, lastActivity: Date | null, isParty: boolean }>();
+        const accMap = new Map<string, { opening: number, debit: number, credit: number, lastActivity: Date | null, isParty: boolean, isUnlinkedParty: boolean }>();
 
         allAccountNames.forEach(name => {
-            accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: !!mappings[name] || parties.some(p => (p.name || '').toLowerCase() === (name || '').toLowerCase()) });
+            const isPartyMatch = !!mappings[name] || parties.some(p => (p.name || '').toLowerCase() === (name || '').toLowerCase());
+            accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: isPartyMatch, isUnlinkedParty: false });
+        });
+
+        // Add Unlinked Parties to the map with 0 balances
+        parties.forEach(p => {
+            const isPartyMapped = Object.values(mappings).includes(p.id);
+            const hasExactName = Array.from(accMap.keys()).some(k => k.toLowerCase() === (p.name || '').toLowerCase());
+            if (!isPartyMapped && !hasExactName) {
+                if (p.name) {
+                    accMap.set(p.name, { opening: 0, debit: 0, credit: 0, lastActivity: null, isParty: true, isUnlinkedParty: true });
+                }
+            }
         });
 
         openings.forEach(o => {
@@ -841,7 +856,8 @@ export function InternalAccounts() {
             credit: data.credit,
             closing: data.opening + data.debit - data.credit,
             lastActivity: data.lastActivity,
-            isParty: data.isParty
+            isParty: data.isParty,
+            isUnlinkedParty: data.isUnlinkedParty
         }));
         
         if (summarySearchQuery.trim() !== '') {
@@ -858,6 +874,12 @@ export function InternalAccounts() {
                 list = list.filter(a => a.closing > 100000);
             } else if (summaryFilter === 'above_1l_payable') {
                 list = list.filter(a => a.closing < -100000);
+            } else if (summaryFilter === 'internal_accounts') {
+                list = list.filter(a => !a.isParty);
+            } else if (summaryFilter === 'parties') {
+                list = list.filter(a => a.isParty && !a.isUnlinkedParty);
+            } else if (summaryFilter === 'unlinked_parties') {
+                list = list.filter(a => a.isUnlinkedParty);
             }
         }
 
@@ -1227,6 +1249,9 @@ export function InternalAccounts() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Accounts</SelectItem>
+                                        <SelectItem value="internal_accounts">Internal Accounts</SelectItem>
+                                        <SelectItem value="parties">Parties</SelectItem>
+                                        <SelectItem value="unlinked_parties">Un-linked Parties</SelectItem>
                                         <SelectItem value="receivable">Receivables (Dr)</SelectItem>
                                         <SelectItem value="payable">Payables (Cr)</SelectItem>
                                         <SelectItem value="above_1l_receivable">Due &gt; 1 Lakh</SelectItem>
