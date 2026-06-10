@@ -51,7 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
-  const { loading: dataLoading } = useGlobalData();
+  const { loading: dataLoading, debugStates, subscriptionErrors } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -61,6 +61,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC] dark:bg-background">
           <div className="w-16 h-16 border-4 border-[#3B82F6]/20 border-t-[#3B82F6] rounded-full animate-spin mb-4" />
           <p className="text-slate-600 dark:text-slate-400 font-medium animate-pulse tracking-widest text-sm uppercase">Syncing Database...</p>
+          <pre className="text-xs text-slate-500 mt-4">{JSON.stringify(debugStates, null, 2)}</pre>
         </div>
       );
     }
@@ -72,10 +73,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 w-full h-full flex flex-col items-center justify-center space-y-4">
            <div className="w-10 h-10 border-4 border-[#3B82F6]/20 border-t-[#3B82F6] rounded-full animate-spin" />
            <p className="text-slate-600 dark:text-slate-400 font-medium animate-pulse tracking-widest text-xs uppercase">Syncing Workspace...</p>
+           <pre className="text-xs text-slate-500 mt-4 z-50 text-black dark:text-white relative bg-white dark:bg-slate-900 p-4 rounded-md">
+            {JSON.stringify(debugStates, null, 2)}
+           </pre>
         </div>
       );
     }
-    return children;
+    
+    // Show errors even if we force load
+    return (
+      <>
+        {subscriptionErrors && subscriptionErrors.length > 0 && (
+          <div className="bg-red-100 text-red-600 p-4 text-xs font-mono break-all whitespace-pre-wrap rounded-md mb-4 border border-red-300">
+            <strong>Firebase Errors:</strong><br />
+            {subscriptionErrors.some(e => e.includes('RESOURCE_EXHAUSTED')) && (
+               <div className="text-red-700 bg-red-200 p-2 my-2 rounded font-bold">
+                 CRITICAL: Your Firebase free daily quota limits have been exhausted. Your data is perfectly safe, but you won't be able to view or modify it until tomorrow when the daily quota resets, unless you upgrade your Firebase project to the Blaze (pay-as-you-go) plan.
+               </div>
+            )}
+            {subscriptionErrors.join('\n')}
+          </div>
+        )}
+        {children}
+      </>
+    );
   };
 
   const currentRole = userProfile?.role || 'user';

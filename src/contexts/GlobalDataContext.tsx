@@ -12,6 +12,8 @@ interface GlobalDataState {
   purchases: Purchase[];
   sales: Sale[];
   loading: boolean;
+  debugStates?: any;
+  subscriptionErrors?: string[];
 }
 
 const initialState: GlobalDataState = {
@@ -22,7 +24,9 @@ const initialState: GlobalDataState = {
   parties: [],
   purchases: [],
   sales: [],
-  loading: true
+  loading: true,
+  debugStates: {},
+  subscriptionErrors: []
 };
 
 const GlobalDataContext = createContext<GlobalDataState>(initialState);
@@ -45,6 +49,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     const checkLoading = () => {
+      setData(prev => ({ ...prev, debugStates: { ...loadedStates } }));
       if (
         loadedStates.vehicles &&
         loadedStates.companies &&
@@ -58,6 +63,23 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           setData(prev => ({ ...prev, loading: false }));
         }
       }
+    };
+    checkLoading();
+
+    // Fallback: force finish loading after 5 seconds 
+    // to prevent infinite loading spinner if a collection lacks permissions or is stuck
+    const fallbackTimeout = setTimeout(() => {
+        if (active) {
+            console.warn("GlobalData context loading timed out. Forcing loading: false.", loadedStates);
+            setData(prev => ({ ...prev, loading: false }));
+        }
+    }, 5000);
+
+    const addError = (msg: string, e: any) => {
+        setData(prev => ({
+            ...prev,
+            subscriptionErrors: [...(prev.subscriptionErrors || []), `${msg}: ${e.message || String(e)}`]
+        }));
     };
 
     const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (s) => {
@@ -73,7 +95,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Vehicles subscription error", error);
-      if(active) { loadedStates.vehicles = true; checkLoading(); }
+      if(active) { addError("Vehicles", error); loadedStates.vehicles = true; checkLoading(); }
     });
     const unsubCompanies = onSnapshot(collection(db, 'companies'), (s) => {
       if(active) {
@@ -83,7 +105,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Companies subscription error", error);
-      if(active) { loadedStates.companies = true; checkLoading(); }
+      if(active) { addError("Companies", error); loadedStates.companies = true; checkLoading(); }
     });
     const unsubModels = onSnapshot(collection(db, 'models'), (s) => {
       if(active) {
@@ -93,7 +115,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Models subscription error", error);
-      if(active) { loadedStates.models = true; checkLoading(); }
+      if(active) { addError("Models", error); loadedStates.models = true; checkLoading(); }
     });
     const unsubColors = onSnapshot(collection(db, 'colors'), (s) => {
       if(active) {
@@ -103,7 +125,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Colors subscription error", error);
-      if(active) { loadedStates.colors = true; checkLoading(); }
+      if(active) { addError("Colors", error); loadedStates.colors = true; checkLoading(); }
     });
     const unsubParties = onSnapshot(collection(db, 'parties'), (s) => {
       if(active) {
@@ -113,7 +135,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Parties subscription error", error);
-      if(active) { loadedStates.parties = true; checkLoading(); }
+      if(active) { addError("Parties", error); loadedStates.parties = true; checkLoading(); }
     });
     const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => {
       if(active) {
@@ -128,7 +150,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Purchases subscription error", error);
-      if(active) { loadedStates.purchases = true; checkLoading(); }
+      if(active) { addError("Purchases", error); loadedStates.purchases = true; checkLoading(); }
     });
     const unsubSales = onSnapshot(collection(db, 'sales'), (s) => {
       if(active) {
@@ -143,11 +165,12 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }, (error) => {
       console.error("Sales subscription error", error);
-      if(active) { loadedStates.sales = true; checkLoading(); }
+      if(active) { addError("Sales", error); loadedStates.sales = true; checkLoading(); }
     });
 
     return () => {
       active = false;
+      clearTimeout(fallbackTimeout);
       unsubVehicles(); unsubCompanies(); unsubModels(); unsubColors(); unsubParties(); unsubPurchases(); unsubSales();
     };
   }, []);
