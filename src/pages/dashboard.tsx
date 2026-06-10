@@ -48,7 +48,7 @@ export function Dashboard() {
   const [companyFilter, setCompanyFilter] = useState('all');
   const [modelFilter, setModelFilter] = useState('all');
   const [bluebookFilter, setBluebookFilter] = useState('all');
-  const [namsariFilter, setNamsariFilter] = useState('Pending');
+  const [namsariFilter, setNamsariFilter] = useState('all');
 
   const activeSales = sales.filter(s => s.status !== 'returned');
 
@@ -66,8 +66,8 @@ export function Dashboard() {
     }).filter(item => {
       if (!item.sale || !item.customer) return false;
       if (item.closingBal >= 100000) return false;
-      if (namsariFilter !== 'all' && item.vehicle.naamsariStatus !== namsariFilter) return false;
-      if (bluebookFilter !== 'all' && item.vehicle.bluebookStatus !== bluebookFilter) return false;
+      if (namsariFilter !== 'all' && (item.vehicle.naamsariStatus || '').toLowerCase().trim() !== namsariFilter.toLowerCase().trim()) return false;
+      if (bluebookFilter !== 'all' && (item.vehicle.bluebookStatus || '').toLowerCase().trim() !== bluebookFilter.toLowerCase().trim()) return false;
       if (vendorFilter !== 'all' && item.vendor?.id !== vendorFilter) return false;
       if (companyFilter !== 'all' && item.vehicle.companyId !== companyFilter) return false;
       if (modelFilter !== 'all' && item.vehicle.modelId !== modelFilter) return false;
@@ -82,11 +82,11 @@ export function Dashboard() {
     totalProcurement: purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
     totalSales: activeSales.length,
     inStock: vehicles.filter(v => v.status === 'in-stock').length,
-    bluebookPending: vehicles.filter(v => v.bluebookStatus === 'Not Received').length,
-    bluebookReceived: vehicles.filter(v => v.bluebookStatus === 'Received').length,
-    naamsariPending: vehicles.filter(v => v.naamsariStatus === 'Pending').length,
-    jbmtName: vehicles.filter(v => v.naamsariStatus === 'Names of JBMT').length,
-    customerDone: vehicles.filter(v => v.naamsariStatus === 'Customer Done').length,
+    bluebookPending: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'not received').length,
+    bluebookReceived: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'received').length,
+    naamsariPending: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'pending').length,
+    jbmtName: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt').length,
+    customerDone: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'customer done').length,
   };
 
   // Model Split Data
@@ -278,11 +278,11 @@ export function Dashboard() {
                         </span>
                         <span className={cn(
                           "text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border",
-                          item.vehicle.naamsariStatus === 'Pending' ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20" :
-                          item.vehicle.naamsariStatus === 'Names of JBMT' ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20" :
+                          (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'pending' ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20" :
+                          (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt' ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20" :
                           "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20"
                         )}>
-                          {item.vehicle.naamsariStatus}
+                          {item.vehicle.naamsariStatus || 'Unknown'}
                         </span>
                       </div>
                       <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-1" title={item.customer?.name}>
