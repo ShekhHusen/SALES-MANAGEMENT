@@ -918,11 +918,28 @@ export function InternalAccounts() {
     const summaryTotals = useMemo(() => {
         let totalReceivable = 0;
         let totalPayable = 0;
+        let totalOpeningDr = 0;
+        let totalOpeningCr = 0;
+        let totalDebit = 0;
+        let totalCredit = 0;
+        
         accountSummaries.forEach(acc => {
             if (acc.closing > 0) totalReceivable += acc.closing;
             if (acc.closing < 0) totalPayable += Math.abs(acc.closing);
+            if (acc.opening > 0) totalOpeningDr += acc.opening;
+            if (acc.opening < 0) totalOpeningCr += Math.abs(acc.opening);
+            totalDebit += acc.debit;
+            totalCredit += acc.credit;
         });
-        return { count: accountSummaries.length, receivable: totalReceivable, payable: totalPayable };
+        return { 
+            count: accountSummaries.length, 
+            receivable: totalReceivable, 
+            payable: totalPayable,
+            openingDr: totalOpeningDr,
+            openingCr: totalOpeningCr,
+            debit: totalDebit,
+            credit: totalCredit
+        };
     }, [accountSummaries]);
 
     const totals = useMemo(() => {
@@ -1436,9 +1453,12 @@ export function InternalAccounts() {
                                             <tr>
                                                 <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">Total Accounts: {summaryTotals.count}</td>
                                                 <td className="px-6 py-4"></td> {/* Contact Info */}
-                                                <td className="px-6 py-4"></td> {/* Opening Balance */}
-                                                <td className="px-6 py-4"></td> {/* Debit */}
-                                                <td className="px-6 py-4 text-right"></td> {/* Credit */}
+                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                                                    <div>Dr: <span className="text-red-600">{summaryTotals.openingDr.toFixed(2)}</span></div>
+                                                    <div>Cr: <span className="text-emerald-600">{summaryTotals.openingCr.toFixed(2)}</span></div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">{summaryTotals.debit.toFixed(2)}</td>
+                                                <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">{summaryTotals.credit.toFixed(2)}</td>
                                                 <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
                                                     <div>Dr: <span className="text-red-600">{summaryTotals.receivable.toFixed(2)}</span></div>
                                                     <div>Cr: <span className="text-emerald-600">{summaryTotals.payable.toFixed(2)}</span></div>
