@@ -86,5 +86,5 @@ export function useAccountBalances(parties: Party[]) {
         return balancesByPartyId;
     }, [parties, mappings, openings, transactions]);
 
-    return { partyBalances, mappings };
+    return { partyBalances, mappings, openings, transactions };
 }

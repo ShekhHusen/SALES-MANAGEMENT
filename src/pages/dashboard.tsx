@@ -36,6 +36,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useAccountBalances } from '@/hooks/useAccountBalances';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
+import { AccountStatementSheet } from '@/components/AccountStatementSheet';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -49,6 +51,12 @@ export function Dashboard() {
   const [modelFilter, setModelFilter] = useState('all');
   const [bluebookFilter, setBluebookFilter] = useState('all');
   const [namsariFilter, setNamsariFilter] = useState('all');
+
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<Sale | null>(null);
+
+  const [accSheetOpen, setAccSheetOpen] = useState(false);
+  const [accParty, setAccParty] = useState(null);
 
   const activeSales = sales.filter(s => s.status !== 'returned');
 
@@ -317,7 +325,10 @@ export function Dashboard() {
                       variant="outline" 
                       size="icon" 
                       className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={() => navigate('/process-document', { state: { saleId: item.sale?.id } })}
+                      onClick={() => {
+                        setViewSale(item.sale);
+                        setViewSheetOpen(true);
+                      }}
                       title="View Documents"
                     >
                       <FileText className="w-4 h-4" />
@@ -326,7 +337,10 @@ export function Dashboard() {
                       variant="outline" 
                       size="icon" 
                       className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={() => navigate('/internal-accounts', { state: { selectedPartyId: item.customer?.id, activeTab: 'statement' } })}
+                      onClick={() => {
+                        setAccParty(item.customer);
+                        setAccSheetOpen(true);
+                      }}
                       title="View Account"
                     >
                       <User className="w-4 h-4" />
@@ -338,6 +352,9 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      <ProcessDocumentSheet open={viewSheetOpen} onOpenChange={setViewSheetOpen} viewSale={viewSale} />
+      <AccountStatementSheet open={accSheetOpen} onOpenChange={setAccSheetOpen} party={accParty} />
 
       {/* Charts Section */}
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
