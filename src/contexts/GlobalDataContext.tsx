@@ -43,6 +43,7 @@ interface GlobalDataState {
   loading: boolean;
   debugStates?: any;
   subscriptionErrors?: string[];
+  readCount: number;
 }
 
 const initialState: GlobalDataState = {
@@ -63,7 +64,8 @@ const initialState: GlobalDataState = {
   hiddenParties: [],
   loading: true,
   debugStates: {},
-  subscriptionErrors: []
+  subscriptionErrors: [],
+  readCount: 0
 };
 
 const GlobalDataContext = createContext<GlobalDataState>(initialState);
@@ -133,8 +135,23 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }));
     };
 
+    const trackReads = (s: any) => {
+        if (!s.metadata?.fromCache) {
+            let added = 0;
+            if (typeof s.docChanges === 'function') {
+                added = s.docChanges().length;
+            } else if (s.exists && s.exists()) {
+                added = 1;
+            }
+            if (added > 0) {
+               setData(prev => ({ ...prev, readCount: prev.readCount + added }));
+            }
+        }
+    };
+
     const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (s) => {
       if(active) {
+        trackReads(s);
         const sorted = s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
           const tA = (a.updatedAt as any)?.toMillis?.() || 0;
           const tB = (b.updatedAt as any)?.toMillis?.() || 0;
@@ -151,6 +168,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     const unsubCompanies = onSnapshot(collection(db, 'companies'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, companies: s.docs.map(d => ({ ...d.data(), id: d.id } as Company)) }));
         loadedStates.companies = true;
         checkLoading();
@@ -162,6 +180,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubModels = onSnapshot(collection(db, 'models'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, models: s.docs.map(d => ({ ...d.data(), id: d.id } as Model)) }));
         loadedStates.models = true;
         checkLoading();
@@ -173,6 +192,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubColors = onSnapshot(collection(db, 'colors'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, colors: s.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor)) }));
         loadedStates.colors = true;
         checkLoading();
@@ -184,6 +204,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubParties = onSnapshot(collection(db, 'parties'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, parties: s.docs.map(d => ({ ...d.data(), id: d.id } as Party)) }));
         loadedStates.parties = true;
         checkLoading();
@@ -195,6 +216,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => {
       if(active) {
+        trackReads(s);
         const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
           const tA = (a.date as any)?.toMillis?.() || 0;
           const tB = (b.date as any)?.toMillis?.() || 0;
@@ -211,6 +233,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubSales = onSnapshot(collection(db, 'sales'), (s) => {
       if(active) {
+        trackReads(s);
         const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
           const tA = (a.date as any)?.toMillis?.() || 0;
           const tB = (b.date as any)?.toMillis?.() || 0;
@@ -227,6 +250,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubOtherDetails = onSnapshot(collection(db, 'otherDetails'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, otherDetails: s.docs.map(d => ({ ...d.data(), id: d.id } as OtherDetails)) }));
         loadedStates.otherDetails = true;
         checkLoading();
@@ -237,6 +261,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubFollowups = onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, followups: s.docs.map(d => ({ ...d.data(), id: d.id } as FollowUp)) }));
         loadedStates.followups = true;
         checkLoading();
@@ -247,6 +272,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, users: s.docs.map(d => ({ ...d.data(), uid: d.id })) }));
         loadedStates.users = true;
         checkLoading();
@@ -257,6 +283,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubOpenings = onSnapshot(collection(db, 'internal_openings'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, internalOpenings: s.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)) }));
         loadedStates.internalOpenings = true;
         checkLoading();
@@ -267,6 +294,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubTransactions = onSnapshot(collection(db, 'internal_transactions'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, internalTransactions: s.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)) }));
         loadedStates.internalTransactions = true;
         checkLoading();
@@ -277,6 +305,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const unsubAccountMeta = onSnapshot(collection(db, 'account_metadata'), (s) => {
       if(active) {
+        trackReads(s);
         setData(prev => ({ ...prev, accountMetadata: s.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata)) }));
         loadedStates.accountMetadata = true;
         checkLoading();
@@ -285,13 +314,14 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if(active) { addError("AccountMetadata", error); loadedStates.accountMetadata = true; checkLoading(); }
     });
 
-    const unsubMappings = onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+    const unsubMappings = onSnapshot(doc(db, 'internal_data', 'mappings'), (s) => {
       if (active) {
-        if (snap.exists()) {
+        trackReads(s);
+        if (s.exists()) {
             setData(prev => ({ 
                 ...prev, 
-                mappings: snap.data()?.mappings || {}, 
-                hiddenParties: snap.data()?.hiddenParties || [] 
+                mappings: s.data()?.mappings || {}, 
+                hiddenParties: s.data()?.hiddenParties || [] 
             }));
         }
         loadedStates.mappings = true;
