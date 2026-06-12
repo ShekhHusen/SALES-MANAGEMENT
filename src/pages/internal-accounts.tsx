@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
-import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const SearchableSelect = ({ options, value, onChange, placeholder }: { options: { label: string, value: string, category: string }[], value: string, onChange: (val: string) => void, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -164,22 +163,32 @@ interface Transaction {
 
 export function InternalAccounts() {
     const { userProfile } = useAuth();
-    const { 
-        parties, sales, otherDetails, vehicles, models, companies, followups, users,
-        internalOpenings: openings, internalTransactions: transactions, accountMetadata, mappings, hiddenParties, loading
-    } = useGlobalData();
+    const [openings, setOpenings] = useState<OpeningBalance[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [accountMetadata, setAccountMetadata] = useState<AccountMetadata[]>([]);
+    const [mappings, setMappings] = useState<Record<string, string>>({});
+    const [hiddenParties, setHiddenParties] = useState<string[]>([]);
     
     // Edit Metadata Dialog State
     const [editMetaOpen, setEditMetaOpen] = useState(false);
     const [metaForm, setMetaForm] = useState({ accountName: '', mobileNumber: '', address: '', id: '' });
 
+    const [parties, setParties] = useState<Party[]>([]);
+    const [sales, setSales] = useState<Sale[]>([]);
+    const [otherDetails, setOtherDetails] = useState<OtherDetails[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [models, setModels] = useState<Model[]>([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [followups, setFollowups] = useState<FollowUp[]>([]);
     const [isFollowupOpen, setIsFollowupOpen] = useState(false);
     const [isQuickFollowupOpen, setIsQuickFollowupOpen] = useState(false);
     const [newFollowupMsg, setNewFollowupMsg] = useState('');
     const [newFollowupDate, setNewFollowupDate] = useState('');
     const [newFollowupTime, setNewFollowupTime] = useState('');
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
+    const [users, setUsers] = useState<UserProfile[]>([]);
     const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
     
     // View Sheet state
     const [viewSheetOpen, setViewSheetOpen] = useState(false);
@@ -273,8 +282,41 @@ export function InternalAccounts() {
     }, [passedState?.selectedPartyId, mappings]);
 
     // Fetch data on load
-    // Uses global context so removed local listeners
-
+    useEffect(() => {
+        setLoading(true);
+        const unsubs = [
+            onSnapshot(collection(db, 'parties'), (snap) => setParties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Party))), (e) => console.error("Parties error:", e)),
+            onSnapshot(collection(db, 'sales'), (snap) => setSales(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sale))), (e) => console.error("Sales error:", e)),
+            onSnapshot(collection(db, 'otherDetails'), (snap) => setOtherDetails(snap.docs.map(d => ({ id: d.id, ...d.data() } as OtherDetails))), (e) => console.error("otherDetails error:", e)),
+            onSnapshot(collection(db, 'vehicles'), (snap) => setVehicles(snap.docs.map(d => ({ id: d.id, ...d.data() } as Vehicle))), (e) => console.error("Vehicles error:", e)),
+            onSnapshot(collection(db, 'models'), (snap) => setModels(snap.docs.map(d => ({ id: d.id, ...d.data() } as Model))), (e) => console.error("Models error:", e)),
+            onSnapshot(collection(db, 'companies'), (snap) => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))), (e) => console.error("Companies error:", e)),
+            onSnapshot(collection(db, 'users'), (snap) => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id }))), (e) => console.error("Users error:", e)),
+            onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (snap) => setFollowups(snap.docs.map(d => ({ id: d.id, ...d.data() } as FollowUp))), (e) => console.error("Followups error:", e)),
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance))), (e) => console.error("internal_openings error:", e)),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))), (e) => console.error("internal_transactions error:", e)),
+            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata))), (e) => console.error("account_metadata error:", e)),
+            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+                 if (snap.exists()) {
+                     setMappings(snap.data()?.mappings || {});
+                     setHiddenParties(snap.data()?.hiddenParties || []);
+                 }
+                 setLoading(false);
+            }, (e) => {
+                 console.error("Mappings error:", e);
+                 setLoading(false);
+            })
+        ];
+        
+        const timeout = setTimeout(() => {
+            if (loading) setLoading(false);
+        }, 3000);
+        
+        return () => {
+            unsubs.forEach(u => u());
+            clearTimeout(timeout);
+        };
+    }, []);
 
     const handleImportOpenings = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

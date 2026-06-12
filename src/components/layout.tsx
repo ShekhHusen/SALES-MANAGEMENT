@@ -51,7 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
-  const { loading: dataLoading, debugStates, subscriptionErrors, readCount } = useGlobalData();
+  const { loading: dataLoading, debugStates, subscriptionErrors } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -258,13 +258,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </Button>
-          
-          {/* Read Count Meter */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg mr-1 border border-blue-200 dark:border-blue-800/30" title="Firestore Document Reads">
-             <ActivitySquare className="w-3.5 h-3.5" />
-             <span className="text-[10px] font-bold tracking-wider font-mono">{readCount.toLocaleString()} reads</span>
-          </div>
-
           <FollowUpNotifier />
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
