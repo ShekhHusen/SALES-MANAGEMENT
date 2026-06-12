@@ -11,16 +11,14 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function FollowUpNotifier() {
     const { userProfile } = useAuth();
-    const [followups, setFollowups] = useState<FollowUp[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
+    const { followups, parties, users } = useGlobalData();
     const [isOpen, setIsOpen] = useState(false);
     const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set());
     const navigate = useNavigate();
-
-    const [users, setUsers] = useState<UserProfile[]>([]);
     
     const [updatingPartyId, setUpdatingPartyId] = useState<string | null>(null);
     const [newFollowupMsg, setNewFollowupMsg] = useState('');
@@ -100,21 +98,6 @@ export function FollowUpNotifier() {
             toast.error("Failed to update assignee");
         }
     };
-
-    useEffect(() => {
-        const unsubs = [
-            onSnapshot(collection(db, 'followups'), snap => {
-                setFollowups(snap.docs.map(d => ({id: d.id, ...d.data()} as FollowUp)));
-            }),
-            onSnapshot(collection(db, 'parties'), snap => {
-                setParties(snap.docs.map(d => ({id: d.id, ...d.data()} as Party)));
-            }),
-            onSnapshot(collection(db, 'users'), snap => {
-                setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
-            })
-        ];
-        return () => unsubs.forEach(u => u());
-    }, []);
 
     // Request notification permission
     useEffect(() => {

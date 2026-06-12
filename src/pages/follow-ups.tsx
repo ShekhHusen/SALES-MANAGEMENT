@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserProfile } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 interface OpeningBalance {
     id: string;
@@ -111,12 +112,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder }: { options: 
 
 export function FollowUps() {
     const { userProfile } = useAuth();
-    const [followups, setFollowups] = useState<FollowUp[]>([]);
-    const [parties, setParties] = useState<Party[]>([]);
-    const [users, setUsers] = useState<UserProfile[]>([]);
-    const [openings, setOpenings] = useState<OpeningBalance[]>([]);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [mappings, setMappings] = useState<Record<string, string>>({});
+    const { followups, parties, users, internalOpenings: openings, internalTransactions: transactions, mappings } = useGlobalData();
     const navigate = useNavigate();
 
     const [updatingPartyId, setUpdatingPartyId] = useState<string | null>(null);
@@ -144,28 +140,6 @@ export function FollowUps() {
     // Filters
     const [selectedUserId, setSelectedUserId] = useState<string>('all');
     const [showOnlyDue, setShowOnlyDue] = useState<boolean>(true);
-
-    useEffect(() => {
-        const unsubs = [
-            onSnapshot(collection(db, 'followups'), snap => {
-                setFollowups(snap.docs.map(d => ({id: d.id, ...d.data()} as FollowUp)));
-            }),
-            onSnapshot(collection(db, 'parties'), snap => {
-                setParties(snap.docs.map(d => ({id: d.id, ...d.data()} as Party)));
-            }),
-            onSnapshot(collection(db, 'users'), snap => {
-                setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
-            }),
-            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
-            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
-            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
-                 if (snap.exists()) {
-                     setMappings(snap.data()?.mappings || {});
-                 }
-            })
-        ];
-        return () => unsubs.forEach(u => u());
-    }, []);
 
     const allAccountNames = useMemo(() => {
         const names = new Set<string>();
