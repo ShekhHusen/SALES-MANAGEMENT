@@ -11,7 +11,7 @@ import {
   fetchSignInMethodsForEmail,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from '@/lib/trackedFirestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from 'sonner';
 

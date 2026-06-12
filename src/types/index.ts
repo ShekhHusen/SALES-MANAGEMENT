@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/lib/trackedFirestore';
 
 export type BluebookStatus = 'Not Received' | 'Received';
 export type NaamsariStatus = 'Pending' | 'Names of JBMT' | 'Customer Done';

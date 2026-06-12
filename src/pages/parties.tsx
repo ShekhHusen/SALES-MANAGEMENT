@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Party } from '@/types';
 import { Badge } from '@/components/ui/badge';

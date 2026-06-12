@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Upload, DatabaseBackup } from 'lucide-react';
 import { toast } from 'sonner';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 
 export function BackupRestore() {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { collection, onSnapshot, doc } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { Party } from '@/types';
 

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Database } from 'lucide-react';
 import { toast } from 'sonner';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Purchase, Sale } from '@/types';
 

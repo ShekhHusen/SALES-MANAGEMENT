@@ -9,7 +9,7 @@ import { Upload, Plus, Save, Download, RefreshCw, FileSpreadsheet, ChevronLeft, 
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath, arrayUnion, arrayRemove } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { useAuth, UserProfile, UserRole } from '@/hooks/use-auth';
 import { logAction } from '@/lib/audit';

@@ -1,4 +1,4 @@
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp } from '@/lib/trackedFirestore';
 import { db } from './firebase';
 
 export async function logAction(

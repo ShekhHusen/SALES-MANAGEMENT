@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, query, orderBy } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
 import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle, ChevronDown, ChevronUp, Search, X } from 'lucide-react';

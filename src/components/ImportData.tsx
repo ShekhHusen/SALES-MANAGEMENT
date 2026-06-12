@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, Upload, AlertCircle, FileSpreadsheet, Eye, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { collection, doc, writeBatch, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, Timestamp } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party } from '@/types';
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { Vehicle, Company, Model, Party, Purchase, Sale } from '@/types';
 import { Input } from '@/components/ui/input';
