@@ -29,11 +29,13 @@ import {
   FileText,
   UserCheck,
   Eye,
-  User
+  User,
+  Search
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useAccountBalances } from '@/hooks/useAccountBalances';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
@@ -46,11 +48,21 @@ export function Dashboard() {
   const { partyBalances, mappings } = useAccountBalances(parties);
   const navigate = useNavigate();
 
-  const [vendorFilter, setVendorFilter] = useState('all');
-  const [companyFilter, setCompanyFilter] = useState('all');
-  const [modelFilter, setModelFilter] = useState('all');
-  const [bluebookFilter, setBluebookFilter] = useState('all');
-  const [namsariFilter, setNamsariFilter] = useState('all');
+  const [tempVendorFilter, setTempVendorFilter] = useState('all');
+  const [tempCompanyFilter, setTempCompanyFilter] = useState('all');
+  const [tempModelFilter, setTempModelFilter] = useState('all');
+  const [tempBluebookFilter, setTempBluebookFilter] = useState('all');
+  const [tempNamsariFilter, setTempNamsariFilter] = useState('all');
+  const [tempBalanceLessThan, setTempBalanceLessThan] = useState('100000');
+
+  const [appliedFilters, setAppliedFilters] = useState<{
+    vendor: string;
+    company: string;
+    model: string;
+    bluebook: string;
+    namsari: string;
+    balanceLessThan: string;
+  } | null>(null);
 
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [viewSale, setViewSale] = useState<Sale | null>(null);
@@ -61,6 +73,7 @@ export function Dashboard() {
   const activeSales = sales.filter(s => s.status !== 'returned');
 
   const pendingDuesList = useMemo(() => {
+    if (!appliedFilters) return [];
     return vehicles.map(v => {
       const sale = activeSales.find(s => s.chassisNumber === (v.chassisNumber || v.id));
       const purchase = purchases.find(p => p.chassisNumbers?.includes(v.chassisNumber || v.id));
@@ -73,15 +86,18 @@ export function Dashboard() {
       return { vehicle: v, sale, purchase, vendor, customer, company, model, closingBal };
     }).filter(item => {
       if (!item.sale || !item.customer) return false;
-      if (item.closingBal >= 100000) return false;
-      if (namsariFilter !== 'all' && (item.vehicle.naamsariStatus || '').toLowerCase().trim() !== namsariFilter.toLowerCase().trim()) return false;
-      if (bluebookFilter !== 'all' && (item.vehicle.bluebookStatus || '').toLowerCase().trim() !== bluebookFilter.toLowerCase().trim()) return false;
-      if (vendorFilter !== 'all' && item.vendor?.id !== vendorFilter) return false;
-      if (companyFilter !== 'all' && item.vehicle.companyId !== companyFilter) return false;
-      if (modelFilter !== 'all' && item.vehicle.modelId !== modelFilter) return false;
+      if (appliedFilters.balanceLessThan) {
+        const threshold = parseFloat(appliedFilters.balanceLessThan);
+        if (!isNaN(threshold) && item.closingBal >= threshold) return false;
+      }
+      if (appliedFilters.namsari !== 'all' && (item.vehicle.naamsariStatus || '').toLowerCase().trim() !== appliedFilters.namsari.toLowerCase().trim()) return false;
+      if (appliedFilters.bluebook !== 'all' && (item.vehicle.bluebookStatus || '').toLowerCase().trim() !== appliedFilters.bluebook.toLowerCase().trim()) return false;
+      if (appliedFilters.vendor !== 'all' && item.vendor?.id !== appliedFilters.vendor) return false;
+      if (appliedFilters.company !== 'all' && item.vehicle.companyId !== appliedFilters.company) return false;
+      if (appliedFilters.model !== 'all' && item.vehicle.modelId !== appliedFilters.model) return false;
       return true;
     });
-  }, [vehicles, activeSales, purchases, parties, companies, models, partyBalances, namsariFilter, bluebookFilter, vendorFilter, companyFilter, modelFilter]);
+  }, [vehicles, activeSales, purchases, parties, companies, models, partyBalances, appliedFilters]);
 
   const uniqueVendors = useMemo(() => Array.from(new Set(purchases.map(p => p.vendorId))).map(vId => parties.find(p => p.id === vId)).filter(Boolean), [purchases, parties]);
 
@@ -216,159 +232,250 @@ export function Dashboard() {
 
       {/* Pending Due < 1 Lakh & Pending Namsari Section */}
       <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950 mb-4 bg-white/50 backdrop-blur-xl">
-        <CardHeader className="pb-4 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-500 to-orange-500">
-              Clear Dues & Pending Namsari
-            </CardTitle>
-            <CardDescription>
-              Vehicles with Naamsari pending and customer dues under ₹1 Lakh.
-            </CardDescription>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-            <Select value={namsariFilter} onValueChange={setNamsariFilter}>
-                <SelectTrigger className="w-[140px] h-9">
+        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
+          <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-rose-500 to-orange-500">
+            Clear Dues & Pending Namsari
+          </CardTitle>
+          <CardDescription>
+            Vehicles with Naamsari pending and customer dues target threshold limits. Configure filters below and search.
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="p-6">
+          {/* Labeled Filter Form */}
+          <div className="bg-slate-50/70 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-900 mb-6">
+            <h4 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-4 flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5" />
+              Search Criteria
+            </h4>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 items-end">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Namsari Status</label>
+                <Select value={tempNamsariFilter} onValueChange={setTempNamsariFilter}>
+                  <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                     <SelectValue placeholder="Namsari" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="all">All Namsari</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
                     <SelectItem value="Names of JBMT">Names of JBMT</SelectItem>
                     <SelectItem value="Customer Done">Customer Done</SelectItem>
-                </SelectContent>
-            </Select>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Select value={vendorFilter} onValueChange={setVendorFilter}>
-                <SelectTrigger className="w-[140px] h-9">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Vendor</label>
+                <Select value={tempVendorFilter} onValueChange={setTempVendorFilter}>
+                  <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                     <SelectValue placeholder="Vendor" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="all">All Vendors</SelectItem>
                     {uniqueVendors.map(v => v && (
-                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
                     ))}
-                </SelectContent>
-            </Select>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Select value={companyFilter} onValueChange={(val) => { setCompanyFilter(val); setModelFilter('all'); }}>
-                <SelectTrigger className="w-[140px] h-9">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Company</label>
+                <Select value={tempCompanyFilter} onValueChange={(val) => { setTempCompanyFilter(val); setTempModelFilter('all'); }}>
+                  <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                     <SelectValue placeholder="Company" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="all">All Companies</SelectItem>
                     {companies.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
-                </SelectContent>
-            </Select>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Select value={modelFilter} onValueChange={setModelFilter} disabled={companyFilter === 'all'}>
-                <SelectTrigger className="w-[140px] h-9">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Model</label>
+                <Select value={tempModelFilter} onValueChange={setTempModelFilter} disabled={tempCompanyFilter === 'all'}>
+                  <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                     <SelectValue placeholder="Model" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="all">All Models</SelectItem>
-                    {models.filter(m => m.companyId === companyFilter).map(m => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    {models.filter(m => m.companyId === tempCompanyFilter).map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                     ))}
-                </SelectContent>
-            </Select>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Select value={bluebookFilter} onValueChange={setBluebookFilter}>
-                <SelectTrigger className="w-[140px] h-9">
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Bluebook Status</label>
+                <Select value={tempBluebookFilter} onValueChange={setTempBluebookFilter}>
+                  <SelectTrigger className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                     <SelectValue placeholder="Bluebook" />
-                </SelectTrigger>
-                <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="all">All Bluebooks</SelectItem>
                     <SelectItem value="Received">Received</SelectItem>
                     <SelectItem value="Not Received">Not Received</SelectItem>
                     <SelectItem value="Delivered">Delivered</SelectItem>
-                </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex flex-wrap gap-4 overflow-y-auto max-h-[350px] custom-scrollbar">
-            {pendingDuesList.length === 0 ? (
-              <div className="w-full text-center py-8 text-slate-500 text-sm">
-                No vehicles matched your filters.
+                  </SelectContent>
+                </Select>
               </div>
-            ) : (
-              pendingDuesList.map(item => (
-                <div key={item.vehicle.id} className="group relative w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          #{item.sale?.fileNumber || 'N/A'}
-                        </span>
-                        <span className={cn(
-                          "text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border",
-                          (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'pending' ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20" :
-                          (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt' ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20" :
-                          "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20"
-                        )}>
-                          {item.vehicle.naamsariStatus || 'Unknown'}
-                        </span>
-                      </div>
-                      <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-1" title={item.customer?.name}>
-                        {item.customer?.name || 'Unknown Party'}
-                      </h3>
-                    </div>
-                    
-                    <div className="flex flex-col items-end">
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase mb-0.5">Cl. Bla.</div>
-                      <div className={cn(
-                        "font-mono font-bold text-sm",
-                        item.closingBal > 0 ? "text-rose-600" : item.closingBal < 0 ? "text-emerald-600" : "text-slate-600 dark:text-slate-300"
-                      )}>
-                        {Math.abs(item.closingBal || 0).toLocaleString('en-IN')} {item.closingBal >= 0 ? (item.closingBal > 0 ? 'Dr' : '') : 'Cr'}
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
-                    <div>
-                      <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vehicle</div>
-                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1">{item.company?.name} {item.model?.name}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vendor</div>
-                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1" title={item.vendor?.name}>{item.vendor?.name || 'Unknown'}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={() => {
-                        setViewSale(item.sale);
-                        setViewSheetOpen(true);
-                      }}
-                      title="View Documents"
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Balance Less Than (₹)</label>
+                <div className="relative">
+                  <Input 
+                    type="number"
+                    placeholder="e.g. 100000"
+                    value={tempBalanceLessThan}
+                    onChange={(e) => setTempBalanceLessThan(e.target.value)}
+                    className="w-full h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 pr-10"
+                  />
+                  {tempBalanceLessThan && (
+                    <button 
+                      type="button"
+                      onClick={() => setTempBalanceLessThan('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600"
                     >
-                      <FileText className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={() => {
-                        setAccParty(item.customer);
-                        setAccSheetOpen(true);
-                      }}
-                      title="View Account"
-                    >
-                      <User className="w-4 h-4" />
-                    </Button>
-                  </div>
+                      ×
+                    </button>
+                  )}
                 </div>
-              ))
-            )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-slate-200/50 dark:border-slate-800/55">
+              {appliedFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="font-bold text-slate-500 dark:text-slate-400 h-10 px-4 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  onClick={() => {
+                    setTempVendorFilter('all');
+                    setTempCompanyFilter('all');
+                    setTempModelFilter('all');
+                    setTempBluebookFilter('all');
+                    setTempNamsariFilter('all');
+                    setTempBalanceLessThan('100000');
+                    setAppliedFilters(null);
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+              <Button 
+                className="bg-gradient-to-r from-rose-500 to-orange-500 text-white font-extrabold h-10 px-6 rounded-lg shadow-sm hover:opacity-90 hover:shadow-md transition-all duration-200 flex items-center gap-2"
+                onClick={() => {
+                  setAppliedFilters({
+                    vendor: tempVendorFilter,
+                    company: tempCompanyFilter,
+                    model: tempModelFilter,
+                    bluebook: tempBluebookFilter,
+                    namsari: tempNamsariFilter,
+                    balanceLessThan: tempBalanceLessThan,
+                  });
+                }}
+              >
+                <Search className="w-4 h-4 text-white" />
+                Search
+              </Button>
+            </div>
           </div>
+
+          {/* Results Showcase */}
+          {!appliedFilters ? (
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 dark:border-slate-800/60 rounded-2xl bg-slate-50/20 text-center">
+              <Search className="w-10 h-10 text-slate-400 dark:text-slate-600 mb-2 stroke-[1.5]" />
+              <h5 className="font-semibold text-slate-700 dark:text-slate-300 text-sm mb-1">Enter Filter Criteria & Search</h5>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                Set status criteria in the section above and click the Search button to discover matching dues and vehicle details.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4 overflow-y-auto max-h-[350px] custom-scrollbar">
+              {pendingDuesList.length === 0 ? (
+                <div className="w-full text-center py-10 text-slate-500 text-sm font-medium">
+                  No records matched your search parameters.
+                </div>
+              ) : (
+                pendingDuesList.map(item => (
+                  <div key={item.vehicle.id} className="group relative w-full sm:w-[350px] lg:w-[400px] flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            #{item.sale?.fileNumber || 'N/A'}
+                          </span>
+                          <span className={cn(
+                            "text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border",
+                            (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'pending' ? "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20" :
+                            (item.vehicle.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt' ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20" :
+                            "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20"
+                          )}>
+                            {item.vehicle.naamsariStatus || 'Unknown'}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-1" title={item.customer?.name}>
+                          {item.customer?.name || 'Unknown Party'}
+                        </h3>
+                      </div>
+                      
+                      <div className="flex flex-col items-end">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase mb-0.5">Cl. Bla.</div>
+                        <div className={cn(
+                          "font-mono font-bold text-sm",
+                          item.closingBal > 0 ? "text-rose-600" : item.closingBal < 0 ? "text-emerald-600" : "text-slate-600 dark:text-slate-300"
+                        )}>
+                          {Math.abs(item.closingBal || 0).toLocaleString('en-IN')} {item.closingBal >= 0 ? (item.closingBal > 0 ? 'Dr' : '') : 'Cr'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
+                      <div>
+                        <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vehicle</div>
+                        <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1">{item.company?.name} {item.model?.name}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-500 mb-0.5 uppercase tracking-wide">Vendor</div>
+                        <div className="text-xs font-medium text-slate-800 dark:text-slate-200 line-clamp-1" title={item.vendor?.name}>{item.vendor?.name || 'Unknown'}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onClick={() => {
+                          setViewSale(item.sale);
+                          setViewSheetOpen(true);
+                        }}
+                        title="View Documents"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="flex-1 h-8 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onClick={() => {
+                          setAccParty(item.customer);
+                          setAccSheetOpen(true);
+                        }}
+                        title="View Account"
+                      >
+                        <User className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

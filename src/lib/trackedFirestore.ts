@@ -44,20 +44,20 @@ export const useUsageStore = create<any>()(
 
 // We proxy the most common firestore functions to track usage
 
-export const getDoc = async (...args: Parameters<typeof firestore.getDoc>) => {
-  const result = await firestore.getDoc(...args);
+export const getDoc = (async (...args: any[]) => {
+  const result = await (firestore.getDoc as any)(...args);
   useUsageStore.getState().incrementReads(1);
   return result;
-};
+}) as unknown as typeof firestore.getDoc;
 
-export const getDocs = async (...args: Parameters<typeof firestore.getDocs>) => {
-  const result = await firestore.getDocs(...args);
+export const getDocs = (async (...args: any[]) => {
+  const result = await (firestore.getDocs as any)(...args);
   // getDocs counts 1 read per document returned, minimum 1 if empty
   useUsageStore.getState().incrementReads(Math.max(1, result.size));
   return result;
-};
+}) as unknown as typeof firestore.getDocs;
 
-export const onSnapshot = (...args: Parameters<typeof firestore.onSnapshot>) => {
+export const onSnapshot = ((...args: any[]) => {
   // Overload resolution is tricky with proxy, let's just cast
   const originalOnSnapshot = firestore.onSnapshot as any;
   const callbackIndex = args.findIndex(arg => typeof arg === 'function');
@@ -79,31 +79,31 @@ export const onSnapshot = (...args: Parameters<typeof firestore.onSnapshot>) => 
     };
   }
   return originalOnSnapshot(...args);
-};
+}) as unknown as typeof firestore.onSnapshot;
 
-export const setDoc = async (...args: Parameters<typeof firestore.setDoc>) => {
-  const result = await firestore.setDoc(...args);
+export const setDoc = (async (...args: any[]) => {
+  const result = await (firestore.setDoc as any)(...args);
   useUsageStore.getState().incrementWrites(1);
   return result;
-};
+}) as unknown as typeof firestore.setDoc;
 
-export const updateDoc = async (...args: Parameters<typeof firestore.updateDoc>) => {
+export const updateDoc = (async (...args: any[]) => {
   const result = await (firestore.updateDoc as any)(...args);
   useUsageStore.getState().incrementWrites(1);
   return result;
-};
+}) as unknown as typeof firestore.updateDoc;
 
-export const addDoc = async (...args: Parameters<typeof firestore.addDoc>) => {
-  const result = await firestore.addDoc(...args);
+export const addDoc = (async (...args: any[]) => {
+  const result = await (firestore.addDoc as any)(...args);
   useUsageStore.getState().incrementWrites(1);
   return result;
-};
+}) as unknown as typeof firestore.addDoc;
 
-export const deleteDoc = async (...args: Parameters<typeof firestore.deleteDoc>) => {
-  const result = await firestore.deleteDoc(...args);
+export const deleteDoc = (async (...args: any[]) => {
+  const result = await (firestore.deleteDoc as any)(...args);
   useUsageStore.getState().incrementDeletes(1);
   return result;
-};
+}) as unknown as typeof firestore.deleteDoc;
 
 export const writeBatch = (db: firestore.Firestore) => {
   const batch = firestore.writeBatch(db);
@@ -139,12 +139,11 @@ export const writeBatch = (db: firestore.Firestore) => {
   return batch;
 };
 
-export const runTransaction = async (...args: Parameters<typeof firestore.runTransaction>) => {
+export const runTransaction = (async (...args: any[]) => {
   // Too complex to intercept perfectly, but we'll try to wrap the transaction object if possible
-  // For simplicity, we'll just track it as 1 read 1 write initially, or let it slide.
-  const result = await firestore.runTransaction(...args);
+  const result = await (firestore.runTransaction as any)(...args);
   return result;
-};
+}) as unknown as typeof firestore.runTransaction;
 
 // Re-export EVERYTHING ELSE from firestore directly
 export * from 'firebase/firestore';
