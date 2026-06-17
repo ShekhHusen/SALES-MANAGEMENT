@@ -239,7 +239,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <item.icon className={cn("w-4 h-4 transition-transform duration-300 group-hover/navitem:scale-110", isActive ? "text-white" : "text-slate-400 group-hover/navitem:text-blue-500")} />
                     <span className="text-xs font-bold tracking-wide whitespace-nowrap">{item.label}</span>
                     {isActive && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 ring-2 ring-white/30 animate-pulse shadow-sm" />
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                      </>
                     )}
                   </Link>
                 );

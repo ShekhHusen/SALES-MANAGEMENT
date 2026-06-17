@@ -5,9 +5,10 @@ import { Vehicle, Company, Model, Party, Purchase, Sale } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, FilterIcon, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCcw, Filter, ActivitySquare, ArrowUp, ArrowDown, ArrowUpDown, FilterIcon, Download, ChevronDown, ChevronUp, Database, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger, PopoverHeader, PopoverTitle } from '@/components/ui/popover';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { toast } from 'sonner';
@@ -18,6 +19,16 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Analyzer() {
   const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
+
+  // On-demand loader states
+  const [loadMode, setLoadMode] = useState<'all' | 'date'>('date');
+  const [loadFromDate, setLoadFromDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [loadToDate, setLoadToDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
 
   const [filterVendor, setFilterVendor] = useState('ALL');
   const [filterChassis, setFilterChassis] = useState('');
@@ -79,7 +90,24 @@ export function Analyzer() {
   };
 
   const filteredData = useMemo(() => {
+    if (!hasLoadedData) return [];
+
     let result = vehicles.filter(v => {
+      // On-demand date filter
+      if (loadMode === 'date') {
+        let pDateStr = '';
+        if (v.createdAt && typeof (v.createdAt as any).toDate === 'function') {
+          pDateStr = (v.createdAt as any).toDate().toISOString().split('T')[0];
+        } else if (v.createdAt && (v.createdAt as any).seconds) {
+          pDateStr = new Date((v.createdAt as any).seconds * 1000).toISOString().split('T')[0];
+        } else if (v.createdAt) {
+          pDateStr = new Date(v.createdAt as any).toISOString().split('T')[0];
+        }
+        if (!pDateStr || pDateStr < loadFromDate || pDateStr > loadToDate) {
+          return false;
+        }
+      }
+
       const matchStatus = filterStatus === 'ALL' || v.status === filterStatus;
       const matchBluebook = filterBluebook === 'ALL' || v.bluebookStatus === filterBluebook;
       const matchNaamsari = filterNaamsari === 'ALL' || v.naamsariStatus === filterNaamsari;
@@ -337,7 +365,78 @@ export function Analyzer() {
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch flex-1 min-h-0 overflow-hidden">
+      {/* On-Demand Data Loader Panel */}
+      <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-white dark:bg-slate-950/50 mb-6 shrink-0">
+        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
+          <Database className="h-4 w-4 text-blue-500" /> On-Demand Analyzer Loader
+        </h3>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex-1 grid gap-4 grid-cols-1 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Load Type Selection</label>
+              <Select value={loadMode} onValueChange={(val: 'all' | 'date') => setLoadMode(val)}>
+                <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date" className="font-semibold">Date Range Filters</SelectItem>
+                  <SelectItem value="all" className="font-semibold">All Records</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {loadMode === 'date' && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">From Date</label>
+                  <Input 
+                    type="date"
+                    value={loadFromDate}
+                    onChange={(e) => setLoadFromDate(e.target.value)}
+                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">To Date</label>
+                  <Input 
+                    type="date"
+                    value={loadToDate}
+                    onChange={(e) => setLoadToDate(e.target.value)}
+                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <Button 
+            onClick={() => setHasLoadedData(true)} 
+            className="rounded-xl h-10 px-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/10 font-bold text-sm shrink-0 flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" /> Load Records
+          </Button>
+        </div>
+      </Card>
+
+      {!hasLoadedData ? (
+        <Card className="flex-1 flex flex-col items-center justify-center p-20 text-center border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 rounded-2xl">
+          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-4">
+            <Database className="w-6 h-6 animate-pulse" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Load Analytical Records</h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
+            Analysis records are loaded on request. Choose your filter settings or Date constraints above to get started.
+          </p>
+          <Button 
+            onClick={() => setHasLoadedData(true)}
+            variant="outline"
+            className="h-9 px-4 font-bold rounded-lg"
+          >
+            Load Now
+          </Button>
+        </Card>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch flex-1 min-h-0 overflow-hidden">
         <div className={`bg-white dark:bg-[#0f172a] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 space-y-3 w-full lg:w-[250px] shrink-0 relative overflow-y-auto overflow-x-hidden transition-all duration-300 lg:max-h-none lg:h-full ${isFilterExpanded ? 'max-h-[50vh]' : 'max-h-[64px] overflow-hidden'}`}>
           <div className="absolute top-0 right-0 p-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           
@@ -585,6 +684,7 @@ export function Analyzer() {
         </div>
       </div>
     </div>
+    )}
     </div>
     <ProcessDocumentSheet 
       open={viewSheetOpen} 
