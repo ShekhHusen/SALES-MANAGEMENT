@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { logAction } from '@/lib/audit';
@@ -74,6 +74,7 @@ export function Sales() {
   const [editingSale, setEditingSale] = useState<(Sale & { id: string }) | null>(null);
   const [editSaleDate, setEditSaleDate] = useState('');
   const [editFileNumber, setEditFileNumber] = useState<number | string>('');
+  const [editChassisNumber, setEditChassisNumber] = useState<string>('');
 
   const [sortField, setSortField] = useState<'date' | 'fileNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -201,6 +202,7 @@ export function Sales() {
     }
     setEditSaleDate(parsedDate);
     setEditFileNumber(sale.fileNumber || '');
+    setEditChassisNumber(sale.chassisNumber || '');
   };
 
   const handleUpdateSale = async () => {
@@ -208,17 +210,51 @@ export function Sales() {
     try {
       const batch = writeBatch(db);
       const saleRef = doc(db, 'sales', editingSale.id);
-      batch.update(saleRef, {
+      
+      const updateData: any = {
         date: Timestamp.fromDate(new Date(editSaleDate)),
         fileNumber: Number(editFileNumber),
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      if (editChassisNumber && editChassisNumber !== editingSale.chassisNumber) {
+        updateData.chassisNumber = editChassisNumber;
+        
+        // Find the new vehicle
+        const newVehicle = allVehicles.find(v => v.chassisNumber === editChassisNumber);
+        if (newVehicle) {
+          updateData.companyId = newVehicle.companyId;
+
+          // Make the old vehicle available again
+          if (editingSale.chassisNumber) {
+            const oldVehicleRef = doc(db, 'vehicles', editingSale.chassisNumber);
+            batch.update(oldVehicleRef, {
+              status: 'available',
+              saleId: deleteField(),
+              currentOwnerId: deleteField(),
+              updatedAt: Timestamp.now(),
+            });
+          }
+
+          // Mark the new vehicle as sold
+          const newVehicleRef = doc(db, 'vehicles', editChassisNumber);
+          batch.update(newVehicleRef, {
+            status: 'sold',
+            saleId: editingSale.id,
+            currentOwnerId: editingSale.customerId,
+            updatedAt: Timestamp.now(),
+          });
+        }
+      }
+
+      batch.update(saleRef, updateData);
       await batch.commit();
       
       if (user) {
         logAction(user.uid, user.email || '', 'UPDATE', 'Sale', editingSale.id, {
           date: editSaleDate,
           fileNumber: editFileNumber,
+          chassisNumber: editChassisNumber !== editingSale.chassisNumber ? editChassisNumber : undefined
         });
       }
 
@@ -994,6 +1030,24 @@ export function Sales() {
                 onChange={(e) => setEditSaleDate(e.target.value)}
                 className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold"
               />
+            </div>
+            <div className="space-y-2 flex flex-col">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chassis Number</label>
+              <Select value={editChassisNumber} onValueChange={setEditChassisNumber}>
+                <SelectTrigger className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-left overflow-hidden">
+                  <SelectValue placeholder="Select Chassis Number" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {allVehicles
+                    .filter(v => v.status === 'in-stock' || (editingSale && v.chassisNumber === editingSale.chassisNumber))
+                    .map(v => (
+                      <SelectItem key={v.chassisNumber} value={v.chassisNumber} className="font-bold">
+                        {v.chassisNumber} {editingSale && v.chassisNumber === editingSale.chassisNumber ? '(Current)' : ''}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex gap-3 pt-4">
