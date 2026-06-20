@@ -30,7 +30,8 @@ import {
   UserCheck,
   Eye,
   User,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,7 +45,18 @@ import { AccountStatementSheet } from '@/components/AccountStatementSheet';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function Dashboard() {
-  const { vehicles, purchases, sales, companies, models, parties } = useGlobalData();
+  const [hasLoadedDashboard, setHasLoadedDashboard] = useState(false);
+  const { vehicles, purchases, sales, companies, models, parties, subscribe } = useGlobalData();
+
+  const handleLoadDashboard = () => {
+    if(subscribe) {
+      subscribe('vehicles');
+      subscribe('sales');
+      subscribe('purchases');
+      subscribe('parties');
+    }
+    setHasLoadedDashboard(true);
+  };
   const { partyBalances, mappings } = useAccountBalances(parties);
   const navigate = useNavigate();
 
@@ -142,6 +154,35 @@ export function Dashboard() {
   const topModel = modelSplit[0]?.name || 'N/A';
 
   const { loading } = useGlobalData();
+
+  if (!hasLoadedDashboard) {
+    return (
+      <div className="space-y-8 pb-10 h-full overflow-y-auto pr-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">Dashboard</h1>
+        </div>
+
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/50 backdrop-blur-xl mb-4 mt-8 flex-1">
+            <div className="py-32 text-center flex flex-col items-center justify-center h-full">
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <Database className="w-8 h-8 animate-pulse" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">Load Dashboard Overview</h3>
+              <p className="text-sm text-slate-500 max-w-md mt-2 mb-6">
+                Dashboard statistics aggregate data from your entire inventory, sales, and purchases.
+              </p>
+              <Button 
+                onClick={handleLoadDashboard}
+                variant="default"
+                className="h-11 px-8 font-black rounded-xl bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10 text-white"
+              >
+                Load Dashboard Data
+              </Button>
+            </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

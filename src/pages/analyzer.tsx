@@ -18,7 +18,17 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Analyzer() {
-  const { vehicles, companies, models, parties, purchases, sales } = useGlobalData();
+  const { vehicles, companies, models, parties, purchases, sales, subscribe } = useGlobalData();
+
+  const handleLoadData = () => {
+    if(subscribe) {
+      subscribe('vehicles');
+      subscribe('purchases');
+      subscribe('sales');
+      subscribe('parties');
+    }
+    setHasLoadedData(true);
+  };
 
   // On-demand loader states
   const [loadMode, setLoadMode] = useState<'all' | 'date'>('date');
@@ -410,7 +420,7 @@ export function Analyzer() {
           </div>
           
           <Button 
-            onClick={() => setHasLoadedData(true)} 
+            onClick={handleLoadData} 
             className="rounded-xl h-10 px-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/10 font-bold text-sm shrink-0 flex items-center gap-2"
           >
             <Search className="w-4 h-4" /> Load Records
@@ -428,7 +438,7 @@ export function Analyzer() {
             Analysis records are loaded on request. Choose your filter settings or Date constraints above to get started.
           </p>
           <Button 
-            onClick={() => setHasLoadedData(true)}
+            onClick={handleLoadData}
             variant="outline"
             className="h-9 px-4 font-bold rounded-lg"
           >
