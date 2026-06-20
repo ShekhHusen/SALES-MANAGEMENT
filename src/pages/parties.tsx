@@ -33,16 +33,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 
 export function Parties() {
-  const { parties, purchases, sales, subscribe } = useGlobalData();
-
-  const handleLoadData = () => {
-    if(subscribe) {
-      subscribe('parties');
-      subscribe('purchases');
-      subscribe('sales');
-    }
-    setHasLoadedData(true);
-  };
+  const { parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);
@@ -364,7 +355,7 @@ export function Parties() {
           </div>
           
           <Button 
-            onClick={handleLoadData} 
+            onClick={() => setHasLoadedData(true)} 
             className="rounded-xl h-10 px-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/10 font-bold text-sm shrink-0 flex items-center gap-2"
           >
             <Search className="w-4 h-4" /> Load Records
@@ -411,7 +402,7 @@ export function Parties() {
                 This section is blank by default to improve loading speeds. Select All Records or custom Dates above to load data.
               </p>
               <Button 
-                onClick={handleLoadData}
+                onClick={() => setHasLoadedData(true)}
                 variant="outline"
                 className="h-9 px-4 font-bold rounded-lg"
               >
