@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { Search, Filter, FileText, Info, ShoppingBag, BadgeDollarSign, Plus, Trash2, X, Download, ArrowUpDown, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -26,16 +26,16 @@ export function Inventory() {
   const { user } = useAuth();
   const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
   // Custom Filters & Sorting
   const [sortField, setSortField] = useState<'chassis' | 'customer' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [filterCompany, setFilterCompany] = useState<string>('all');
-  const [filterModel, setFilterModel] = useState<string>('all');
-  const [filterColor, setFilterColor] = useState<string>('all');
-  const [filterBluebook, setFilterBluebook] = useState<string>('all');
-  const [filterNaamsari, setFilterNaamsari] = useState<string>('all');
+  const [filterCompany, setFilterCompany] = useState<string[]>([]);
+  const [filterModel, setFilterModel] = useState<string[]>([]);
+  const [filterColor, setFilterColor] = useState<string[]>([]);
+  const [filterBluebook, setFilterBluebook] = useState<string[]>([]);
+  const [filterNaamsari, setFilterNaamsari] = useState<string[]>([]);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,16 +56,16 @@ export function Inventory() {
   const [purchaseDetails, setPurchaseDetails] = useState<Purchase | null>(null);
   const [saleDetails, setSaleDetails] = useState<Sale | null>(null);
 
-  const hasActiveFilters = search !== '' || filterStatus !== 'all' || filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all' || filterBluebook !== 'all' || filterNaamsari !== 'all' || sortField !== null;
+  const hasActiveFilters = search !== '' || filterStatus.length > 0 || filterCompany.length > 0 || filterModel.length > 0 || filterColor.length > 0 || filterBluebook.length > 0 || filterNaamsari.length > 0 || sortField !== null;
 
   const clearFilters = () => {
     setSearch('');
-    setFilterStatus('all');
-    setFilterCompany('all');
-    setFilterModel('all');
-    setFilterColor('all');
-    setFilterBluebook('all');
-    setFilterNaamsari('all');
+    setFilterStatus([]);
+    setFilterCompany([]);
+    setFilterModel([]);
+    setFilterColor([]);
+    setFilterBluebook([]);
+    setFilterNaamsari([]);
     setSortField(null);
     setSortOrder('asc');
   };
@@ -255,12 +255,12 @@ export function Inventory() {
     const matchesSearch = v.chassisNumber.toLowerCase().includes(search.toLowerCase()) || 
                           v.registrationNumber?.toLowerCase().includes(search.toLowerCase()) ||
                           customer?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
-    const matchesCompany = filterCompany === 'all' || v.companyId === filterCompany;
-    const matchesModel = filterModel === 'all' || v.modelId === filterModel;
-    const matchesColor = filterColor === 'all' || v.color === filterColor;
-    const matchesBluebook = filterBluebook === 'all' || v.bluebookStatus === filterBluebook;
-    const matchesNaamsari = filterNaamsari === 'all' || v.naamsariStatus === filterNaamsari;
+    const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
+    const matchesCompany = filterCompany.length === 0 || filterCompany.includes(v.companyId);
+    const matchesModel = filterModel.length === 0 || filterModel.includes(v.modelId);
+    const matchesColor = filterColor.length === 0 || filterColor.includes(v.color || '');
+    const matchesBluebook = filterBluebook.length === 0 || filterBluebook.includes(v.bluebookStatus);
+    const matchesNaamsari = filterNaamsari.length === 0 || filterNaamsari.includes(v.naamsariStatus);
 
     return matchesSearch && matchesStatus && matchesCompany && matchesModel && matchesColor && matchesBluebook && matchesNaamsari;
   });
@@ -335,20 +335,30 @@ export function Inventory() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[160px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a]">
-              <div className="flex items-center gap-2">
-                <Filter className="h-3.5 w-3.5 text-slate-400" />
-                <SelectValue placeholder="Status" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Inventory</SelectItem>
-              <SelectItem value="ready-to-purchase">Ready to Purchase</SelectItem>
-              <SelectItem value="in-stock">In Stock Units</SelectItem>
-              <SelectItem value="sold">Sold Units</SelectItem>
-            </SelectContent>
-          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-[180px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] justify-start text-left font-normal text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border transition-all hover:text-slate-800 dark:hover:text-slate-200">
+                <Filter className="h-3.5 w-3.5 text-slate-400 mr-2" />
+                {filterStatus.length === 0 ? "All Inventory" : 
+                 filterStatus.length === 1 ? (filterStatus[0] === 'ready-to-purchase' ? 'Ready to Purchase' : filterStatus[0] === 'in-stock' ? 'In Stock Units' : 'Sold Units') : 
+                 `${filterStatus.length} Selected`}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[180px]">
+              <DropdownMenuCheckboxItem checked={filterStatus.length === 0} onCheckedChange={() => setFilterStatus([])}>
+                All Inventory
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterStatus.includes('ready-to-purchase')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'ready-to-purchase'] : p.filter(x => x !== 'ready-to-purchase'))}>
+                Ready to Purchase
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterStatus.includes('in-stock')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'in-stock'] : p.filter(x => x !== 'in-stock'))}>
+                In Stock Units
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterStatus.includes('sold')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'sold'] : p.filter(x => x !== 'sold'))}>
+                Sold Units
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {hasActiveFilters && (
             <Button 
               variant="ghost" 
@@ -577,7 +587,7 @@ export function Inventory() {
                   <DropdownMenu>
                     <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
                       Vehicle Details
-                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterCompany !== 'all' || filterModel !== 'all' || filterColor !== 'all') && "opacity-100 text-[#1a4731]")} />
+                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterCompany.length > 0 || filterModel.length > 0 || filterColor.length > 0) && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
                       <DropdownMenuSub>
@@ -586,10 +596,18 @@ export function Inventory() {
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
-                            <DropdownMenuRadioGroup value={filterCompany} onValueChange={(val) => setFilterCompany(String(val))}>
-                              <DropdownMenuRadioItem value="all">All Companies</DropdownMenuRadioItem>
-                              {companies.map(c => <DropdownMenuRadioItem key={c.id} value={c.id}>{c.name}</DropdownMenuRadioItem>)}
-                            </DropdownMenuRadioGroup>
+                            <DropdownMenuCheckboxItem checked={filterCompany.length === 0} onCheckedChange={() => setFilterCompany([])}>
+                              All Companies
+                            </DropdownMenuCheckboxItem>
+                            {companies.map(c => (
+                              <DropdownMenuCheckboxItem 
+                                key={c.id} 
+                                checked={filterCompany.includes(c.id)} 
+                                onCheckedChange={(checked) => setFilterCompany(prev => checked ? [...prev, c.id] : prev.filter(x => x !== c.id))}
+                              >
+                                {c.name}
+                              </DropdownMenuCheckboxItem>
+                            ))}
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -599,10 +617,18 @@ export function Inventory() {
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
-                            <DropdownMenuRadioGroup value={filterModel} onValueChange={(val) => setFilterModel(String(val))}>
-                               <DropdownMenuRadioItem value="all">All Models</DropdownMenuRadioItem>
-                               {models.filter(m => filterCompany === 'all' || m.companyId === filterCompany).map(m => <DropdownMenuRadioItem key={m.id} value={m.id}>{m.name}</DropdownMenuRadioItem>)}
-                            </DropdownMenuRadioGroup>
+                            <DropdownMenuCheckboxItem checked={filterModel.length === 0} onCheckedChange={() => setFilterModel([])}>
+                              All Models
+                            </DropdownMenuCheckboxItem>
+                            {models.filter(m => filterCompany.length === 0 || filterCompany.includes(m.companyId)).map(m => (
+                              <DropdownMenuCheckboxItem 
+                                key={m.id} 
+                                checked={filterModel.includes(m.id)} 
+                                onCheckedChange={(checked) => setFilterModel(prev => checked ? [...prev, m.id] : prev.filter(x => x !== m.id))}
+                              >
+                                {m.name}
+                              </DropdownMenuCheckboxItem>
+                            ))}
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -612,10 +638,18 @@ export function Inventory() {
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
-                            <DropdownMenuRadioGroup value={filterColor} onValueChange={(val) => setFilterColor(String(val))}>
-                               <DropdownMenuRadioItem value="all">All Colors</DropdownMenuRadioItem>
-                               {Array.from(new Set(vehicles.map(v => v.color))).filter(c => typeof c === 'string' && c.length > 0).map(color => <DropdownMenuRadioItem key={color as string} value={color as string}>{color as string}</DropdownMenuRadioItem>)}
-                            </DropdownMenuRadioGroup>
+                            <DropdownMenuCheckboxItem checked={filterColor.length === 0} onCheckedChange={() => setFilterColor([])}>
+                              All Colors
+                            </DropdownMenuCheckboxItem>
+                            {Array.from(new Set(vehicles.map(v => v.color))).filter(c => typeof c === 'string' && c.length > 0).map(color => (
+                              <DropdownMenuCheckboxItem 
+                                key={color as string} 
+                                checked={filterColor.includes(color as string)} 
+                                onCheckedChange={(checked) => setFilterColor(prev => checked ? [...prev, color as string] : prev.filter(x => x !== color as string))}
+                              >
+                                {color as string}
+                              </DropdownMenuCheckboxItem>
+                            ))}
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -627,7 +661,7 @@ export function Inventory() {
                   <DropdownMenu>
                     <DropdownMenuTrigger className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500 outline-none bg-transparent border-none p-0 m-0 text-left">
                       Registration Details
-                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterBluebook !== 'all' || filterNaamsari !== 'all') && "opacity-100 text-[#1a4731]")} />
+                      <Filter className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", (filterBluebook.length > 0 || filterNaamsari.length > 0) && "opacity-100 text-[#1a4731]")} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48">
                       <DropdownMenuSub>
@@ -636,11 +670,15 @@ export function Inventory() {
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
-                            <DropdownMenuRadioGroup value={filterBluebook} onValueChange={(val) => setFilterBluebook(String(val))}>
-                              <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="Received">Received</DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
+                            <DropdownMenuCheckboxItem checked={filterBluebook.length === 0} onCheckedChange={() => setFilterBluebook([])}>
+                              All
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterBluebook.includes('Not Received')} onCheckedChange={(checked) => setFilterBluebook(prev => checked ? [...prev, 'Not Received'] : prev.filter(x => x !== 'Not Received'))}>
+                              Not Received
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterBluebook.includes('Received')} onCheckedChange={(checked) => setFilterBluebook(prev => checked ? [...prev, 'Received'] : prev.filter(x => x !== 'Received'))}>
+                              Received
+                            </DropdownMenuCheckboxItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -650,12 +688,18 @@ export function Inventory() {
                         </DropdownMenuSubTrigger>
                         <DropdownMenuPortal>
                           <DropdownMenuSubContent>
-                            <DropdownMenuRadioGroup value={filterNaamsari} onValueChange={(val) => setFilterNaamsari(String(val))}>
-                              <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="Pending">Pending</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="Names of JBMT">Names of JBMT</DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="Customer Done">Customer Done</DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
+                            <DropdownMenuCheckboxItem checked={filterNaamsari.length === 0} onCheckedChange={() => setFilterNaamsari([])}>
+                              All
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterNaamsari.includes('Pending')} onCheckedChange={(checked) => setFilterNaamsari(prev => checked ? [...prev, 'Pending'] : prev.filter(x => x !== 'Pending'))}>
+                              Pending
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterNaamsari.includes('Names of JBMT')} onCheckedChange={(checked) => setFilterNaamsari(prev => checked ? [...prev, 'Names of JBMT'] : prev.filter(x => x !== 'Names of JBMT'))}>
+                              Names of JBMT
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterNaamsari.includes('Customer Done')} onCheckedChange={(checked) => setFilterNaamsari(prev => checked ? [...prev, 'Customer Done'] : prev.filter(x => x !== 'Customer Done'))}>
+                              Customer Done
+                            </DropdownMenuCheckboxItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
