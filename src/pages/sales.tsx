@@ -40,7 +40,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 export function Sales() {
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, sales, loadedScopes, loadAllCollection } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock');
   const isAdmin = userProfile?.role === 'admin';
@@ -458,6 +458,15 @@ export function Sales() {
           Finalize Transaction
         </Button>
       </div>
+
+      {loadedScopes?.sales === '1-week' && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200 shrink-0">
+          <span className="font-medium">⚡ Showing recent 1-week records to conserve bandwidth.</span>
+          <Button size="sm" variant="outline" className="border-amber-300 bg-white hover:bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-100 h-8" onClick={() => loadAllCollection?.('sales')}>
+            Load All Sales Records
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
         {/* Left Column: Selection */}

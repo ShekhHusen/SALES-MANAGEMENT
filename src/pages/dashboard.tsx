@@ -44,7 +44,7 @@ import { AccountStatementSheet } from '@/components/AccountStatementSheet';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function Dashboard() {
-  const { vehicles, purchases, sales, companies, models, parties } = useGlobalData();
+  const { vehicles, purchases, sales, companies, models, parties, cardTotals } = useGlobalData();
   const { partyBalances, mappings } = useAccountBalances(parties);
   const navigate = useNavigate();
 
@@ -72,6 +72,41 @@ export function Dashboard() {
 
   const activeSales = sales.filter(s => s.status !== 'returned');
 
+  const getDocMillis = (item: any) => {
+    if (!item) return 0;
+    const dt = item.date || item.createdAt || item.updatedAt || item.purchaseDate || item.saleDate;
+    if (!dt) return 0;
+    if (typeof dt.toMillis === 'function') return dt.toMillis();
+    if (typeof dt.toDate === 'function') return dt.toDate().getTime();
+    if (dt.seconds) return dt.seconds * 1000;
+    if (typeof dt === 'number') return dt;
+    const parsed = new Date(dt).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const oneWeekWindowStart = useMemo(() => {
+    let max = Date.now();
+    activeSales.forEach(s => {
+      const m = getDocMillis(s);
+      if (m > max) max = m;
+    });
+    return max - 7 * 24 * 60 * 60 * 1000;
+  }, [activeSales]);
+
+  const recentSales = useMemo(() => {
+    return activeSales.filter(s => {
+      const m = getDocMillis(s);
+      return m >= oneWeekWindowStart;
+    });
+  }, [activeSales, oneWeekWindowStart]);
+
+  const recentVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      const m = getDocMillis(v);
+      return m >= oneWeekWindowStart;
+    });
+  }, [vehicles, oneWeekWindowStart]);
+
   const pendingDuesList = useMemo(() => {
     if (!appliedFilters) return [];
     return vehicles.map(v => {
@@ -86,6 +121,8 @@ export function Dashboard() {
       return { vehicle: v, sale, purchase, vendor, customer, company, model, closingBal };
     }).filter(item => {
       if (!item.sale || !item.customer) return false;
+      const saleMillis = getDocMillis(item.sale);
+      if (saleMillis > 0 && saleMillis < oneWeekWindowStart) return false;
       if (appliedFilters.balanceLessThan) {
         const threshold = parseFloat(appliedFilters.balanceLessThan);
         if (!isNaN(threshold) && item.closingBal >= threshold) return false;
@@ -97,47 +134,58 @@ export function Dashboard() {
       if (appliedFilters.model !== 'all' && item.vehicle.modelId !== appliedFilters.model) return false;
       return true;
     });
-  }, [vehicles, activeSales, purchases, parties, companies, models, partyBalances, appliedFilters]);
+  }, [vehicles, activeSales, purchases, parties, companies, models, partyBalances, appliedFilters, oneWeekWindowStart]);
 
   const uniqueVendors = useMemo(() => Array.from(new Set(purchases.map(p => p.vendorId))).map(vId => parties.find(p => p.id === vId)).filter(Boolean), [purchases, parties]);
 
   const stats = {
-    totalInventory: vehicles.length,
-    totalProcurement: purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
-    totalSales: activeSales.length,
-    inStock: vehicles.filter(v => v.status === 'in-stock').length,
-    bluebookPending: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'not received').length,
-    bluebookReceived: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'received').length,
-    naamsariPending: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'pending').length,
-    jbmtName: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt').length,
-    customerDone: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'customer done').length,
+    // All-time Totals from Backend Aggregations (As Requested)
+    totalInventory: cardTotals?.totalInventory ?? vehicles.length,
+    totalProcurement: cardTotals?.totalProcurement ?? purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
+    totalSales: cardTotals?.totalSales ?? activeSales.length,
+    inStock: cardTotals?.inStock ?? vehicles.filter(v => v.status === 'in-stock').length,
+    // 1-Week Statuses (As Requested)
+    bluebookPending: recentVehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'not received').length,
+    bluebookReceived: recentVehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'received').length,
+    naamsariPending: recentVehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'pending').length,
+    jbmtName: recentVehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt').length,
+    customerDone: recentVehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'customer done').length,
   };
 
-  // Model Split Data
+  // Model Split Data (1-Week)
   const modelSplit = models.map(m => ({
     name: m.name,
-    value: vehicles.filter(v => v.modelId === m.id).length
+    value: recentVehicles.filter(v => v.modelId === m.id).length
   })).sort((a,b) => b.value - a.value).slice(0, 5);
 
-  // Company Split Data
+  // Company Split Data (1-Week)
   const companySplit = companies.map(c => ({
     name: c.name,
-    value: vehicles.filter(v => v.companyId === c.id).length
+    value: recentVehicles.filter(v => v.companyId === c.id).length
   }));
 
-  // Sales Trend (Last 6 months simplified)
-  const salesByMonth = activeSales.reduce((acc: any, sale) => {
-    let dateObj;
-    try {
-      dateObj = typeof sale.date?.toDate === 'function' ? sale.date.toDate() : new Date(sale.date as any || Date.now());
-    } catch {
-      dateObj = new Date();
+  // Sales Trend (Last 1 Week by Day)
+  const salesTrendData = useMemo(() => {
+    const daysMap: Record<string, number> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(oneWeekWindowStart + (7 - i) * 24 * 60 * 60 * 1000);
+      const dayLabel = d.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+      daysMap[dayLabel] = 0;
     }
-    const month = dateObj.toLocaleString('default', { month: 'short' });
-    acc[month] = (acc[month] || 0) + 1;
-    return acc;
-  }, {});
-  const salesTrendData = Object.entries(salesByMonth).map(([name, sales]) => ({ name, sales }));
+    recentSales.forEach(sale => {
+      const m = getDocMillis(sale);
+      if (m >= oneWeekWindowStart) {
+        const dt = new Date(m);
+        const label = dt.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+        if (daysMap[label] !== undefined) {
+          daysMap[label] += 1;
+        } else {
+          daysMap[label] = (daysMap[label] || 0) + 1;
+        }
+      }
+    });
+    return Object.entries(daysMap).map(([name, sales]) => ({ name, sales }));
+  }, [recentSales, oneWeekWindowStart]);
 
   const topModel = modelSplit[0]?.name || 'N/A';
 
@@ -486,7 +534,7 @@ export function Dashboard() {
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Company Distribution (1-Week)</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -514,7 +562,7 @@ export function Dashboard() {
 
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Monthly Performance Trend</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">1-Week Sales Trend</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -548,7 +596,7 @@ export function Dashboard() {
         </Card>
         <Card className="shadow-sm border-slate-200 dark:border-slate-800 dark:bg-slate-950">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models In-stock</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100">Top 5 Models (1-Week)</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
