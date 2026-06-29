@@ -24,7 +24,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Inventory() {
   const { user } = useAuth();
-  const { vehicles, companies, models, colors, parties, purchases, sales, loadedScopes, loadAllCollection } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
@@ -323,15 +323,6 @@ export function Inventory() {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Vehicle Inventory</h1>
         </div>
       </div>
-
-      {loadedScopes?.vehicles === '1-week' && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200 shrink-0">
-          <span className="font-medium">⚡ Showing recent 1-week records to conserve bandwidth.</span>
-          <Button size="sm" variant="outline" className="border-amber-300 bg-white hover:bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-100 h-8" onClick={() => loadAllCollection?.('vehicles')}>
-            Load All Inventory Records
-          </Button>
-        </div>
-      )}
 
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#0f172a] p-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm dark:bg-card shrink-0">
         <div className="flex items-center gap-4 w-full sm:w-auto">

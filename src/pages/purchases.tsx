@@ -29,7 +29,7 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Purchases() {
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, purchases, loadedScopes, loadAllCollection } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
   const vendors = parties.filter(p => p.type === 'vendor');
   const isAdmin = userProfile?.role === 'admin';
   const isClerk = userProfile?.role === 'inventory_clerk';
@@ -430,15 +430,6 @@ export function Purchases() {
           Confirm Procurement
         </Button>
       </div>
-
-      {loadedScopes?.purchases === '1-week' && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200 shrink-0">
-          <span className="font-medium">⚡ Showing recent 1-week records to conserve bandwidth.</span>
-          <Button size="sm" variant="outline" className="border-amber-300 bg-white hover:bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-slate-900 dark:text-amber-100 h-8" onClick={() => loadAllCollection?.('purchases')}>
-            Load All Purchase Records
-          </Button>
-        </div>
-      )}
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
         <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0">
