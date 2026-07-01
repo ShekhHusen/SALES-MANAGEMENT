@@ -19,9 +19,12 @@ import {
   BookOpen,
   BellRing,
   KeyRound,
-  ChevronDown
+  ChevronDown,
+  DownloadCloud,
+  Store
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
@@ -51,7 +54,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
-  const { loading: dataLoading, debugStates, subscriptionErrors } = useGlobalData();
+  const { loading: dataLoading, debugStates, subscriptionErrors, loadPurchases, loadSales, loadFollowups, loadProcessDocumentData, isPurchasesLoaded, isSalesLoaded, isFollowupsLoaded, isProcessDocumentLoaded } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -107,44 +110,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:bg-transparent" 
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden" 
           onClick={toggleSidebar}
-        />
-      )}
-
-      {/* Left Edge Hover Trigger */}
-      {!sidebarOpen && (
-        <div 
-          className="fixed inset-y-0 left-0 w-6 z-40 hidden lg:block" 
-          onMouseEnter={() => setSidebarOpen(true)}
         />
       )}
 
       {/* Sidebar */}
       <aside 
+        onMouseEnter={() => {
+          if (window.innerWidth >= 1024) setSidebarOpen(true);
+        }}
         onMouseLeave={() => {
           if (window.innerWidth >= 1024) setSidebarOpen(false);
         }}
         className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 h-screen bg-[#0F172A] text-slate-400 transition-transform duration-300 outline-none flex flex-col shadow-2xl lg:shadow-none lg:border-r lg:border-slate-800",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 h-screen bg-[#0F172A] text-slate-400 transition-all duration-300 outline-none flex flex-col shadow-2xl lg:shadow-none lg:border-r lg:border-slate-800 overflow-hidden",
+        sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0 w-64 lg:w-[68px]"
       )}>
         <div className="flex flex-col h-full py-6">
-          <div className="px-6 pb-8 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="flex flex-col">
-                <div className="text-xl font-extrabold tracking-wide text-[#3B82F6] leading-tight">
-                  JAY BAUDHIMAI <span className="text-slate-100 uppercase tracking-widest font-black text-sm">TRADERS</span>
+          <div className="px-5 pb-8 flex items-center justify-between whitespace-nowrap overflow-hidden">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                <Store className="h-4 w-4 text-white" />
+              </div>
+              <div className={cn("flex flex-col transition-all duration-300", sidebarOpen ? "opacity-100" : "opacity-0")}>
+                <div className="text-lg font-extrabold tracking-wide text-[#3B82F6] leading-tight">
+                  JAY BAUDHIMAI
                 </div>
-                <span className="text-[9px] font-black tracking-widest text-[#3B82F6] uppercase ml-1 opacity-80 mt-1">Version 2.1</span>
+                <div className="text-slate-100 uppercase tracking-widest font-black text-xs leading-none mt-0.5">TRADERS <span className="text-[9px] font-black tracking-widest text-[#3B82F6] opacity-80 ml-1">V2.1</span></div>
               </div>
             </Link>
-            <Button variant="ghost" size="icon" className="lg:hidden text-slate-100" onClick={toggleSidebar}>
+            <Button variant="ghost" size="icon" className="lg:hidden text-slate-100 shrink-0" onClick={toggleSidebar}>
               <X className="h-5 w-5" />
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto sidebar-scrollbar">
+          <nav className="flex-1 space-y-1 overflow-y-auto sidebar-scrollbar overflow-x-hidden">
             {visibleNavItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
@@ -152,26 +153,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
+                  title={item.label}
                   className={cn(
-                    "flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-200 border-l-4",
+                    "flex items-center gap-4 px-6 py-3 text-sm font-medium transition-all duration-200 border-l-4 whitespace-nowrap",
                     isActive 
                       ? "bg-[#3B82F6]/10 text-slate-100 border-[#3B82F6]" 
                       : "border-transparent hover:bg-white/5 hover:text-slate-100"
                   )}
                 >
-                  <item.icon className={cn("h-4.5 w-4.5", isActive ? "text-[#3B82F6]" : "text-slate-500")} />
-                  {item.label}
+                  <item.icon className={cn("h-5 w-5 shrink-0", isActive ? "text-[#3B82F6]" : "text-slate-500")} />
+                  <span className={cn("transition-opacity duration-300", sidebarOpen ? "opacity-100" : "opacity-0")}>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          <div className="mt-auto px-6 border-t border-white/10 pt-6">
+          <div className="mt-auto px-5 border-t border-white/10 pt-6 overflow-hidden whitespace-nowrap">
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-9 w-9 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-xs font-bold border-2 border-slate-800">
+              <div className="h-9 w-9 shrink-0 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-xs font-bold border-2 border-slate-800">
                 {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className={cn("flex-1 overflow-hidden transition-opacity duration-300", sidebarOpen ? "opacity-100" : "opacity-0")}>
                 <p className="text-sm font-semibold text-slate-100 truncate">{user?.displayName || 'User'}</p>
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
                    {currentRole.replace('_', ' ')}
@@ -181,11 +183,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Button 
               variant="outline" 
               size="sm" 
-              className="w-full justify-center gap-2 bg-transparent text-slate-300 border-slate-700 hover:bg-white/5 hover:text-white"
+              className={cn("justify-center gap-2 bg-transparent text-slate-300 border-slate-700 hover:bg-white/5 hover:text-white transition-all duration-300", sidebarOpen ? "w-full px-3" : "w-9 h-9 p-0 rounded-full border-none mx-auto")}
               onClick={logout}
+              title="Sign Out"
             >
-              <LogOut className="h-4 w-4" />
-              Sign Out
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span className={cn("transition-opacity duration-300", sidebarOpen ? "opacity-100" : "hidden")}>Sign Out</span>
             </Button>
           </div>
         </div>
@@ -261,6 +264,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </Button>
+
+          {/* Manual Data Loaders */}
+          <div className="hidden md:flex items-center mr-2 px-2 border-r border-slate-200 dark:border-slate-700">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[10px] uppercase font-bold tracking-wider h-7 px-2 text-slate-500 hover:text-blue-600"
+                >
+                  <DownloadCloud className="w-3 h-3 mr-1" />
+                  Load Data
+                  <ChevronDown className="w-3 h-3 ml-1 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 font-medium">
+                <DropdownMenuItem onClick={loadPurchases} disabled={isPurchasesLoaded} className="text-xs cursor-pointer">
+                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
+                  {isPurchasesLoaded ? "Purchases Loaded" : "Load Purchases"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadSales} disabled={isSalesLoaded} className="text-xs cursor-pointer">
+                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
+                  {isSalesLoaded ? "Sales Loaded" : "Load Sales"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadFollowups} disabled={isFollowupsLoaded} className="text-xs cursor-pointer">
+                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
+                  {isFollowupsLoaded ? "Follow-ups Loaded" : "Load Follow-ups"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={loadProcessDocumentData} disabled={isProcessDocumentLoaded} className="text-xs cursor-pointer">
+                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
+                  {isProcessDocumentLoaded ? "Docs Loaded" : "Load Process Docs"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <FollowUpNotifier />
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
@@ -282,7 +321,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-hidden pt-[20px] pb-[2px] pr-[7px] pl-4 lg:pl-4 flex flex-col lg:pt-0 lg:pb-0">
+        <main className="flex-1 overflow-hidden pt-[20px] pb-[2px] pr-[7px] pl-4 lg:pl-[84px] flex flex-col lg:pt-0 lg:pb-0">
           <div className="mx-auto max-w-[1400px] w-full flex-1 flex flex-col h-full overflow-hidden">
             {(!hasSetPassword && typeof hasSetPassword === 'boolean' && location.pathname !== '/settings') && (
               <div className="mb-4 mt-16 lg:mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm z-30 shrink-0">

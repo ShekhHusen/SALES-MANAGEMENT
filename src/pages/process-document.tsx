@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { TableHead } from "@/components/ui/table";
 import { Card, CardContent } from '@/components/ui/card';
 import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -680,7 +681,14 @@ export function ProcessDocument() {
 
   // Completed Sales
   const completedSalesRaw = sales.filter(s => s.documentationCompleted);
-  const sortedCompletedSales = [...completedSalesRaw].sort((a, b) => {
+  const filteredCompletedSales = completedSalesRaw.filter(s => {
+    const customer = customers.find(c => c.id === s.customerId);
+    const searchLow = searchQuery.toLowerCase();
+    return s.chassisNumber.toLowerCase().includes(searchLow) || 
+           customer?.name.toLowerCase().includes(searchLow) ||
+           customer?.contactNumber?.includes(searchLow);
+  });
+  const sortedCompletedSales = [...filteredCompletedSales].sort((a, b) => {
     let aVal: any = a[completedSortConfig.key as keyof Sale];
     let bVal: any = b[completedSortConfig.key as keyof Sale];
     
@@ -776,52 +784,51 @@ export function ProcessDocument() {
         {activeTab === 'sold_vehicle' && (
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
             <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
-              <div className="min-w-[700px] flex-1 flex flex-col">
-                <div className="grid grid-cols-4 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
-                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('fileNumber')}>
-                    File No.
-                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
-                  </div>
-                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('chassisNumber')}>
-                    Chassis Number
-                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
-                  </div>
-                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('customerName')}>
-                    Customer Name
-                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} />
-                  </div>
-                  <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('contactNumber')}>
-                    Contact Number
-                    <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'contactNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
-                  </div>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto">
+              <div className="min-w-[700px] flex-1 flex flex-col relative overflow-y-auto">
+                <table className="w-full text-left caption-bottom text-sm border-collapse table-fixed">
+                  <thead className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#0f172a]/95 backdrop-blur-sm shadow-sm font-black text-slate-500 dark:text-slate-400 text-sm tracking-wider uppercase border-b border-slate-200/60 dark:border-slate-700">
+                    <tr>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[120px]" onClick={() => handleSoldSort('date')}>
+                        <div className="flex items-center gap-1">Sale Date <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'date' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[100px]" onClick={() => handleSoldSort('fileNumber')}>
+                        <div className="flex items-center gap-1">File No. <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[180px]" onClick={() => handleSoldSort('chassisNumber')}>
+                        <div className="flex items-center gap-1">Chassis Number <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('customerName')}>
+                        <div className="flex items-center gap-1">Customer Name <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[150px]" onClick={() => handleSoldSort('contactNumber')}>
+                        <div className="flex items-center gap-1">Contact Number <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'contactNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/60 [&_tr:last-child]:border-0">
                   {currentSoldSales.length === 0 ? (
-                    <div className="h-full flex items-center justify-center p-8">
-                      <div className="text-slate-500 font-medium">No Data Available</div>
-                    </div>
+                    <tr><td colSpan={5} className="p-8 text-center text-slate-500 font-medium">No Data Available</td></tr>
                   ) : (
-                    <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60 p-2">
-                      {currentSoldSales.map(sale => {
-                        const customer = customers.find(c => c.id === sale.customerId);
-                        const isSelected = selectedSale?.id === sale.id;
-                        return (
-                          <div 
-                            key={sale.id}
-                            onClick={() => setSelectedSale(sale)}
-                            className={`grid grid-cols-4 px-4 py-[4px] cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
-                          >
-                        <div className="font-bold text-blue-600 dark:text-blue-400">#{sale.fileNumber}</div>
-                        <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
-                        <div className="text-slate-500 dark:text-slate-400 font-medium">{customer?.contactNumber || '---'}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-                </div>
+                    currentSoldSales.map(sale => {
+                      const customer = customers.find(c => c.id === sale.customerId);
+                      const isSelected = selectedSale?.id === sale.id;
+                      return (
+                        <tr 
+                          key={sale.id}
+                          onClick={() => setSelectedSale(sale)}
+                          className={`cursor-pointer transition-all ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{(sale.date as any)?.toDate?.()?.toLocaleDateString('en-GB') || (sale.date ? new Date(sale.date as string).toLocaleDateString('en-GB') : '---')}</td>
+                          <td className="px-4 py-3 font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap overflow-hidden text-ellipsis">#{sale.fileNumber}</td>
+                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap overflow-hidden text-ellipsis">{sale.chassisNumber}</td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-black whitespace-nowrap overflow-hidden text-ellipsis">{customer?.name || '---'}</td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis">{customer?.contactNumber || '---'}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                  </tbody>
+                </table>
               </div>
             </div>
           
@@ -1322,68 +1329,66 @@ export function ProcessDocument() {
         {activeTab === 'completed' && (
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
             <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
-              <div className="min-w-[800px] flex-1 flex flex-col">
-                <div className="grid grid-cols-6 px-8 py-[10px] border-b border-slate-200/60 dark:border-slate-700 font-black text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#0f172a] shrink-0 text-sm tracking-wider uppercase">
-                   <div>SN.</div>
-                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('fileNumber')}>
-                     File No.
-                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
-                   </div>
-                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('chassisNumber')}>
-                     Chassis Details
-                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} />
-                   </div>
-                   <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('customerName')}>
-                     Customer Details
-                     <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} />
-                   </div>
-                   <div>Document Status</div>
-                   <div>Action</div>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-2">
+              <div className="min-w-[800px] flex-1 flex flex-col relative overflow-y-auto">
+                <table className="w-full text-left caption-bottom text-sm border-collapse table-fixed">
+                  <thead className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#0f172a]/95 backdrop-blur-sm shadow-sm font-black text-slate-500 dark:text-slate-400 text-sm tracking-wider uppercase border-b border-slate-200/60 dark:border-slate-700">
+                    <tr>
+                      <TableHead className="px-4 py-[10px] w-[80px]">SN.</TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[120px]" onClick={() => handleCompletedSort('date')}>
+                        <div className="flex items-center gap-1">Sale Date <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'date' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[100px]" onClick={() => handleCompletedSort('fileNumber')}>
+                        <div className="flex items-center gap-1">File No. <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[180px]" onClick={() => handleCompletedSort('chassisNumber')}>
+                        <div className="flex items-center gap-1">Chassis Details <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('customerName')}>
+                        <div className="flex items-center gap-1">Customer Details <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
+                      </TableHead>
+                      <TableHead className="px-4 py-[10px] w-[140px]">Document Status</TableHead>
+                      <TableHead className="px-4 py-[10px] w-[150px]">Action</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/60 [&_tr:last-child]:border-0">
                   {currentCompletedSales.length === 0 ? (
-                    <div className="h-full flex items-center justify-center p-8">
-                      <div className="text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div>
-                    </div>
+                    <tr><td colSpan={7} className="p-8 text-center"><div className="inline-block text-slate-500 font-medium bg-slate-50/50 px-6 py-3 rounded-full border border-slate-100 dark:border-slate-800">No Completed Documents Found</div></td></tr>
                   ) : (
-                    <div className="divide-y divide-slate-100/60 dark:divide-slate-800/60">
-                      {currentCompletedSales.map((sale, idx) => {
-                        const customer = customers.find(c => c.id === sale.customerId);
-                        const displayIdx = completedItemsPerPage === 'all' ? idx + 1 : (completedCurrentPage - 1) * completedItemsPerPage + idx + 1;
-                        return (
-                          <div 
-                            key={sale.id}
-                            onClick={() => setSelectedSale(sale)}
-                            className={`grid grid-cols-6 px-4 py-[4px] items-center cursor-pointer transition-all rounded-lg mx-1 my-[1px] ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm border border-emerald-100 dark:border-emerald-900/30' : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent'}`}
-                          >
-                        <div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{displayIdx}</div>
-                        <div className="font-bold text-blue-600 dark:text-blue-400">#{sale.fileNumber}</div>
-                        <div className="font-mono text-slate-700 dark:text-slate-300 font-bold">{sale.chassisNumber}</div>
-                        <div className="text-slate-800 dark:text-slate-200 font-black">{customer?.name || '---'}</div>
-                        <div>
-                          <span className="px-3 py-1 rounded-md text-[10px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white uppercase tracking-widest shadow-sm shadow-emerald-500/20">Completed</span>
-                        </div>
-                        <div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewSale(sale);
-                              setViewSheetOpen(true);
-                            }}
-                          >
-                            View Document
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-                </div>
+                    currentCompletedSales.map((sale, idx) => {
+                      const customer = customers.find(c => c.id === sale.customerId);
+                      const displayIdx = completedItemsPerPage === 'all' ? idx + 1 : (completedCurrentPage - 1) * (completedItemsPerPage as number) + idx + 1;
+                      return (
+                        <tr 
+                          key={sale.id}
+                          onClick={() => setSelectedSale(sale)}
+                          className={`cursor-pointer transition-all ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                        >
+                          <td className="px-4 py-3"><div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{displayIdx}</div></td>
+                          <td className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{(sale.date as any)?.toDate?.()?.toLocaleDateString('en-GB') || (sale.date ? new Date(sale.date as string).toLocaleDateString('en-GB') : '---')}</td>
+                          <td className="px-4 py-3 font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap overflow-hidden text-ellipsis">#{sale.fileNumber}</td>
+                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap overflow-hidden text-ellipsis">{sale.chassisNumber}</td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-black whitespace-nowrap overflow-hidden text-ellipsis">{customer?.name || '---'}</td>
+                          <td className="px-4 py-3"><span className="px-3 py-1 rounded-md text-[10px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white uppercase tracking-widest shadow-sm shadow-emerald-500/20">Completed</span></td>
+                          <td className="px-4 py-3">
+                            <Button 
+                               variant="outline" 
+                               size="sm" 
+                               className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
+                               onClick={(e) => {
+                                e.stopPropagation();
+                                setViewSale(sale);
+                                setViewSheetOpen(true);
+                              }}
+                            >
+                              View Document
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                  </tbody>
+                </table>
               </div>
             </div>
           

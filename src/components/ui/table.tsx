@@ -63,16 +63,42 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, children, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 relative group",
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      <div 
+         className="absolute right-0 top-0 w-2 h-full cursor-col-resize hover:bg-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+         onMouseDown={(e) => {
+            const th = e.currentTarget.parentElement;
+            if (!th) return;
+            const startX = e.pageX;
+            const startWidth = th.getBoundingClientRect().width;
+            
+            const onMouseMove = (moveEvent: MouseEvent) => {
+                const newWidth = Math.max(30, startWidth + (moveEvent.pageX - startX));
+                th.style.width = `${newWidth}px`;
+                th.style.minWidth = `${newWidth}px`;
+                th.style.maxWidth = `${newWidth}px`;
+            };
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+            e.stopPropagation();
+         }}
+      />
+    </th>
   )
 }
 

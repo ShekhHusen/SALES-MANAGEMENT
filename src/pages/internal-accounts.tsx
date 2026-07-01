@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { TableHead } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1417,44 +1418,44 @@ export function InternalAccounts() {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10 border-b">
                                         <tr>
-                                            <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('name', summarySort, setSummarySort)}>
+                                            <TableHead className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('name', summarySort, setSummarySort)}>
                                                 <div className="flex items-center gap-2">
                                                     Account Name
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'name' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
-                                            <th className="px-6 py-4 text-left">Contact Info</th>
-                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('opening', summarySort, setSummarySort)}>
+                                            </TableHead>
+                                            <TableHead className="px-6 py-4 text-left">Contact Info</TableHead>
+                                            <TableHead className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('opening', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Opening Balance
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'opening' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
-                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('debit', summarySort, setSummarySort)}>
+                                            </TableHead>
+                                            <TableHead className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('debit', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Total Debit
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'debit' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
-                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('credit', summarySort, setSummarySort)}>
+                                            </TableHead>
+                                            <TableHead className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('credit', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Total Credit
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'credit' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
-                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('closing_abs', summarySort, setSummarySort)}>
+                                            </TableHead>
+                                            <TableHead className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('closing_abs', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Closing Balance
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'closing_abs' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
-                                            <th className="px-6 py-4 text-center">Verification</th>
-                                            <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lastActivity', summarySort, setSummarySort)}>
+                                            </TableHead>
+                                            <TableHead className="px-6 py-4 text-center">Verification</TableHead>
+                                            <TableHead className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lastActivity', summarySort, setSummarySort)}>
                                                 <div className="flex items-center justify-end gap-2">
                                                     Last Activity
                                                     <ArrowUpDown className={`w-3 h-3 ${summarySort?.key === 'lastActivity' ? 'text-blue-600' : 'text-slate-400'}`} />
                                                 </div>
-                                            </th>
+                                            </TableHead>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1632,18 +1633,18 @@ export function InternalAccounts() {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                         <tr>
-                                            <th className="px-4 py-3 lg:py-[5px] border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', openingsSort, setOpeningsSort)}>
+                                            <TableHead className="px-4 py-3 lg:py-[5px] border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', openingsSort, setOpeningsSort)}>
                                                 <div className="flex items-center">Date <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 lg:py-[5px] border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('accountName', openingsSort, setOpeningsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 lg:py-[5px] border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('accountName', openingsSort, setOpeningsSort)}>
                                                 <div className="flex items-center">Account Name <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 lg:py-[5px] border-b text-right flex-1 justify-end cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('debit', openingsSort, setOpeningsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 lg:py-[5px] border-b text-right flex-1 justify-end cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('debit', openingsSort, setOpeningsSort)}>
                                                 <div className="flex items-center justify-end">Debit <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 lg:py-[5px] border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('credit', openingsSort, setOpeningsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 lg:py-[5px] border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('credit', openingsSort, setOpeningsSort)}>
                                                 <div className="flex items-center justify-end">Credit <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
+                                            </TableHead>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1724,25 +1725,25 @@ export function InternalAccounts() {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                         <tr>
-                                            <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', transactionsSort, setTransactionsSort)}>
+                                            <TableHead className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('date', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center whitespace-nowrap">Date <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('vchType', transactionsSort, setTransactionsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('vchType', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center whitespace-nowrap">Vch Type <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('vchNo', transactionsSort, setTransactionsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('vchNo', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center whitespace-nowrap">Vch No. <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('particulars', transactionsSort, setTransactionsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('particulars', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center">Particulars <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('debit', transactionsSort, setTransactionsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('debit', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center justify-end">Debit <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('credit', transactionsSort, setTransactionsSort)}>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('credit', transactionsSort, setTransactionsSort)}>
                                                 <div className="flex items-center justify-end">Credit <ArrowUpDown className="ml-1 w-3 h-3" /></div>
-                                            </th>
-                                            <th className="px-4 py-3 border-b">Narration</th>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 border-b">Narration</TableHead>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2213,7 +2214,7 @@ export function InternalAccounts() {
                                         <table className="w-full text-sm text-left">
                                             <thead className="bg-[#F8FAFC] dark:bg-[#0f172a] text-slate-500 font-bold sticky top-0 shadow-sm z-10">
                                                 <tr>
-                                                    <th 
+                                                    <TableHead 
                                                         className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                         onClick={() => handleSort('date', statementSort, setStatementSort)}
                                                     >
@@ -2221,9 +2222,9 @@ export function InternalAccounts() {
                                                             Date
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
-                                                    </th>
-                                                    <th className="px-4 py-3 border-b">Details</th>
-                                                    <th 
+                                                    </TableHead>
+                                                    <TableHead className="px-4 py-3 border-b">Details</TableHead>
+                                                    <TableHead 
                                                         className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                         onClick={() => handleSort('vchType', statementSort, setStatementSort)}
                                                     >
@@ -2231,8 +2232,8 @@ export function InternalAccounts() {
                                                             Vch Type
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
-                                                    </th>
-                                                    <th 
+                                                    </TableHead>
+                                                    <TableHead 
                                                         className="px-4 py-3 border-b cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                         onClick={() => handleSort('vchNo', statementSort, setStatementSort)}
                                                     >
@@ -2240,8 +2241,8 @@ export function InternalAccounts() {
                                                             Vch No.
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
-                                                    </th>
-                                                    <th 
+                                                    </TableHead>
+                                                    <TableHead 
                                                         className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                         onClick={() => handleSort('debit', statementSort, setStatementSort)}
                                                     >
@@ -2249,8 +2250,8 @@ export function InternalAccounts() {
                                                             Debit
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
-                                                    </th>
-                                                    <th 
+                                                    </TableHead>
+                                                    <TableHead 
                                                         className="px-4 py-3 border-b text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                                         onClick={() => handleSort('credit', statementSort, setStatementSort)}
                                                     >
@@ -2258,13 +2259,13 @@ export function InternalAccounts() {
                                                             Credit
                                                             <ArrowUpDown className="w-3 h-3 text-slate-400" />
                                                         </div>
-                                                    </th>
-                                                    <th className="px-4 py-3 border-b text-right">
+                                                    </TableHead>
+                                                    <TableHead className="px-4 py-3 border-b text-right">
                                                         <div className="flex items-center justify-end gap-1.5">
                                                             Balance
                                                         </div>
-                                                    </th>
-                                                    <th className="px-4 py-3 border-b text-center w-[80px]">Action</th>
+                                                    </TableHead>
+                                                    <TableHead className="px-4 py-3 border-b text-center w-[80px]">Action</TableHead>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -2363,10 +2364,10 @@ export function InternalAccounts() {
                                                                     <table className="w-full text-xs text-left">
                                                                         <thead>
                                                                             <tr className="text-slate-500 font-bold uppercase tracking-wider">
-                                                                                <th className="pb-2">Item Name</th>
-                                                                                <th className="pb-2 text-right">Quantity</th>
-                                                                                <th className="pb-2 text-right">Rate</th>
-                                                                                <th className="pb-2 text-right">Amount</th>
+                                                                                <TableHead className="pb-2">Item Name</TableHead>
+                                                                                <TableHead className="pb-2 text-right">Quantity</TableHead>
+                                                                                <TableHead className="pb-2 text-right">Rate</TableHead>
+                                                                                <TableHead className="pb-2 text-right">Amount</TableHead>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -2745,10 +2746,10 @@ export function InternalAccounts() {
                                         <table className="w-full text-sm text-left">
                                             <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-medium">
                                                 <tr>
-                                                    <th className="px-4 py-3">Item Name</th>
-                                                    <th className="px-4 py-3 text-right">Quantity</th>
-                                                    <th className="px-4 py-3 text-right">Rate</th>
-                                                    <th className="px-4 py-3 text-right">Amount</th>
+                                                    <TableHead className="px-4 py-3">Item Name</TableHead>
+                                                    <TableHead className="px-4 py-3 text-right">Quantity</TableHead>
+                                                    <TableHead className="px-4 py-3 text-right">Rate</TableHead>
+                                                    <TableHead className="px-4 py-3 text-right">Amount</TableHead>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
