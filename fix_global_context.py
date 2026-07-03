@@ -1,4 +1,17 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import re
+
+with open('src/contexts/GlobalDataContext.tsx', 'r') as f:
+    c = f.read()
+
+# Instead of separate functions, let's just make the main useEffect subscribe to them.
+# The easiest way is to rewrite the useEffect or just call loadSales(), loadPurchases(), etc., from the useEffect.
+
+# Wait, `loadSales` etc are defined inside the component and use `subscriptions.current`. We can just call them at the end of the `useEffect` that has `setData(...)`.
+# Let's see: `loadPurchases`, `loadSales`, `loadFollowups`, `loadProcessDocumentData` are defined *after* the `useEffect`. 
+
+# Let's just create a new GlobalDataContext.tsx that loads everything on mount.
+
+new_content = """import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
@@ -227,3 +240,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 export const useGlobalData = () => {
   return useContext(GlobalDataContext);
 };
+"""
+
+with open('src/contexts/GlobalDataContext.tsx', 'w') as f:
+    f.write(new_content)
