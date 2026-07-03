@@ -16,8 +16,6 @@ import { Sales } from '@/pages/sales';
 import { ProcessDocument } from '@/pages/process-document';
 import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
-import { Analyzer } from '@/pages/analyzer';
-import { AuditLog } from '@/pages/audit';
 import { UserManagement } from '@/pages/users';
 import { AuthScreen } from '@/components/AuthScreen';
 
@@ -73,8 +71,6 @@ function AppRoutes() {
           <Route path="/process-document" element={<ProcessDocument />} />
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/follow-ups" element={<FollowUps />} />
-          <Route path="/analyzer" element={<Analyzer />} />
-          <Route path="/audit" element={<AuditLog />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

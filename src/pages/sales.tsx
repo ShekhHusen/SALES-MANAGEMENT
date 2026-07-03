@@ -38,6 +38,15 @@ import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
+
+
+  
+  
+  
+  
+  
+  
+
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
@@ -57,14 +66,11 @@ export function Sales() {
   const [editColor, setEditColor] = useState('');
 
   // On-demand load states
-  const [loadMode, setLoadMode] = useState<'all' | 'date'>('date');
-  const [loadFromDate, setLoadFromDate] = useState(() => {
+  const [setLoadFromDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     return d.toISOString().split('T')[0];
   });
-  const [loadToDate, setLoadToDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [hasLoadedData, setHasLoadedData] = useState(false);
   
   // Selection Dialog State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -120,23 +126,6 @@ export function Sales() {
 
   const processedSales = [...sales]
     .filter(sale => {
-      if (!hasLoadedData) return false;
-
-      // On-demand date scope filter
-      if (loadMode === 'date') {
-        let sDateStr = '';
-        if (sale.date && typeof (sale.date as any).toDate === 'function') {
-          sDateStr = (sale.date as any).toDate().toISOString().split('T')[0];
-        } else if (sale.date && (sale.date as any).seconds) {
-          sDateStr = new Date((sale.date as any).seconds * 1000).toISOString().split('T')[0];
-        } else if (sale.date) {
-          sDateStr = new Date(sale.date as any).toISOString().split('T')[0];
-        }
-        if (!sDateStr || sDateStr < loadFromDate || sDateStr > loadToDate) {
-          return false;
-        }
-      }
-
       const customer = customers.find(c => c.id === sale.customerId);
       const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
       
@@ -532,8 +521,8 @@ export function Sales() {
                         <p className="text-[10px] text-slate-500 font-medium italic">Original procurement color was {currentVehicle.color}</p>
                      </div>
                   </div>
-                )}
-              </CardContent>
+        )}
+        </CardContent>
             </Card>
 
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px]">
@@ -607,8 +596,8 @@ export function Sales() {
                        <p className="text-sm font-black text-blue-600">{customers.find(c => c.id === selectedCustomer)?.contactNumber}</p>
                     </div>
                   </div>
-                )}
-              </CardContent>
+        )}
+        </CardContent>
             </Card>
           </div>
         </div>
@@ -636,59 +625,6 @@ export function Sales() {
         </div>
       </div>
 
-      {/* On-Demand Data Loader Panel */}
-      <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-slate-50/50 dark:bg-[#0f172a]/50">
-        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
-          <Database className="h-4 w-4 text-blue-500" /> On-Demand Sales Records Loader
-        </h3>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex-1 grid gap-4 grid-cols-1 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Load Type Selection</label>
-              <Select value={loadMode} onValueChange={(val: 'all' | 'date') => setLoadMode(val)}>
-                <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-bold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date" className="font-semibold">Date Range Filters</SelectItem>
-                  <SelectItem value="all" className="font-semibold">All Records</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {loadMode === 'date' && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">From Date</label>
-                  <Input 
-                    type="date"
-                    value={loadFromDate}
-                    onChange={(e) => setLoadFromDate(e.target.value)}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">To Date</label>
-                  <Input 
-                    type="date"
-                    value={loadToDate}
-                    onChange={(e) => setLoadToDate(e.target.value)}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          
-          <Button 
-            onClick={() => setHasLoadedData(true)} 
-            className="rounded-xl h-10 px-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/10 font-bold text-sm shrink-0 flex items-center gap-2"
-          >
-            <Search className="w-4 h-4" /> Load Records
-          </Button>
-        </div>
-      </Card>
-
       <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px] lg:pt-[5px] lg:pb-[5px] lg:h-[562px]">
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0 lg:pt-0 lg:pb-[5px]">
           <div className="flex flex-col gap-1">
@@ -708,25 +644,7 @@ export function Sales() {
           </div>
         </CardHeader>
         <CardContent className="p-0 overflow-auto flex-1 relative [&_[data-slot=table-container]]:overflow-visible lg:h-[550px] lg:w-[1328px]">
-          {!hasLoadedData ? (
-            <div className="py-20 text-center flex flex-col items-center justify-center h-full">
-              <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-4">
-                <Database className="w-6 h-6 animate-pulse" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Load Sales records On-Demand</h3>
-              <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-                This section is blank by default to improve loading speeds. Select All Records or custom Dates above to load data.
-              </p>
-              <Button 
-                onClick={() => setHasLoadedData(true)}
-                variant="outline"
-                className="h-9 px-4 font-bold rounded-lg"
-              >
-                Load Now
-              </Button>
-            </div>
-          ) : (
-            <>
+          <>
           <Table>
             <TableHeader className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm ring-1 ring-slate-100">
               <TableRow>
@@ -999,7 +917,6 @@ export function Sales() {
             />
           </div>
           </>
-          )}
         </CardContent>
       </Card>
 

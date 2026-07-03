@@ -23,6 +23,15 @@ import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Inventory() {
+
+
+  
+  
+  
+  
+  
+  
+
   const { user } = useAuth();
   const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
@@ -42,14 +51,11 @@ export function Inventory() {
   const [itemsPerPage, setItemsPerPage] = useState<number | 'all'>(5);
 
   // On-demand load states
-  const [loadMode, setLoadMode] = useState<'all' | 'date'>('date');
-  const [loadFromDate, setLoadFromDate] = useState(() => {
+  const [setLoadFromDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     return d.toISOString().split('T')[0];
   });
-  const [loadToDate, setLoadToDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [hasLoadedData, setHasLoadedData] = useState(false);
   
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
@@ -297,30 +303,10 @@ export function Inventory() {
   };
 
   const processedVehicles = vehicles.filter(v => {
-    if (!hasLoadedData) return false;
-
-    // On-demand date scope filter
-    if (loadMode === 'date') {
-      let pDateStr = '';
-      if (v.createdAt && typeof (v.createdAt as any).toDate === 'function') {
-        pDateStr = (v.createdAt as any).toDate().toISOString().split('T')[0];
-      } else if (v.createdAt && (v.createdAt as any).seconds) {
-        pDateStr = new Date((v.createdAt as any).seconds * 1000).toISOString().split('T')[0];
-      } else if (v.createdAt) {
-        pDateStr = new Date(v.createdAt as any).toISOString().split('T')[0];
-      }
-      if (!pDateStr || pDateStr < loadFromDate || pDateStr > loadToDate) {
-        return false;
-      }
-    }
-
-    const saleDetails = v.saleId ? sales.find(s => s.id === v.saleId) : null;
-    const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
-
-    const matchesSearch = v.chassisNumber.toLowerCase().includes(search.toLowerCase()) || 
-                          v.registrationNumber?.toLowerCase().includes(search.toLowerCase()) ||
-                          customer?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
+    const sale = sales.find(s => s.chassisNumber === v.chassisNumber);
+    const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
+    const matchesSearch = !search || v.chassisNumber.toLowerCase().includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
+      const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
     const matchesCompany = filterCompany.length === 0 || filterCompany.includes(v.companyId);
     const matchesModel = filterModel.length === 0 || filterModel.includes(v.modelId);
     const matchesColor = filterColor.length === 0 || filterColor.includes(v.color || '');
@@ -555,80 +541,9 @@ export function Inventory() {
         </div>
       </div>
 
-      {/* On-Demand Data Loader Panel */}
-      <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-slate-50/50 dark:bg-[#0f172a]/50">
-        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
-          <Database className="h-4 w-4 text-blue-500" /> On-Demand Inventory Loader
-        </h3>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex-1 grid gap-4 grid-cols-1 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Load Type Selection</label>
-              <Select value={loadMode} onValueChange={(val: 'all' | 'date') => setLoadMode(val)}>
-                <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-bold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date" className="font-semibold">Date Range Filters</SelectItem>
-                  <SelectItem value="all" className="font-semibold">All Records</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {loadMode === 'date' && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">From Date</label>
-                  <Input 
-                    type="date"
-                    value={loadFromDate}
-                    onChange={(e) => setLoadFromDate(e.target.value)}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">To Date</label>
-                  <Input 
-                    type="date"
-                    value={loadToDate}
-                    onChange={(e) => setLoadToDate(e.target.value)}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 font-semibold"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          
-          <Button 
-            onClick={() => setHasLoadedData(true)} 
-            className="rounded-xl h-10 px-6 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/10 font-bold text-sm shrink-0 flex items-center gap-2"
-          >
-            <Search className="w-4 h-4" /> Load Records
-          </Button>
-        </div>
-      </Card>
-
       <Card className="shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden rounded-xl flex-1 flex flex-col min-h-0">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0 [&_[data-slot=table-container]]:flex-1 [&_[data-slot=table-container]]:min-h-0 [&_[data-slot=table-container]]:overflow-auto">
-          {!hasLoadedData ? (
-            <div className="py-20 text-center flex flex-col items-center justify-center h-full">
-              <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full flex items-center justify-center mb-4">
-                <Database className="w-6 h-6 animate-pulse" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Load Inventory On-Demand</h3>
-              <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-                This section is blank by default to improve loading speeds. Select All Records or custom Dates above to load data.
-              </p>
-              <Button 
-                onClick={() => setHasLoadedData(true)}
-                variant="outline"
-                className="h-9 px-4 font-bold rounded-lg"
-              >
-                Load Now
-              </Button>
-            </div>
-          ) : (
-            <>
+          <>
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-100 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
@@ -1119,7 +1034,6 @@ export function Inventory() {
             totalItems={totalItems}
           />
           </>
-          )}
         </CardContent>
       </Card>
     </div>

@@ -42,10 +42,8 @@ const navItems = [
   { label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager'] },
   { label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager'] },
   { label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin'] },
-  { label: 'Data Analyzer', icon: ActivitySquare, path: '/analyzer', roles: ['admin', 'sales_manager'] },
   { label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
   { label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin'] },
-  { label: 'Audit Log', icon: ActivitySquare, path: '/audit', roles: ['admin'] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -264,41 +262,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-4 w-4" />
           </Button>
-
-          {/* Manual Data Loaders */}
-          <div className="hidden md:flex items-center mr-2 px-2 border-r border-slate-200 dark:border-slate-700">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[10px] uppercase font-bold tracking-wider h-7 px-2 text-slate-500 hover:text-blue-600"
-                >
-                  <DownloadCloud className="w-3 h-3 mr-1" />
-                  Load Data
-                  <ChevronDown className="w-3 h-3 ml-1 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 font-medium">
-                <DropdownMenuItem onClick={loadPurchases} disabled={isPurchasesLoaded} className="text-xs cursor-pointer">
-                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
-                  {isPurchasesLoaded ? "Purchases Loaded" : "Load Purchases"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={loadSales} disabled={isSalesLoaded} className="text-xs cursor-pointer">
-                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
-                  {isSalesLoaded ? "Sales Loaded" : "Load Sales"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={loadFollowups} disabled={isFollowupsLoaded} className="text-xs cursor-pointer">
-                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
-                  {isFollowupsLoaded ? "Follow-ups Loaded" : "Load Follow-ups"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={loadProcessDocumentData} disabled={isProcessDocumentLoaded} className="text-xs cursor-pointer">
-                  <DownloadCloud className="w-3.5 h-3.5 mr-2" />
-                  {isProcessDocumentLoaded ? "Docs Loaded" : "Load Process Docs"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           <FollowUpNotifier />
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">

@@ -15,7 +15,6 @@ import { Trash2, Plus, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
 import { ImportData } from '@/components/ImportData';
 import { ExportData } from '@/components/ExportData';
 import { BackupRestore } from '@/components/BackupRestore';
-import { UsageSection } from '@/components/UsageSection';
 
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
@@ -200,7 +199,6 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      <UsageSection />
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
         {/* Companies Section */}
