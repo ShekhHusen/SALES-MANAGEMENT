@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, getDoc, setDoc, deleteDoc, getDocs, where } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, getDoc, setDoc, deleteDoc, getDocs, where, writeBatch } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Vehicle, Company, Model, BluebookStatus, NaamsariStatus, Purchase, Sale, Party } from '@/types';
 import { cn } from '@/lib/utils';
@@ -175,25 +175,90 @@ export function Inventory() {
     }
   };
 
-  const updateDocStatus = async (chassisNumber: string, bluebook: BluebookStatus, naamsari: NaamsariStatus, registrationNumber: string, color: string) => {
+  const updateDocStatus = async (
+    originalChassisNumber: string,
+    newChassisNumber: string,
+    companyId: string,
+    modelId: string,
+    bluebook: BluebookStatus, 
+    naamsari: NaamsariStatus, 
+    registrationNumber: string, 
+    color: string
+  ) => {
     try {
-      const vehicleRef = doc(db, 'vehicles', chassisNumber);
-      await updateDoc(vehicleRef, {
-        bluebookStatus: bluebook,
-        naamsariStatus: naamsari,
-        registrationNumber: registrationNumber || '',
-        color: color || '',
-        updatedAt: Timestamp.now(),
-      });
-      
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', chassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber, color });
+      if (originalChassisNumber !== newChassisNumber) {
+        const batch = writeBatch(db);
+        
+        const oldRef = doc(db, 'vehicles', originalChassisNumber);
+        const newRef = doc(db, 'vehicles', newChassisNumber);
+        
+        const oldDoc = await getDoc(oldRef);
+        if (!oldDoc.exists()) throw new Error("Original vehicle not found");
+        
+        const data = oldDoc.data() as Vehicle;
+        
+        const newDocCheck = await getDoc(newRef);
+        if (newDocCheck.exists()) throw new Error("Vehicle with new chassis number already exists");
+        
+        const newData = {
+          ...data,
+          id: newChassisNumber,
+          chassisNumber: newChassisNumber,
+          companyId,
+          modelId,
+          bluebookStatus: bluebook,
+          naamsariStatus: naamsari,
+          registrationNumber: registrationNumber || '',
+          color: color || '',
+          updatedAt: Timestamp.now(),
+        };
+        
+        batch.set(newRef, newData);
+        batch.delete(oldRef);
+        
+        if (data.purchaseId) {
+          const pRef = doc(db, 'purchases', data.purchaseId);
+          const pDoc = await getDoc(pRef);
+          if (pDoc.exists()) {
+             const pData = pDoc.data();
+             const updatedChassisNumbers = (pData.chassisNumbers || []).map((c: string) => c === originalChassisNumber ? newChassisNumber : c);
+             batch.update(pRef, { chassisNumbers: updatedChassisNumbers });
+          }
+        }
+        
+        if (data.saleId) {
+           const sRef = doc(db, 'sales', data.saleId);
+           const sDoc = await getDoc(sRef);
+           if (sDoc.exists()) {
+             batch.update(sRef, { chassisNumber: newChassisNumber });
+           }
+        }
+        
+        await batch.commit();
+        if (user) {
+          logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', newChassisNumber, { action: 'renamed', old: originalChassisNumber, new: newChassisNumber, companyId, modelId });
+        }
+      } else {
+        const vehicleRef = doc(db, 'vehicles', originalChassisNumber);
+        await updateDoc(vehicleRef, {
+          companyId,
+          modelId,
+          bluebookStatus: bluebook,
+          naamsariStatus: naamsari,
+          registrationNumber: registrationNumber || '',
+          color: color || '',
+          updatedAt: Timestamp.now(),
+        });
+        
+        if (user) {
+          logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', originalChassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber, color, companyId, modelId });
+        }
       }
 
-      toast.success('Status updated');
+      toast.success('Vehicle updated successfully');
       setSelectedVehicle(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `vehicles/${chassisNumber}`);
+      handleFirestoreError(error, OperationType.UPDATE, `vehicles/${originalChassisNumber}`);
     }
   };
 
@@ -822,21 +887,55 @@ export function Inventory() {
                             <h3 className="flex items-center gap-2 font-black text-xs uppercase tracking-widest text-slate-400">
                               Chassis Identity
                             </h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-xl border border-slate-100 dark:border-slate-800 p-6 bg-slate-50/50">
-                              <div>
-                                <p className="text-[10px] text-slate-400 font-black uppercase">Company</p>
-                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 rounded-xl border border-slate-100 dark:border-slate-800 p-6 bg-slate-50/50">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chassis No.</label>
+                                <Input 
+                                  value={selectedVehicle?.chassisNumber || ''} 
+                                  onChange={(e) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, chassisNumber: e.target.value.toUpperCase() });
+                                  }}
+                                  className="h-10 rounded-lg border-slate-200 dark:border-slate-800 uppercase bg-white dark:bg-[#0f172a]"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Company</label>
+                                <Select 
+                                  value={selectedVehicle?.companyId || ''} 
+                                  onValueChange={(val) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, companyId: val, modelId: '' });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]">
+                                    <SelectValue placeholder="Select Company" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {companies.map(c => (
+                                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Model</label>
+                                <Select 
+                                  value={selectedVehicle?.modelId || ''} 
+                                  onValueChange={(val) => {
+                                    if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, modelId: val });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]">
+                                    <SelectValue placeholder="Select Model" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {models.filter(m => m.companyId === selectedVehicle?.companyId).map(m => (
+                                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div>
-                                <p className="text-[10px] text-slate-400 font-black uppercase">Model</p>
-                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{models.find(m => m.id === vehicle.modelId)?.name}</p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-slate-400 font-black uppercase">Color</p>
-                                <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.color}</p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-slate-400 font-black uppercase">Initial Log</p>
+                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-2">Initial Log</p>
                                 <p className="font-extrabold text-slate-900 dark:text-slate-100">{vehicle.createdAt?.toDate?.()?.toLocaleDateString() || '-'}</p>
                               </div>
                             </div>
@@ -907,7 +1006,7 @@ export function Inventory() {
                                 </Select>
                               </div>
                             </div>
-                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(selectedVehicle.chassisNumber, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '', selectedVehicle.color || '')}>
+                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(vehicle.chassisNumber, selectedVehicle.chassisNumber, selectedVehicle.companyId, selectedVehicle.modelId, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '', selectedVehicle.color || '')}>
                               Commit Status Changes
                             </Button>
                           </div>
