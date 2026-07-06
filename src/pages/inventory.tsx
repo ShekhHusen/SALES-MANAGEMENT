@@ -33,7 +33,7 @@ export function Inventory() {
   
 
   const { user } = useAuth();
-  const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales, refreshVehicles } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
@@ -89,37 +89,7 @@ export function Inventory() {
     status: 'ready-to-purchase' as 'ready-to-purchase' | 'in-stock' | 'sold',
   });
 
-  // Background Data Integrity Healer
-  useEffect(() => {
-    if (vehicles.length > 0 && (purchases.length > 0 || sales.length > 0)) {
-      vehicles.forEach(vehicle => {
-        // Ignore sales that have been returned
-        const validSales = sales.filter(s => s.status !== 'returned');
-        const saleId = validSales.find(s => s.chassisNumber === vehicle.chassisNumber)?.id || null;
-        const purchaseId = purchases.find(p => p.chassisNumbers.includes(vehicle.chassisNumber))?.id || null;
-        
-        let realStatus: 'ready-to-purchase' | 'in-stock' | 'sold' = 'ready-to-purchase';
-        if (saleId) {
-          realStatus = 'sold';
-        } else if (purchaseId) {
-          realStatus = 'in-stock';
-        }
-
-        const needsSync = 
-          vehicle.status !== realStatus || 
-          (vehicle.saleId || null) !== saleId || 
-          (vehicle.purchaseId || null) !== purchaseId;
-
-        if (needsSync) {
-          updateDoc(doc(db, 'vehicles', vehicle.chassisNumber), {
-            status: realStatus,
-            saleId,
-            purchaseId
-          }).catch(console.error);
-        }
-      });
-    }
-  }, [vehicles, purchases, sales]);
+  // Background Data Integrity Healer removed to prevent infinite loops
 
   const handleCreateVehicle = async (e: FormEvent) => {
     e.preventDefault();
@@ -144,6 +114,7 @@ export function Inventory() {
       };
 
       await setDoc(vehicleRef, vehicleData);
+      await refreshVehicles();
       
       if (user) {
         logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', newVehicle.chassisNumber, newVehicle);
@@ -262,6 +233,7 @@ export function Inventory() {
       }
 
       toast.success('Vehicle updated successfully');
+      await refreshVehicles();
       setSelectedVehicle(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${originalChassisNumber}`);
@@ -305,7 +277,7 @@ export function Inventory() {
   const processedVehicles = vehicles.filter(v => {
     const sale = sales.find(s => s.chassisNumber === v.chassisNumber);
     const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
-    const matchesSearch = !search || v.chassisNumber.toLowerCase().includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
+    const matchesSearch = !search || (v.chassisNumber?.toLowerCase() || "").includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
       const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
     const matchesCompany = filterCompany.length === 0 || filterCompany.includes(v.companyId);
     const matchesModel = filterModel.length === 0 || filterModel.includes(v.modelId);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField, runTransaction } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { logAction } from '@/lib/audit';
@@ -49,7 +49,7 @@ export function Sales() {
 
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, sales, refreshSales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock');
   const isAdmin = userProfile?.role === 'admin';
@@ -129,7 +129,7 @@ export function Sales() {
       const customer = customers.find(c => c.id === sale.customerId);
       const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
       
-      const matchesFile = sale.fileNumber.toString().includes(fileNumberFilter);
+      const matchesFile = (sale.fileNumber?.toString() || "").includes(fileNumberFilter);
       const matchesCustomer = customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()) || false;
       const matchesCompany = companyFilter === 'ALL' || sale.companyId === companyFilter;
       const matchesModel = modelFilter === 'ALL' || vehicle?.modelId === modelFilter;
@@ -247,6 +247,7 @@ export function Sales() {
         });
       }
 
+      await refreshSales();
       toast.success('Sale record updated successfully');
       setEditingSale(null);
     } catch (error) {
@@ -269,28 +270,30 @@ export function Sales() {
     }
     
     try {
-      const batch = writeBatch(db);
       const saleRef = doc(db, 'sales', returnSale.id);
-      batch.update(saleRef, {
-        status: 'returned',
-        returnedAt: Timestamp.now(),
-        returnReason: returnReason.trim()
-      });
-      
       const vehicleRef = doc(db, 'vehicles', returnSale.chassisNumber);
-      batch.update(vehicleRef, {
-        status: 'in-stock',
-        saleId: null,
-        currentOwnerId: null,
-        updatedAt: Timestamp.now(),
+
+      await runTransaction(db, async (tx) => {
+        // Technically not a race condition to return, but let's keep it atomic
+        tx.update(saleRef, {
+          status: 'returned',
+          returnedAt: Timestamp.now(),
+          returnReason: returnReason.trim()
+        });
+        
+        tx.update(vehicleRef, {
+          status: 'in-stock',
+          saleId: null,
+          currentOwnerId: null,
+          updatedAt: Timestamp.now(),
+        });
       });
-      
-      await batch.commit();
 
       if (user) {
         logAction(user.uid, user.email || '', 'UPDATE', 'Sale', returnSale.id, { action: 'RETURNED', reason: returnReason });
       }
 
+      await refreshSales();
       toast.success(`Sale for ${returnSale.chassisNumber} marked as returned.`);
       setReturnSale(null);
       setReturnReason('');
@@ -325,6 +328,7 @@ export function Sales() {
         logAction(user.uid, user.email || '', 'DELETE', 'Sale', saleToDelete.id, saleToDelete);
       }
 
+      await refreshSales();
       toast.success('Sale record successfully removed.');
       setSaleToDelete(null);
     } catch (error) {
@@ -357,30 +361,37 @@ export function Sales() {
         nextFileNumber = Math.max(...fileNumbers) + 1;
       }
 
-      const batch = writeBatch(db);
-      
-      // 1. Create Sale record
       const saleRef = doc(collection(db, 'sales'));
-      batch.set(saleRef, {
-        date: Timestamp.fromDate(new Date(saleDate)),
-        customerId: selectedCustomer,
-        chassisNumber: selectedChassis,
-        fileNumber: nextFileNumber,
-        companyId: currentVehicle.companyId,
-        createdAt: Timestamp.now(),
-      });
-
-      // 2. Update Vehicle
       const vehicleRef = doc(db, 'vehicles', selectedChassis);
-      batch.update(vehicleRef, {
-        status: 'sold',
-        saleId: saleRef.id,
-        currentOwnerId: selectedCustomer,
-        color: editColor, // Allow editing color at sales
-        updatedAt: Timestamp.now(),
-      });
 
-      await batch.commit();
+      await runTransaction(db, async (tx) => {
+        const vehicleSnap = await tx.get(vehicleRef);
+        
+        if (!vehicleSnap.exists()) {
+          throw new Error('Vehicle not found in database.');
+        }
+
+        if (vehicleSnap.data().status === 'sold') {
+          throw new Error('Ye vehicle already sold ho chuki hai — please refresh inventory.');
+        }
+
+        tx.set(saleRef, {
+          date: Timestamp.fromDate(new Date(saleDate)),
+          customerId: selectedCustomer,
+          chassisNumber: selectedChassis,
+          fileNumber: nextFileNumber,
+          companyId: currentVehicle.companyId,
+          createdAt: Timestamp.now(),
+        });
+
+        tx.update(vehicleRef, {
+          status: 'sold',
+          saleId: saleRef.id,
+          currentOwnerId: selectedCustomer,
+          color: editColor,
+          updatedAt: Timestamp.now(),
+        });
+      });
       
       if (user) {
         logAction(user.uid, user.email || '', 'CREATE', 'Sale', saleRef.id, {
@@ -399,6 +410,7 @@ export function Sales() {
         chassisNumber: selectedChassis,
       });
 
+      await refreshSales();
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
       
       // Reset
@@ -558,10 +570,10 @@ export function Sales() {
                           onChange={(e) => setCustomerSearchQuery(e.target.value)}
                         />
                         <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                          {customers.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || c.contactNumber.includes(customerSearchQuery)).length === 0 ? (
+                          {customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).length === 0 ? (
                             <p className="text-sm p-4 text-center text-slate-500 font-bold">No customer found.</p>
                           ) : (
-                            customers.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || c.contactNumber.includes(customerSearchQuery)).map(c => (
+                            customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).map(c => (
                               <div
                                 key={c.id}
                                 className={`flex flex-col px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedCustomer === c.id ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
@@ -1058,7 +1070,7 @@ export function Sales() {
               <TableBody>
                 {inStockVehicles
                   .filter(v => 
-                    v.chassisNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
                     companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
                   )
                   .map(vehicle => (
@@ -1091,7 +1103,7 @@ export function Sales() {
                   ))
                 }
                 {inStockVehicles.filter(v => 
-                    v.chassisNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
                     companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
                   ).length === 0 && (
                   <TableRow>

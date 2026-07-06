@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, query, orderBy } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, getDocs, addDoc, serverTimestamp, doc, updateDoc, query, orderBy } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
 import { Clock, Phone, MessageCircle, Calendar as CalendarIcon, User as UserIcon, BellRing, Filter, History as HistoryIcon, CheckCircle2, CheckCircle, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
@@ -146,19 +146,9 @@ export function FollowUps() {
     const [showOnlyDue, setShowOnlyDue] = useState<boolean>(true);
 
     useEffect(() => {
-        const unsubs = [
-            onSnapshot(collection(db, 'users'), snap => {
-                setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
-            }),
-            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)))),
-            onSnapshot(collection(db, 'internal_transactions'), (snap) => setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)))),
-            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
-                 if (snap.exists()) {
-                     setMappings(snap.data()?.mappings || {});
-                 }
-            })
-        ];
-        return () => unsubs.forEach(u => u());
+        getDocs(collection(db, 'users')).then(snap => {
+            setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
+        });
     }, []);
 
     const allAccountNames = useMemo(() => {

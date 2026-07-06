@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { collection, addDoc, getDocs, onSnapshot, query, where, Timestamp, writeBatch, doc, orderBy, deleteDoc, getDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Purchase } from '@/types';
@@ -19,13 +19,14 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Trash2, Search, CarFront, Check, Download, ArrowUp, ArrowDown, FilterIcon, FilterX, Database } from 'lucide-react';
+import { Plus, Trash2, Search, CarFront, Check, Download, ArrowUp, ArrowDown, FilterIcon, FilterX, Database, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import * as XLSX from 'xlsx';
 
 import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
 import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { cn } from '@/lib/utils';
 
 export function Purchases() {
 
@@ -38,7 +39,7 @@ export function Purchases() {
   
 
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, purchases, refreshPurchases } = useGlobalData();
   const vendors = parties.filter(p => p.type === 'vendor');
   const isAdmin = userProfile?.role === 'admin';
   const isClerk = userProfile?.role === 'inventory_clerk';
@@ -51,6 +52,13 @@ export function Purchases() {
   const [vendorFilter, setVendorFilter] = useState('ALL');
   const [chassisFilter, setChassisFilter] = useState('');
   const [activePopover, setActivePopover] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isInvoiceExpanded, setIsInvoiceExpanded] = useState(true);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // On-demand load states
   const [setLoadFromDate] = useState(() => {
@@ -82,10 +90,10 @@ export function Purchases() {
   const processedPurchases = [...purchases]
     .filter(purchase => {
       // Find the vehicles for this purchase
-      const purchaseVehicles = allVehicles.filter(v => purchase.chassisNumbers.includes(v.chassisNumber));
+      const purchaseVehicles = allVehicles.filter(v => (purchase.chassisNumbers || []).includes(v.chassisNumber));
       
       const matchesVendor = vendorFilter === 'ALL' || purchase.vendorId === vendorFilter;
-      const matchesChassis = !chassisFilter || purchaseVehicles.some(v => v.chassisNumber.toLowerCase().includes(chassisFilter.toLowerCase()));
+      const matchesChassis = !chassisFilter || purchaseVehicles.some(v => (v.chassisNumber?.toLowerCase() || "").includes(chassisFilter.toLowerCase()));
       
       if (!matchesVendor) return false;
       if (!matchesChassis) return false;
@@ -153,37 +161,43 @@ export function Purchases() {
     setCurrentChassisEntries(updated);
   };
 
+  const openNewPurchase = () => {
+    cancelEdit();
+    setIsFormOpen(true);
+  };
+
   const openEditPurchase = (purchase: Purchase & { id: string }) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setEditingPurchase(purchase);
-    setEditPurchaseDate(purchase.date instanceof Timestamp ? purchase.date.toDate().toISOString().split('T')[0] : String(purchase.date));
-    setEditInvoiceNumber(purchase.invoiceNumber);
+    setIsFormOpen(true);
+    
+    setPurchaseDate(purchase.date instanceof Timestamp ? purchase.date.toDate().toISOString().split('T')[0] : String(purchase.date));
+    setInvoiceNumber(purchase.invoiceNumber || '');
+    setSelectedVendor(purchase.vendorId || '');
+
+    const entries = (purchase.chassisNumbers || []).map(chassis => {
+       const v = allVehicles.find(veh => veh.chassisNumber === chassis);
+       if (v) {
+         return v;
+       }
+       return { chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle>;
+    });
+    
+    setCurrentChassisEntries(entries);
   };
 
-  const handleUpdatePurchase = async () => {
-    if (!editingPurchase) return;
-    try {
-      const batch = writeBatch(db);
-      const purchaseRef = doc(db, 'purchases', editingPurchase.id);
-      batch.update(purchaseRef, {
-        date: Timestamp.fromDate(new Date(editPurchaseDate)),
-        invoiceNumber: editInvoiceNumber,
-        updatedAt: Timestamp.now(),
-      });
-      await batch.commit();
-      
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Purchase', editingPurchase.id, {
-          date: editPurchaseDate,
-          invoiceNumber: editInvoiceNumber,
-        });
-      }
-
-      toast.success('Purchase record updated successfully');
-      setEditingPurchase(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'purchases');
-    }
+  const cancelEdit = () => {
+    setEditingPurchase(null);
+    setPurchaseDate(new Date().toISOString().split('T')[0]);
+    setInvoiceNumber('');
+    setSelectedVendor('');
+    setCurrentChassisEntries([]);
+    setIsFormOpen(false);
   };
+
+
+
+
 
   const confirmDeletePurchase = async () => {
     if (!purchaseToDelete) return;
@@ -234,6 +248,7 @@ export function Purchases() {
         logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
       }
 
+      await refreshPurchases();
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
     } catch (error) {
@@ -290,63 +305,99 @@ export function Purchases() {
     }
 
     try {
-      // 1. Check if invoice already exists for this vendor
-      if (purchases.some(p => p.vendorId === selectedVendor && p.invoiceNumber === invoiceNumber)) {
-        toast.error('An invoice with this number already exists for this vendor');
-        return;
+      if (editingPurchase) {
+          if (purchases.some(p => p.vendorId === selectedVendor && p.invoiceNumber === invoiceNumber && p.id !== editingPurchase.id)) {
+              toast.error('An invoice with this number already exists for this vendor');
+              return;
+          }
+      } else {
+          if (purchases.some(p => p.vendorId === selectedVendor && p.invoiceNumber === invoiceNumber)) {
+              toast.error('An invoice with this number already exists for this vendor');
+              return;
+          }
       }
 
-      // 2. Verify all chassis exist in inventory and are not already purchased
-      for (const chassis of chassisNumbers) {
+      let removedChassis: string[] = [];
+      if (editingPurchase) {
+          removedChassis = (editingPurchase.chassisNumbers || []).filter(c => !chassisNumbers.includes(c));
+          
+          for (const rc of removedChassis) {
+             const vData = allVehicles.find(v => v.chassisNumber === rc);
+             if (vData && vData.status === 'sold') {
+                 toast.error(`Cannot remove chassis ${rc} from this purchase because it is already sold.`);
+                 return;
+             }
+          }
+      }
+
+      const newChassis = editingPurchase ? chassisNumbers.filter(c => !(editingPurchase.chassisNumbers || []).includes(c)) : chassisNumbers;
+      
+      for (const chassis of newChassis) {
         if (!chassis) continue;
         const vehicleDoc = await getDoc(doc(db, 'vehicles', chassis));
         
-        if (!vehicleDoc.exists()) {
-          toast.error(`Chassis number ${chassis} is not found in inventory. Please add it to inventory first.`);
-          return;
-        }
-        
-        const vehicleData = vehicleDoc.data();
-        if (vehicleData.purchaseId) {
-          toast.error(`Chassis number ${chassis} is already linked to a purchase.`);
-          return;
-        }
-        
-        if (vehicleData.status === 'sold') {
-          toast.error(`Chassis number ${chassis} is marked as sold and cannot be purchased.`);
-          return;
+        if (vehicleDoc.exists()) {
+           const vehicleData = vehicleDoc.data();
+           if (vehicleData.purchaseId) {
+             toast.error(`Chassis number ${chassis} is already linked to a purchase.`);
+             return;
+           }
+           if (vehicleData.status === 'sold') {
+             toast.error(`Chassis number ${chassis} is marked as sold and cannot be purchased.`);
+             return;
+           }
         }
       }
 
       let batch = writeBatch(db);
       let ops = 0;
       
-      // 1. Create Purchase record
-      const purchaseRef = doc(collection(db, 'purchases'));
-      batch.set(purchaseRef, {
-        date: Timestamp.fromDate(new Date(purchaseDate)),
-        invoiceNumber,
-        vendorId: selectedVendor,
-        chassisNumbers,
-        createdAt: Timestamp.now(),
-      });
+      const purchaseRef = editingPurchase ? doc(db, 'purchases', editingPurchase.id) : doc(collection(db, 'purchases'));
+      
+      if (editingPurchase) {
+         batch.update(purchaseRef, {
+            date: Timestamp.fromDate(new Date(purchaseDate)),
+            invoiceNumber,
+            vendorId: selectedVendor,
+            chassisNumbers,
+            updatedAt: Timestamp.now(),
+         });
+      } else {
+         batch.set(purchaseRef, {
+            date: Timestamp.fromDate(new Date(purchaseDate)),
+            invoiceNumber,
+            vendorId: selectedVendor,
+            chassisNumbers,
+            createdAt: Timestamp.now(),
+         });
+      }
       ops++;
 
-      // 2. Create/Update Vehicles
+      for (const rc of removedChassis) {
+         batch.update(doc(db, 'vehicles', rc), {
+             purchaseId: null,
+             currentOwnerId: null,
+             status: 'ready-to-purchase',
+             updatedAt: Timestamp.now()
+         });
+         ops++;
+         if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+      }
+
       for (const entry of sanitizedEntries) {
         if (!entry.chassisNumber) continue;
         const vehicleRef = doc(db, 'vehicles', entry.chassisNumber);
         
-        // Use set with merge: true to avoid overwriting manually managed document status
+        const isNewToPurchase = newChassis.includes(entry.chassisNumber);
+        const existingVehicle = allVehicles.find(v => v.chassisNumber === entry.chassisNumber);
+
         batch.set(vehicleRef, {
           ...entry,
-          status: 'in-stock',
+          status: existingVehicle && existingVehicle.status === 'sold' ? 'sold' : 'in-stock',
           purchaseId: purchaseRef.id,
           currentOwnerId: selectedVendor,
           updatedAt: Timestamp.now(),
-          // Default doc statuses if NEW vehicle
-          bluebookStatus: 'Not Received',
-          naamsariStatus: 'Pending',
+          ...(isNewToPurchase && !existingVehicle ? { bluebookStatus: 'Not Received', naamsariStatus: 'Pending' } : {})
         }, { merge: true });
         ops++;
         
@@ -355,28 +406,25 @@ export function Purchases() {
             batch = writeBatch(db);
             ops = 0;
         }
-
-        // Ensure createdAt is only set manually or we'd need a separate check
-        // For simplicity with batch.set merge, we add a server timestamp to updatedAt
       }
-
+      
       if (ops > 0) {
           await batch.commit();
       }
       
       if (user) {
-        logAction(user.uid, user.email || '', 'CREATE', 'Purchase', purchaseRef.id, {
+        logAction(user.uid, user.email || '', editingPurchase ? 'UPDATE' : 'CREATE', 'Purchase', purchaseRef.id, {
           invoiceNumber,
           vendorId: selectedVendor,
           chassisNumbers,
         });
       }
 
-      toast.success('Purchase recorded and inventory updated');
+      await refreshPurchases();
+      toast.success(editingPurchase ? 'Purchase updated successfully' : 'Purchase recorded and inventory updated');
       
       // Reset
-      setInvoiceNumber('');
-      setCurrentChassisEntries([]);
+      cancelEdit();
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'purchases/vehicles');
     }
@@ -410,21 +458,46 @@ export function Purchases() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Purchase Operations</h1>
         </div>
-        <Button 
-          onClick={handleSavePurchase} 
-          size="lg" 
-          disabled={!canCreate}
-          className="rounded-xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold lg:mr-[200px]"
-        >
-          Confirm Procurement
-        </Button>
+        <div className="flex gap-3 lg:mr-[200px]">
+          <Button 
+            onClick={openNewPurchase} 
+            size="lg" 
+            disabled={!canCreate}
+            className="rounded-xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            New Purchase
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
-        <Card className="lg:col-span-4 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0">
-          <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[5px] lg:pb-[5px]">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Invoice Reference</h3>
+      
+      <Dialog open={isFormOpen} onOpenChange={(open) => !open && cancelEdit()}>
+        <DialogContent className="sm:max-w-[95vw] sm:max-h-[95vh] h-[95vh] rounded-2xl flex flex-col p-0 overflow-hidden bg-slate-50 dark:bg-[#0f172a]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shrink-0">
+            <DialogTitle className="text-xl font-black">{editingPurchase ? 'Edit Purchase Invoice' : 'New Purchase Invoice'}</DialogTitle>
+            <div className="flex items-center gap-3">
+               <Button onClick={cancelEdit} variant="outline" className="h-10 px-6 font-bold rounded-xl">
+                 Cancel
+               </Button>
+               <Button onClick={handleSavePurchase} className="h-10 px-6 font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                 {editingPurchase ? 'Confirm Updates' : 'Confirm Procurement'}
+               </Button>
+            </div>
           </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
+        <Card className={cn(isInvoiceExpanded ? "lg:col-span-4" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0")}>
+          <div 
+            className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[5px] lg:pb-[5px] flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+            onClick={() => setIsInvoiceExpanded(!isInvoiceExpanded)}
+          >
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{editingPurchase ? "Edit Invoice Reference" : "Invoice Reference"}</h3>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-200 dark:hover:bg-slate-700">
+                {isInvoiceExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+          {isInvoiceExpanded && (
           <CardContent className="p-6 space-y-6 lg:pt-0 lg:pb-[10px]">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Procurement Date</label>
@@ -463,11 +536,12 @@ export function Purchases() {
               </div>
             </div>
           </CardContent>
+          )}
         </Card>
 
-        <Card className="lg:col-span-8 shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[5px] lg:pb-0">
+        <Card className={cn(isInvoiceExpanded ? "lg:col-span-8" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[5px] lg:pb-0")}>
           <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between lg:pt-0 lg:pb-0">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Chassis Manifest</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{editingPurchase ? "Edit Chassis Manifest" : "Chassis Manifest"}</h3>
             <div className="flex gap-2">
                <QuickAddVehicle onAdded={(chassis) => {
                  setTargetRowIndex(currentChassisEntries.length);
@@ -590,6 +664,11 @@ export function Purchases() {
         </Card>
       </div>
 
+
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
         <DialogContent className="sm:max-w-xl max-h-[80vh] flex flex-col">
           <DialogHeader>
@@ -628,7 +707,7 @@ export function Purchases() {
                     const modelName = models.find(m => m.id === v.modelId)?.name || '';
                     
                     return (
-                      v.chassisNumber.toLowerCase().includes(searchLower) ||
+                      (v.chassisNumber?.toLowerCase() || "").includes(searchLower) ||
                       companyName.toLowerCase().includes(searchLower) ||
                       modelName.toLowerCase().includes(searchLower)
                     );
@@ -769,10 +848,12 @@ export function Purchases() {
             <TableBody>
               {paginatedPurchases.map((purchase) => {
                 const vendor = vendors.find(v => v.id === purchase.vendorId);
-                const vehiclesForThisPurchase = allVehicles.filter(v => v.purchaseId === purchase.id || (purchase.chassisNumbers && purchase.chassisNumbers.includes(v.chassisNumber)));
+                const vehiclesForThisPurchase = allVehicles.filter(v => v.purchaseId === purchase.id || (purchase.chassisNumbers && (purchase.chassisNumbers || []).includes(v.chassisNumber)));
+                const isExpanded = expandedRows[purchase.id];
 
                 return (
-                  <TableRow key={purchase.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent divide-x divide-slate-100">
+                  <Fragment key={purchase.id}>
+                  <TableRow className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent divide-x divide-slate-100 cursor-pointer" onClick={() => toggleRow(purchase.id)}>
                     <TableCell className="px-4 py-2.5">
                       <div className="flex flex-col gap-1">
                         <span className="font-black text-slate-900 dark:text-slate-100 uppercase">{vendor?.name || 'Unknown Vendor'}</span>
@@ -788,44 +869,21 @@ export function Purchases() {
                         {purchase.invoiceNumber}
                       </Badge>
                     </TableCell>
-                    <TableCell className="p-0">
-                      <div className="divide-y divide-slate-100">
-                        {vehiclesForThisPurchase.map((v) => {
-                          const company = companies.find(c => c.id === v.companyId);
-                          const model = models.find(m => m.id === v.modelId);
-                          return (
-                            <div key={v.chassisNumber} className="px-4 py-2 flex flex-col">
-                              <span className="font-black text-slate-900 dark:text-slate-100">{v.chassisNumber}</span>
-                              <span className="text-[10px] font-bold text-slate-500">
-                                {company?.name}, {model?.name}, {v.color}
-                              </span>
-                            </div>
-                          );
-                        })}
-                        {vehiclesForThisPurchase.length === 0 && (
-                          <div className="px-4 py-3 text-slate-400 italic">No chassis linked</div>
-                        )}
+                    <TableCell className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Badge className="font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">{vehiclesForThisPurchase.length} Vehicles</Badge>
+                        <span className="text-[10px] font-black text-slate-400 flex items-center gap-1">
+                           {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                           {isExpanded ? 'Hide Details' : 'View Details'}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="p-0">
-                      <div className="divide-y divide-slate-100 h-full">
-                        {vehiclesForThisPurchase.map((v) => (
-                          <div key={v.chassisNumber + '_status'} className="px-4 py-2 flex flex-col justify-center gap-0.5">
-                            <span className="font-bold text-xs uppercase text-slate-800 dark:text-slate-200">
-                              {v.registrationNumber || 'UNREGISTERED'}
-                            </span>
-                            <span className="font-bold text-[9px] uppercase tracking-tighter text-slate-500">
-                              {v.bluebookStatus || 'NOT RECEIVED'} - {v.naamsariStatus || 'PENDING'}
-                            </span>
-                          </div>
-                        ))}
-                        {vehiclesForThisPurchase.length === 0 && (
-                          <div className="px-4 py-3 text-slate-400 italic">-</div>
-                        )}
-                      </div>
+                    <TableCell className="px-4 py-2.5">
+                       {/* Left empty intentionally for summary row, or show combined status */}
+                       <span className="text-[10px] font-bold text-slate-400">Expand for statuses</span>
                     </TableCell>
-                    <TableCell className="px-4 py-2.5 text-center">
-                      <div className="flex justify-center gap-2">
+                    <TableCell className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1">
                         {canEdit && (
                           <Button 
                             variant="default" 
@@ -849,6 +907,45 @@ export function Purchases() {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {isExpanded && (
+                    <TableRow className="bg-slate-50/50 dark:bg-slate-900/20 hover:bg-slate-50/50">
+                      <TableCell colSpan={5} className="p-0 border-b border-slate-200 dark:border-slate-800">
+                        <div className="px-8 py-4">
+                           <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Invoice Chassis Details</h4>
+                           {vehiclesForThisPurchase.length === 0 ? (
+                             <div className="text-sm font-bold text-slate-400 italic">No chassis linked to this invoice.</div>
+                           ) : (
+                             <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                               {vehiclesForThisPurchase.map(v => {
+                                  const company = companies.find(c => c.id === v.companyId);
+                                  const model = models.find(m => m.id === v.modelId);
+                                  return (
+                                    <div key={v.chassisNumber} className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col gap-2 shadow-sm">
+                                       <div className="flex justify-between items-start">
+                                          <span className="font-black text-slate-900 dark:text-slate-100 text-sm">{v.chassisNumber}</span>
+                                          <Badge variant="outline" className="text-[9px] font-bold uppercase">{v.status}</Badge>
+                                       </div>
+                                       <div className="flex flex-col gap-1">
+                                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                                            {company?.name} • {model?.name} • {v.color}
+                                          </span>
+                                          <span className="text-[10px] font-black uppercase text-slate-500">
+                                            Reg: {v.registrationNumber || 'UNREGISTERED'}
+                                          </span>
+                                          <span className="text-[10px] font-black uppercase text-slate-500">
+                                            Docs: {v.bluebookStatus || 'NOT RECEIVED'} • {v.naamsariStatus || 'PENDING'}
+                                          </span>
+                                       </div>
+                                    </div>
+                                  )
+                               })}
+                             </div>
+                           )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
                 );
               })}
               {paginatedPurchases.length === 0 && (
@@ -893,44 +990,7 @@ export function Purchases() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Purchase Dialog */}
-      <Dialog open={!!editingPurchase} onOpenChange={(open) => !open && setEditingPurchase(null)}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black">Edit Purchase Invoice</DialogTitle>
-            <DialogDescription className="font-bold text-slate-500">
-              Update header info for invoice {editingPurchase?.invoiceNumber}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Invoice Number</label>
-              <Input 
-                value={editInvoiceNumber} 
-                onChange={(e) => setEditInvoiceNumber(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-black"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Purchase Date</label>
-              <Input 
-                type="date" 
-                value={editPurchaseDate} 
-                onChange={(e) => setEditPurchaseDate(e.target.value)}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setEditingPurchase(null)}>
-              Cancel
-            </Button>
-            <Button className="flex-1 h-11 rounded-xl font-black bg-blue-600 hover:bg-blue-700" onClick={handleUpdatePurchase}>
-              Save Changes
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

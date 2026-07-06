@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, getDocs, addDoc, serverTimestamp, doc, updateDoc } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { FollowUp, Party } from '@/types';
 import { Bell, Phone, MessageCircle, Clock, X, Calendar as CalendarIcon, User as UserIcon, History as HistoryIcon } from 'lucide-react';
@@ -102,12 +102,9 @@ export function FollowUpNotifier() {
     };
 
     useEffect(() => {
-        const unsubs = [
-            onSnapshot(collection(db, 'users'), snap => {
-                setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
-            })
-        ];
-        return () => unsubs.forEach(u => u());
+        getDocs(collection(db, 'users')).then(snap => {
+            setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
+        });
     }, []);
 
     // Request notification permission

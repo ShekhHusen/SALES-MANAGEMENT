@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy } from '@/lib/trackedFirestore';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { collection, query, orderBy, getDocs } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
 
@@ -23,6 +23,11 @@ interface GlobalDataState {
   loadSales: () => void;
   loadFollowups: () => void;
   loadProcessDocumentData: () => void;
+  refreshVehicles: () => Promise<void>;
+  refreshParties: () => Promise<void>;
+  refreshPurchases: () => Promise<void>;
+  refreshSales: () => Promise<void>;
+  refreshFollowups: () => Promise<void>;
 }
 
 const initialState: GlobalDataState = {
@@ -45,180 +50,163 @@ const initialState: GlobalDataState = {
   loadSales: () => {},
   loadFollowups: () => {},
   loadProcessDocumentData: () => {},
+  refreshVehicles: async () => {},
+  refreshParties: async () => {},
+  refreshPurchases: async () => {},
+  refreshSales: async () => {},
+  refreshFollowups: async () => {},
 };
 
 const GlobalDataContext = createContext<GlobalDataState>(initialState);
 
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [data, setData] = useState<GlobalDataState>(initialState);
-  
+
+  const addError = useCallback((msg: string, e: any) => {
+    setData(prev => ({
+      ...prev,
+      subscriptionErrors: [...(prev.subscriptionErrors || []), `${msg}: ${e.message || String(e)}`]
+    }));
+  }, []);
+
+  const refreshVehicles = useCallback(async () => {
+    try {
+      const s = await getDocs(collection(db, 'vehicles'));
+      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
+        const tA = (a.updatedAt as any)?.toMillis?.() || 0;
+        const tB = (b.updatedAt as any)?.toMillis?.() || 0;
+        return tB - tA;
+      });
+      setData(prev => ({ ...prev, vehicles: sorted }));
+    } catch (e) {
+      console.error(e);
+      addError("Vehicles", e);
+    }
+  }, [addError]);
+
+  const refreshParties = useCallback(async () => {
+    try {
+      const s = await getDocs(collection(db, 'parties'));
+      setData(prev => ({ ...prev, parties: s.docs.map(d => ({ ...d.data(), id: d.id } as Party)) }));
+    } catch (e) {
+      console.error(e);
+      addError("Parties", e);
+    }
+  }, [addError]);
+
+  const refreshPurchases = useCallback(async () => {
+    try {
+      const s = await getDocs(collection(db, 'purchases'));
+      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
+        const tA = (a.date as any)?.toMillis?.() || 0;
+        const tB = (b.date as any)?.toMillis?.() || 0;
+        return tB - tA;
+      });
+      setData(prev => ({ ...prev, purchases: sorted }));
+    } catch (e) {
+      console.error(e);
+      addError("Purchases", e);
+    }
+  }, [addError]);
+
+  const refreshSales = useCallback(async () => {
+    try {
+      const s = await getDocs(collection(db, 'sales'));
+      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
+        const tA = (a.date as any)?.toMillis?.() || 0;
+        const tB = (b.date as any)?.toMillis?.() || 0;
+        return tB - tA;
+      });
+      setData(prev => ({ ...prev, sales: sorted }));
+    } catch (e) {
+      console.error(e);
+      addError("Sales", e);
+    }
+  }, [addError]);
+
+  const refreshFollowups = useCallback(async () => {
+    try {
+      const s = await getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc')));
+      setData(prev => ({ ...prev, followups: s.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    } catch (e) {
+      console.error(e);
+      addError("Followups", e);
+    }
+  }, [addError]);
+
   useEffect(() => {
     let active = true;
     
-    const loadedStates = {
-      vehicles: false,
-      companies: false,
-      models: false,
-      colors: false,
-      parties: false,
-      purchases: false,
-      sales: false,
-      followups: false,
-    };
+    const loadAll = async () => {
+      try {
+        const [veh, comp, mod, col, part, pur, sal, fol] = await Promise.all([
+          getDocs(collection(db, 'vehicles')),
+          getDocs(collection(db, 'companies')),
+          getDocs(collection(db, 'models')),
+          getDocs(collection(db, 'colors')),
+          getDocs(collection(db, 'parties')),
+          getDocs(collection(db, 'purchases')),
+          getDocs(collection(db, 'sales')),
+          getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc')))
+        ]);
 
-    const checkLoading = () => {
-      setData(prev => ({ ...prev, debugStates: { ...loadedStates } }));
-      if (
-        loadedStates.vehicles &&
-        loadedStates.companies &&
-        loadedStates.models &&
-        loadedStates.colors &&
-        loadedStates.parties &&
-        loadedStates.purchases &&
-        loadedStates.sales &&
-        loadedStates.followups
-      ) {
         if (active) {
+          const sortedVehicles = veh.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
+            const tA = (a.updatedAt as any)?.toMillis?.() || 0;
+            const tB = (b.updatedAt as any)?.toMillis?.() || 0;
+            return tB - tA;
+          });
+
+          const sortedPurchases = pur.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
+            const tA = (a.date as any)?.toMillis?.() || 0;
+            const tB = (b.date as any)?.toMillis?.() || 0;
+            return tB - tA;
+          });
+
+          const sortedSales = sal.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
+            const tA = (a.date as any)?.toMillis?.() || 0;
+            const tB = (b.date as any)?.toMillis?.() || 0;
+            return tB - tA;
+          });
+
+          setData(prev => ({
+            ...prev,
+            vehicles: sortedVehicles,
+            companies: comp.docs.map(d => ({ ...d.data(), id: d.id } as Company)),
+            models: mod.docs.map(d => ({ ...d.data(), id: d.id } as Model)),
+            colors: col.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor)),
+            parties: part.docs.map(d => ({ ...d.data(), id: d.id } as Party)),
+            purchases: sortedPurchases,
+            sales: sortedSales,
+            followups: fol.docs.map(d => ({ id: d.id, ...d.data() })),
+            loading: false
+          }));
+        }
+      } catch (e) {
+        console.error("Error loading global data", e);
+        if (active) {
+          addError("Global Load", e);
           setData(prev => ({ ...prev, loading: false }));
         }
       }
     };
 
-    checkLoading();
-
-    const fallbackTimeout = setTimeout(() => {
-        if (active) {
-            console.warn("GlobalData context loading timed out. Forcing loading: false.", loadedStates);
-            setData(prev => ({ ...prev, loading: false }));
-        }
-    }, 5000);
-
-    const addError = (msg: string, e: any) => {
-        setData(prev => ({
-            ...prev,
-            subscriptionErrors: [...(prev.subscriptionErrors || []), `${msg}: ${e.message || String(e)}`]
-        }));
-    };
-
-    const unsubVehicles = onSnapshot(collection(db, 'vehicles'), (s) => {
-      if(active) {
-        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
-          const tA = (a.updatedAt as any)?.toMillis?.() || 0;
-          const tB = (b.updatedAt as any)?.toMillis?.() || 0;
-          return tB - tA;
-        });
-        setData(prev => ({ ...prev, vehicles: sorted }));
-        loadedStates.vehicles = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Vehicles subscription error", error);
-      if(active) { addError("Vehicles", error); loadedStates.vehicles = true; checkLoading(); }
-    });
-
-    const unsubCompanies = onSnapshot(collection(db, 'companies'), (s) => {
-      if(active) {
-        setData(prev => ({ ...prev, companies: s.docs.map(d => ({ ...d.data(), id: d.id } as Company)) }));
-        loadedStates.companies = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Companies subscription error", error);
-      if(active) { addError("Companies", error); loadedStates.companies = true; checkLoading(); }
-    });
-
-    const unsubModels = onSnapshot(collection(db, 'models'), (s) => {
-      if(active) {
-        setData(prev => ({ ...prev, models: s.docs.map(d => ({ ...d.data(), id: d.id } as Model)) }));
-        loadedStates.models = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Models subscription error", error);
-      if(active) { addError("Models", error); loadedStates.models = true; checkLoading(); }
-    });
-
-    const unsubColors = onSnapshot(collection(db, 'colors'), (s) => {
-      if(active) {
-        setData(prev => ({ ...prev, colors: s.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor)) }));
-        loadedStates.colors = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Colors subscription error", error);
-      if(active) { addError("Colors", error); loadedStates.colors = true; checkLoading(); }
-    });
-
-    const unsubParties = onSnapshot(collection(db, 'parties'), (s) => {
-      if(active) {
-        setData(prev => ({ ...prev, parties: s.docs.map(d => ({ ...d.data(), id: d.id } as Party)) }));
-        loadedStates.parties = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Parties subscription error", error);
-      if(active) { addError("Parties", error); loadedStates.parties = true; checkLoading(); }
-    });
-
-    const unsubPurchases = onSnapshot(collection(db, 'purchases'), (s) => {
-      if(active) {
-        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
-          const tA = (a.date as any)?.toMillis?.() || 0;
-          const tB = (b.date as any)?.toMillis?.() || 0;
-          return tB - tA;
-        });
-        setData(prev => ({ ...prev, purchases: sorted }));
-        loadedStates.purchases = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Purchases subscription error", error);
-      if(active) { addError("Purchases", error); loadedStates.purchases = true; checkLoading(); }
-    });
-
-    const unsubSales = onSnapshot(collection(db, 'sales'), (s) => {
-      if(active) {
-        const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
-          const tA = (a.date as any)?.toMillis?.() || 0;
-          const tB = (b.date as any)?.toMillis?.() || 0;
-          return tB - tA;
-        });
-        setData(prev => ({ ...prev, sales: sorted }));
-        loadedStates.sales = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Sales subscription error", error);
-      if(active) { addError("Sales", error); loadedStates.sales = true; checkLoading(); }
-    });
-
-    const unsubFollowups = onSnapshot(query(collection(db, 'followups'), orderBy('createdAt', 'desc')), (s) => {
-      if(active) {
-        setData(prev => ({ ...prev, followups: s.docs.map(d => ({ id: d.id, ...d.data() })) }));
-        loadedStates.followups = true;
-        checkLoading();
-      }
-    }, (error) => {
-      console.error("Followups subscription error", error);
-      if(active) { addError("Followups", error); loadedStates.followups = true; checkLoading(); }
-    });
+    loadAll();
 
     return () => {
       active = false;
-      clearTimeout(fallbackTimeout);
-      unsubVehicles(); 
-      unsubCompanies(); 
-      unsubModels(); 
-      unsubColors(); 
-      unsubParties();
-      unsubPurchases();
-      unsubSales();
-      unsubFollowups();
     };
-  }, []);
+  }, [addError]);
 
   return (
-    <GlobalDataContext.Provider value={data}>
+    <GlobalDataContext.Provider value={{
+      ...data,
+      refreshVehicles,
+      refreshParties,
+      refreshPurchases,
+      refreshSales,
+      refreshFollowups
+    }}>
       {children}
     </GlobalDataContext.Provider>
   );
