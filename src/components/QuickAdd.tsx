@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { logAction } from '@/lib/audit';
 
 export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', onAdded?: (id: string) => void }) {
+  const { refreshParties } = useGlobalData();
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
@@ -33,6 +34,7 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
         createdAt: Timestamp.now(),
       });
       toast.success(`${type === 'vendor' ? 'Vendor' : 'Customer'} created successfully`);
+      await refreshParties();
       if (onAdded) onAdded(docRef.id);
       setIsOpen(false);
       setName('');
@@ -79,8 +81,8 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
   );
 }
 
-export function QuickAddVehicle({ onAdded }: { onAdded?: (chassis: string) => void }) {
-  const { companies, models } = useGlobalData();
+export function QuickAddVehicle({ onAdded }: { onAdded?: (chassis: string, vehicleData?: any) => void }) {
+  const { companies, models, refreshVehicles } = useGlobalData();
   const { user } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -124,7 +126,8 @@ export function QuickAddVehicle({ onAdded }: { onAdded?: (chassis: string) => vo
          logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', chassisUpper, vehicleData);
       }
       toast.success('Vehicle registered successfully');
-      if (onAdded) onAdded(chassisUpper);
+      await refreshVehicles();
+      if (onAdded) onAdded(chassisUpper, vehicleData);
       setIsOpen(false);
       setChassisNumber('');
       setCompanyId('');

@@ -136,7 +136,7 @@ export function Purchases() {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedVendor, setSelectedVendor] = useState('');
   
-  const [currentChassisEntries, setCurrentChassisEntries] = useState<Partial<Vehicle>[]>([]);
+  const [currentChassisEntries, setCurrentChassisEntries] = useState<(Partial<Vehicle> & { _id?: string })[]>([]);
   
   // Selection Dialog State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -144,7 +144,8 @@ export function Purchases() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const addChassisRow = () => {
-    setCurrentChassisEntries([...currentChassisEntries, { 
+    setCurrentChassisEntries(prev => [...prev, { 
+      _id: Math.random().toString(36).substr(2, 9),
       chassisNumber: '', 
       companyId: '', 
       modelId: '', 
@@ -178,9 +179,9 @@ export function Purchases() {
     const entries = (purchase.chassisNumbers || []).map(chassis => {
        const v = allVehicles.find(veh => veh.chassisNumber === chassis);
        if (v) {
-         return v;
+         return { ...v, _id: Math.random().toString(36).substr(2, 9) };
        }
-       return { chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle>;
+       return { _id: Math.random().toString(36).substr(2, 9), chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle> & { _id?: string };
     });
     
     setCurrentChassisEntries(entries);
@@ -486,8 +487,8 @@ export function Purchases() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
-        <Card className={cn(isInvoiceExpanded ? "lg:col-span-4" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0")}>
+            <div className="flex flex-col gap-8">
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit shrink-0">
           <div 
             className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[5px] lg:pb-[5px] flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
             onClick={() => setIsInvoiceExpanded(!isInvoiceExpanded)}
@@ -498,7 +499,7 @@ export function Purchases() {
             </Button>
           </div>
           {isInvoiceExpanded && (
-          <CardContent className="p-6 space-y-6 lg:pt-0 lg:pb-[10px]">
+          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 lg:pt-[10px] lg:pb-[10px] items-end">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Procurement Date</label>
               <Input 
@@ -539,15 +540,22 @@ export function Purchases() {
           )}
         </Card>
 
-        <Card className={cn(isInvoiceExpanded ? "lg:col-span-8" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[5px] lg:pb-0")}>
+        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[400px]">
           <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between lg:pt-0 lg:pb-0">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{editingPurchase ? "Edit Chassis Manifest" : "Chassis Manifest"}</h3>
             <div className="flex gap-2">
-               <QuickAddVehicle onAdded={(chassis) => {
-                 setTargetRowIndex(currentChassisEntries.length);
-                 addChassisRow();
-                 setSearchQuery(chassis);
-                 setIsSelectorOpen(true);
+               <QuickAddVehicle onAdded={(chassis, vehicleData) => {
+                 if (vehicleData) {
+                    setCurrentChassisEntries(prev => [...prev, {
+                      ...vehicleData,
+                      _id: Math.random().toString(36).substr(2, 9)
+                    }]);
+                 } else {
+                    setTargetRowIndex(currentChassisEntries.length);
+                    addChassisRow();
+                    setSearchQuery(chassis);
+                    setIsSelectorOpen(true);
+                 }
                }} />
                <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-11 bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600 px-4">
                  <Plus className="h-4 w-4 mr-1" /> Add Entry Row
@@ -568,7 +576,7 @@ export function Purchases() {
                 </TableHeader>
                 <TableBody>
                   {currentChassisEntries.map((entry, index) => (
-                    <TableRow key={index} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
+                    <TableRow key={entry._id || index} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                       <TableCell className="px-6 py-2.5">
                         <div className="relative flex items-center">
                           <Input 
