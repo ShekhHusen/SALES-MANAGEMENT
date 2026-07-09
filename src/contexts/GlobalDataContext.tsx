@@ -13,24 +13,20 @@ interface GlobalDataState {
   parties: Party[];
   purchases: Purchase[];
   sales: Sale[];
-  followups: any[];
   loading: boolean;
   debugStates?: any;
   subscriptionErrors?: string[];
   isPurchasesLoaded: boolean;
   isSalesLoaded: boolean;
-  isFollowupsLoaded: boolean;
   isProcessDocumentLoaded: boolean;
   loadPurchases: () => void;
   loadSales: () => void;
-  loadFollowups: () => void;
   loadProcessDocumentData: () => void;
   refreshVehicles: () => Promise<void>;
   refreshParties: () => Promise<void>;
   refreshPurchases: () => Promise<void>;
   refreshVehicles: () => Promise<void>;
   refreshSales: () => Promise<void>;
-  refreshFollowups: () => Promise<void>;
   
   // Local merge operations
   addLocal: (collectionName: string, item: any) => void;
@@ -47,23 +43,19 @@ const initialState: GlobalDataState = {
   parties: [],
   purchases: [],
   sales: [],
-  followups: [],
   loading: true,
   debugStates: {},
   subscriptionErrors: [],
   isPurchasesLoaded: true,
   isSalesLoaded: true,
-  isFollowupsLoaded: true,
   isProcessDocumentLoaded: true,
   loadPurchases: () => {},
   loadSales: () => {},
-  loadFollowups: () => {},
   loadProcessDocumentData: () => {},
   refreshVehicles: async () => {},
   refreshParties: async () => {},
   refreshPurchases: async () => {},
   refreshSales: async () => {},
-  refreshFollowups: async () => {},
   addLocal: () => {},
   updateLocal: () => {},
   removeLocal: () => {},
@@ -138,8 +130,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const refreshFollowups = useCallback(async () => {
     try {
-      const s = await getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc')));
-      setData(prev => ({ ...prev, followups: s.docs.map(d => ({ id: d.id, ...d.data() })) }));
     } catch (e) {
       console.error(e);
       addError("Followups", e);
@@ -174,7 +164,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     const loadAll = async () => {
       try {
-        const [veh, comp, mod, col, part, pur, sal, fol, usrs] = await Promise.all([
+        const [veh, comp, mod, col, part, pur, sal, usrs] = await Promise.all([
           getDocs(collection(db, 'vehicles')),
           getDocs(collection(db, 'companies')),
           getDocs(collection(db, 'models')),
@@ -182,7 +172,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           getDocs(collection(db, 'parties')),
           getDocs(collection(db, 'purchases')),
           getDocs(collection(db, 'sales')),
-          getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc'))),
           getDocs(collection(db, 'users'))
         ]);
 
@@ -214,7 +203,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             parties: part.docs.map(d => ({ ...d.data(), id: d.id } as Party)),
             purchases: sortedPurchases,
             sales: sortedSales,
-            followups: fol.docs.map(d => ({ id: d.id, ...d.data() })),
             users: usrs.docs.map((d: any) => ({ ...(d.data() as UserProfile), uid: d.id })),
             loading: false
           }));
@@ -242,7 +230,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       refreshParties,
       refreshPurchases,
       refreshSales,
-      refreshFollowups,
       addLocal,
       updateLocal,
       removeLocal
