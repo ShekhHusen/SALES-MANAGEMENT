@@ -130,11 +130,11 @@ export function Sales() {
       const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
       
       const matchesFile = (sale.fileNumber?.toString() || "").includes(fileNumberFilter);
-      const matchesCustomer = customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()) || false;
+      const matchesCustomer = (customer?.name || "").toLowerCase().includes(customerFilter.toLowerCase());
       const matchesCompany = companyFilter === 'ALL' || sale.companyId === companyFilter;
       const matchesModel = modelFilter === 'ALL' || vehicle?.modelId === modelFilter;
       const matchesColor = colorFilter === 'ALL' || vehicle?.color === colorFilter;
-      const matchesChassis = !chassisFilter || vehicle?.chassisNumber.toLowerCase().includes(chassisFilter.toLowerCase());
+      const matchesChassis = !chassisFilter || (vehicle?.chassisNumber || "").toLowerCase().includes(chassisFilter.toLowerCase());
       const matchesStatus = statusFilter === 'ALL' || vehicle?.naamsariStatus === statusFilter;
       const matchesBluebook = bluebookFilter === 'ALL' || vehicle?.bluebookStatus === bluebookFilter;
       
@@ -247,7 +247,11 @@ export function Sales() {
         });
       }
 
-      await refreshSales();
+      updateLocal('sales', editingSale.id, updatePayload);
+      if (updatePayload.chassisNumber !== editingSale.chassisNumber) {
+         updateLocal('vehicles', editingSale.chassisNumber, { status: 'in-stock' });
+         updateLocal('vehicles', updatePayload.chassisNumber, { status: 'sold' });
+      }
       toast.success('Sale record updated successfully');
       setEditingSale(null);
     } catch (error) {
@@ -293,7 +297,8 @@ export function Sales() {
         logAction(user.uid, user.email || '', 'UPDATE', 'Sale', returnSale.id, { action: 'RETURNED', reason: returnReason });
       }
 
-      await refreshSales();
+      updateLocal('sales', returnSale.id, { status: 'returned', returnDate: Timestamp.now(), returnReason, updatedAt: Timestamp.now() });
+      updateLocal('vehicles', returnSale.chassisNumber, { status: 'in-stock' });
       toast.success(`Sale for ${returnSale.chassisNumber} marked as returned.`);
       setReturnSale(null);
       setReturnReason('');
@@ -328,7 +333,10 @@ export function Sales() {
         logAction(user.uid, user.email || '', 'DELETE', 'Sale', saleToDelete.id, saleToDelete);
       }
 
-      await refreshSales();
+      removeLocal('sales', saleToDelete.id);
+      if (saleToDelete.status !== 'returned') {
+         updateLocal('vehicles', saleToDelete.chassisNumber, { status: 'in-stock' });
+      }
       toast.success('Sale record successfully removed.');
       setSaleToDelete(null);
     } catch (error) {
@@ -410,7 +418,17 @@ export function Sales() {
         chassisNumber: selectedChassis,
       });
 
-      await refreshSales();
+      addLocal('sales', {
+          id: saleRef.id,
+          chassisNumber: selectedChassis,
+          customerId: selectedCustomer,
+          fileNumber: nextFileNumber,
+          date: Timestamp.fromDate(new Date(saleDate)),
+          totalAmount: Number(totalAmount) || 0,
+          status: 'active',
+          createdAt: Timestamp.now(),
+      });
+      updateLocal('vehicles', selectedChassis, { status: 'sold' });
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
       
       // Reset
@@ -570,10 +588,10 @@ export function Sales() {
                           onChange={(e) => setCustomerSearchQuery(e.target.value)}
                         />
                         <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                          {customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).length === 0 ? (
+                          {customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber || "").includes(customerSearchQuery)).length === 0 ? (
                             <p className="text-sm p-4 text-center text-slate-500 font-bold">No customer found.</p>
                           ) : (
-                            customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).map(c => (
+                            customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber || "").includes(customerSearchQuery)).map(c => (
                               <div
                                 key={c.id}
                                 className={`flex flex-col px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedCustomer === c.id ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
@@ -1071,7 +1089,7 @@ export function Sales() {
                 {inStockVehicles
                   .filter(v => 
                     (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    (companies.find(c => c.id === v.companyId)?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
                   )
                   .map(vehicle => (
                     <TableRow 
@@ -1104,7 +1122,7 @@ export function Sales() {
                 }
                 {inStockVehicles.filter(v => 
                     (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    (companies.find(c => c.id === v.companyId)?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
                   ).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={3} className="text-center py-10 text-slate-400 italic text-sm">

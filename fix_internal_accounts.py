@@ -3,20 +3,74 @@ import re
 with open('src/pages/internal-accounts.tsx', 'r') as f:
     c = f.read()
 
-# We need to change the component to use GlobalData and use getDocs for its own specific collections.
-c = c.replace("import { Party, Sale, OtherDetails, Vehicle, Model, Company, FollowUp } from '@/types';", "import { Party, Sale, Vehicle, Model, Company, FollowUp } from '@/types';\nimport { useGlobalData } from '@/contexts/GlobalDataContext';\nimport { getDocs } from '@/lib/trackedFirestore';")
+bad_useeffect = """    useEffect(() => {
+        
+        setLoading(true);
+        getDocs(collection(db, 'users')).then(snap => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })))).catch(e => console.error('Users error:', e));
+        const unsubs = [
+            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance))), (e) => console.error("internal_openings error:", e)),
+            onSnapshot(collection(db, 'internal_transactions'), (snap) => setRawTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))), (e) => console.error("internal_transactions error:", e)),
+            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata))), (e) => console.error("account_metadata error:", e)),
+            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
+                 if (snap.exists()) {
+                     setMappings(snap.data()?.mappings || {});
+                     setHiddenParties(snap.data()?.hiddenParties || []);
+                 }
+                 setLoading(false);
+            }, (e) => {
+                 console.error("Mappings error:", e);
+                 setLoading(false);
+            })
+        ];
+        
+        const timeout = setTimeout(() => {
+            if (loading) setLoading(false);
+        }, 3000);
+        
+        return () => {
+            unsubs.forEach(u => u());
+            clearTimeout(timeout);
+        };
+    }, []);"""
 
-c = c.replace("const [parties, setParties] = useState<Party[]>([]);", "")
-c = c.replace("const [sales, setSales] = useState<Sale[]>([]);", "")
-c = c.replace("const [vehicles, setVehicles] = useState<Vehicle[]>([]);", "")
-c = c.replace("const [models, setModels] = useState<Model[]>([]);", "")
-c = c.replace("const [companies, setCompanies] = useState<Company[]>([]);", "")
-c = c.replace("const [followups, setFollowups] = useState<FollowUp[]>([]);", "")
+good_useeffect = """    const refreshInternalData = async () => {
+        try {
+            setLoading(true);
+            const [usersSnap, openingsSnap, transactionsSnap, metadataSnap, mappingsSnap] = await Promise.all([
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'internal_openings')),
+                getDocs(collection(db, 'internal_transactions')),
+                getDocs(collection(db, 'account_metadata')),
+                getDoc(doc(db, 'internal_data', 'mappings'))
+            ]);
+            
+            setUsers(usersSnap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })));
+            setOpenings(openingsSnap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance)));
+            setRawTransactions(transactionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
+            setAccountMetadata(metadataSnap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata)));
+            
+            if (mappingsSnap.exists()) {
+                 setMappings(mappingsSnap.data()?.mappings || {});
+                 setHiddenParties(mappingsSnap.data()?.hiddenParties || []);
+            } else {
+                 setMappings({});
+                 setHiddenParties([]);
+            }
+        } catch (e) {
+            console.error('Error fetching internal data:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-c = re.sub(r'const \[parties, setParties\][\s\S]*?const \[users, setUsers\]', 'const { parties, sales, vehicles, models, companies, followups } = useGlobalData();\n    const [users, setUsers]', c)
+    useEffect(() => {
+        refreshInternalData();
+    }, []);"""
 
-# Update the useEffect that sets up onSnapshot
-# Remove all the unsubs for the ones we just removed, and change the rest to getDocs.
+c = c.replace(bad_useeffect, good_useeffect)
+# I also need to add getDoc import since we are using getDoc
+if "import { getDocs" not in c and "import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, where, doc, setDoc, updateDoc, writeBatch, deleteField, FieldPath, arrayUnion, arrayRemove }" in c:
+    c = c.replace("import { collection, onSnapshot, addDoc", "import { collection, onSnapshot, addDoc, getDocs, getDoc")
 
 with open('src/pages/internal-accounts.tsx', 'w') as f:
     f.write(c)

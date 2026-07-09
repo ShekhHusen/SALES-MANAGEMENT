@@ -176,7 +176,12 @@ export function Purchases() {
     setInvoiceNumber(purchase.invoiceNumber || '');
     setSelectedVendor(purchase.vendorId || '');
 
-    const entries = (purchase.chassisNumbers || []).map(chassis => {
+    // Get chassis numbers from both the purchase record and vehicles linked to this purchase
+    const linkedVehicles = allVehicles.filter(v => v.purchaseId === purchase.id);
+    const linkedChassis = linkedVehicles.map(v => v.chassisNumber);
+    const allChassisForPurchase = Array.from(new Set([...(purchase.chassisNumbers || []), ...linkedChassis]));
+
+    const entries = allChassisForPurchase.map(chassis => {
        const v = allVehicles.find(veh => veh.chassisNumber === chassis);
        if (v) {
          return { ...v, _id: Math.random().toString(36).substr(2, 9) };
@@ -249,7 +254,10 @@ export function Purchases() {
         logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
       }
 
-      await refreshPurchases();
+      removeLocal('purchases', purchaseToDelete.id);
+      purchaseToDelete.chassisNumbers?.forEach(chassis => {
+          removeLocal('vehicles', chassis);
+      });
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
     } catch (error) {
@@ -339,11 +347,11 @@ export function Purchases() {
         
         if (vehicleDoc.exists()) {
            const vehicleData = vehicleDoc.data();
-           if (vehicleData.purchaseId) {
+           if (vehicleData.purchaseId && vehicleData.purchaseId !== (editingPurchase?.id || '')) {
              toast.error(`Chassis number ${chassis} is already linked to a purchase.`);
              return;
            }
-           if (vehicleData.status === 'sold') {
+           if (vehicleData.status === 'sold' && vehicleData.purchaseId !== (editingPurchase?.id || '')) {
              toast.error(`Chassis number ${chassis} is marked as sold and cannot be purchased.`);
              return;
            }
@@ -375,14 +383,17 @@ export function Purchases() {
       ops++;
 
       for (const rc of removedChassis) {
-         batch.update(doc(db, 'vehicles', rc), {
-             purchaseId: null,
-             currentOwnerId: null,
-             status: 'ready-to-purchase',
-             updatedAt: Timestamp.now()
-         });
-         ops++;
-         if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+         const vData = allVehicles.find(v => v.chassisNumber === rc);
+         if (vData) {
+             batch.update(doc(db, 'vehicles', rc), {
+                 purchaseId: null,
+                 currentOwnerId: null,
+                 status: 'ready-to-purchase',
+                 updatedAt: Timestamp.now()
+             });
+             ops++;
+             if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+         }
       }
 
       for (const entry of sanitizedEntries) {
@@ -421,7 +432,52 @@ export function Purchases() {
         });
       }
 
-      await refreshPurchases();
+      if (editingPurchase) {
+         updateLocal('purchases', editingPurchase.id, {
+            date: Timestamp.fromDate(new Date(purchaseDate)),
+            invoiceNumber,
+            vendorId: selectedVendor,
+            chassisNumbers,
+            updatedAt: Timestamp.now(),
+         });
+      } else {
+         addLocal('purchases', {
+            id: purchaseRef.id,
+            date: Timestamp.fromDate(new Date(purchaseDate)),
+            invoiceNumber,
+            vendorId: selectedVendor,
+            chassisNumbers,
+            createdAt: Timestamp.now(),
+         });
+      }
+
+      removedChassis.forEach(rc => {
+         updateLocal('vehicles', rc, { purchaseId: null, currentOwnerId: null, status: 'ready-to-purchase' });
+      });
+
+      sanitizedEntries.forEach(entry => {
+         const existingVehicle = allVehicles.find(v => v.chassisNumber === entry.chassisNumber);
+         const isNewToPurchase = newChassis.includes(entry.chassisNumber);
+         if (!existingVehicle) {
+             addLocal('vehicles', {
+                 ...entry,
+                 id: entry.chassisNumber,
+                 status: 'in-stock',
+                 purchaseId: purchaseRef.id,
+                 currentOwnerId: selectedVendor,
+                 bluebookStatus: 'Not Received',
+                 naamsariStatus: 'Pending',
+                 createdAt: Timestamp.now(),
+             });
+         } else {
+             updateLocal('vehicles', entry.chassisNumber, {
+                 ...entry,
+                 status: existingVehicle.status === 'sold' ? 'sold' : 'in-stock',
+                 purchaseId: purchaseRef.id,
+                 currentOwnerId: selectedVendor,
+             });
+         }
+      });
       toast.success(editingPurchase ? 'Purchase updated successfully' : 'Purchase recorded and inventory updated');
       
       // Reset

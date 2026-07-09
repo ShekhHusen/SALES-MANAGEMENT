@@ -172,6 +172,7 @@ export function InternalAccounts() {
   
 
     const { userProfile } = useAuth();
+    const { users } = useGlobalData();
     const [openings, setOpenings] = useState<OpeningBalance[]>([]);
     const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
     
@@ -200,7 +201,7 @@ export function InternalAccounts() {
     const [newFollowupDate, setNewFollowupDate] = useState('');
     const [newFollowupTime, setNewFollowupTime] = useState('');
     const [newFollowupAssignedTo, setNewFollowupAssignedTo] = useState('unassigned');
-    const [users, setUsers] = useState<UserProfile[]>([]);
+    
     const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     
@@ -296,35 +297,77 @@ export function InternalAccounts() {
     }, [passedState?.selectedPartyId, mappings]);
 
     // Fetch data on load
+    const [fullDataLoaded, setFullDataLoaded] = useState(false);
+
+    const refreshInternalData = async (forceFullLoad = false) => {
+        try {
+            setLoading(true);
+            
+            const promises: Promise<any>[] = [
+                getDocs(collection(db, 'account_metadata')),
+                getDoc(doc(db, 'internal_data', 'mappings'))
+            ];
+            
+            const needsFullLoad = forceFullLoad || activeTab === 'summary' || activeTab === 'transactions' || activeTab === 'openings';
+            
+            if (needsFullLoad) {
+                promises.push(getDocs(collection(db, 'internal_openings')));
+                promises.push(getDocs(collection(db, 'internal_transactions')));
+            }
+            
+            const results = await Promise.all(promises);
+            
+            const metadataSnap = results[0];
+            const mappingsSnap = results[1];
+            
+            setAccountMetadata(metadataSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as AccountMetadata)));
+            
+            if (mappingsSnap.exists()) {
+                 setMappings(mappingsSnap.data()?.mappings || {});
+                 setHiddenParties(mappingsSnap.data()?.hiddenParties || []);
+            } else {
+                 setMappings({});
+                 setHiddenParties([]);
+            }
+            
+            if (needsFullLoad) {
+                const openingsSnap = results[2];
+                const transactionsSnap = results[3];
+                setOpenings(openingsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as OpeningBalance)));
+                setRawTransactions(transactionsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Transaction)));
+                setFullDataLoaded(true);
+            }
+            
+            // Re-fetch statement data if needed
+            if (selectedAccount) {
+                const opQ = query(collection(db, 'internal_openings'), where('accountName', '==', selectedAccount));
+                const txQ = query(collection(db, 'internal_transactions'), where('particulars', '==', selectedAccount));
+                
+                const [opSnap, txSnap] = await Promise.all([getDocs(opQ), getDocs(txQ)]);
+                
+                const acts = opSnap.docs.map(d => d.data() as OpeningBalance);
+                if (acts.length > 0) {
+                    const totalDebit = acts.reduce((acc, a) => acc + (a.debit || 0), 0);
+                    const totalCredit = acts.reduce((acc, a) => acc + (a.credit || 0), 0);
+                    setFetchedStatementOpening({ debit: totalDebit, credit: totalCredit });
+                } else {
+                    setFetchedStatementOpening(null);
+                }
+
+                const txs = txSnap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction));
+                setFetchedStatementTransactions(txs);
+            }
+
+        } catch (e) {
+            console.error('Error fetching internal data:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        
-        setLoading(true);
-        getDocs(collection(db, 'users')).then(snap => setUsers(snap.docs.map(d => ({ ...(d.data() as UserProfile), uid: d.id })))).catch(e => console.error('Users error:', e));
-        const unsubs = [
-            onSnapshot(collection(db, 'internal_openings'), (snap) => setOpenings(snap.docs.map(d => ({ id: d.id, ...d.data() } as OpeningBalance))), (e) => console.error("internal_openings error:", e)),
-            onSnapshot(collection(db, 'internal_transactions'), (snap) => setRawTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))), (e) => console.error("internal_transactions error:", e)),
-            onSnapshot(collection(db, 'account_metadata'), (snap) => setAccountMetadata(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountMetadata))), (e) => console.error("account_metadata error:", e)),
-            onSnapshot(doc(db, 'internal_data', 'mappings'), (snap) => {
-                 if (snap.exists()) {
-                     setMappings(snap.data()?.mappings || {});
-                     setHiddenParties(snap.data()?.hiddenParties || []);
-                 }
-                 setLoading(false);
-            }, (e) => {
-                 console.error("Mappings error:", e);
-                 setLoading(false);
-            })
-        ];
-        
-        const timeout = setTimeout(() => {
-            if (loading) setLoading(false);
-        }, 3000);
-        
-        return () => {
-            unsubs.forEach(u => u());
-            clearTimeout(timeout);
-        };
-    }, []);
+        refreshInternalData();
+    }, [activeTab]);
 
     const handleImportOpenings = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -366,6 +409,7 @@ export function InternalAccounts() {
                 
                 await Promise.all(promises);
                 toast.success(`Imported ${newOpenings.length} opening balances`);
+                await refreshInternalData();
             } catch (error) {
                 console.error("Failed to parse or save", error);
                 toast.error("Failed to parse Excel file or save data");
@@ -475,6 +519,7 @@ export function InternalAccounts() {
                 
                 await Promise.all(promises);
                 toast.success(`Imported ${validTxns.length} transactions` + (newOpeningsToCreate.length ? ` and created ${newOpeningsToCreate.length} new accounts` : ''));
+                await refreshInternalData();
             } catch (error) {
                  console.error("Failed to parse or save transactions", error);
                  toast.error("Failed to parse Excel file or save data");
@@ -706,6 +751,7 @@ export function InternalAccounts() {
                  try {
                      await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [selectedAccount]: partyId } });
                      toast.success("Successfully mapped customer");
+                     await refreshInternalData();
                  } catch (err) {
                      toast.error("Failed to map customer");
                  }
@@ -2361,7 +2407,7 @@ export function InternalAccounts() {
                                 const unlinkedParties = parties.filter(p => !Object.values(mappings).includes(p.id) && (showHiddenParties ? true : !hiddenParties.includes(p.id)));
                                 const filteredParties = unlinkedParties.filter(p => 
                                     (p.name || '').toLowerCase().includes((mappingSearchQuery || '').toLowerCase()) || 
-                                    (p.contactNumber && (p.contactNumber?.includes || function(){return false;})(mappingSearchQuery))
+                                    (p.contactNumber || "").includes(mappingSearchQuery)
                                 );
                                 
                                 const totalMappingPages = Math.max(1, Math.ceil(filteredParties.length / ITEMS_PER_PAGE));
@@ -2428,6 +2474,7 @@ export function InternalAccounts() {
                                                                             if (err.code === 'not-found') {
                                                                                 await setDoc(doc(db, 'internal_data', 'mappings'), { mappings: { [val]: party.id } });
                                                                             }
+                                                                            await refreshInternalData();
                                                                         }
                                                                     }
                                                                 }}
@@ -2452,6 +2499,7 @@ export function InternalAccounts() {
                                                                         await setDoc(ref, { mappings: {}, hiddenParties: [party.id] });
                                                                     }
                                                                 }
+                                                                await refreshInternalData();
                                                             }}
                                                         >
                                                             {hiddenParties.includes(party.id) ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 opacity-50" />}
@@ -2542,6 +2590,7 @@ export function InternalAccounts() {
                                                                 await updateDoc(doc(db, 'internal_data', 'mappings'), 
                                                                     new FieldPath('mappings', accountName), deleteField()
                                                                 );
+                                                                await refreshInternalData();
                                                             } catch (err) {}
                                                         }} 
                                                         className="h-8 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"

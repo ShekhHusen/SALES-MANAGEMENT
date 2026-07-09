@@ -643,9 +643,9 @@ export function ProcessDocument() {
   const filteredSales = pendingSales.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
-    return s.chassisNumber.toLowerCase().includes(searchLow) || 
-           customer?.name.toLowerCase().includes(searchLow) ||
-           customer?.contactNumber?.includes(searchLow);
+    return (s.chassisNumber || "").toLowerCase().includes(searchLow) || 
+           (customer?.name || "").toLowerCase().includes(searchLow) ||
+           (customer?.contactNumber || "").includes(searchLow);
   });
 
   // Sort Sold Vehicles: dynamic sort based on configurable columns
@@ -684,9 +684,9 @@ export function ProcessDocument() {
   const filteredCompletedSales = completedSalesRaw.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
-    return s.chassisNumber.toLowerCase().includes(searchLow) || 
-           customer?.name.toLowerCase().includes(searchLow) ||
-           customer?.contactNumber?.includes(searchLow);
+    return (s.chassisNumber || "").toLowerCase().includes(searchLow) || 
+           (customer?.name || "").toLowerCase().includes(searchLow) ||
+           (customer?.contactNumber || "").includes(searchLow);
   });
   const sortedCompletedSales = [...filteredCompletedSales].sort((a, b) => {
     let aVal: any = a[completedSortConfig.key as keyof Sale];

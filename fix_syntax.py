@@ -1,50 +1,38 @@
 import re
-import os
 
-def fix_internal_accounts():
-    p = 'src/pages/internal-accounts.tsx'
-    with open(p, 'r') as f:
-        c = f.read()
-    c = re.sub(r'const transactions = useMemo\(\(\) => \{\s*return rawTransactions\.filter\(t => \{[\s\S]*?return true;\s*\}\);\s*\}, \[rawTransactions\]\);',
-               r'const transactions = useMemo(() => { return rawTransactions; }, [rawTransactions]);', c)
-    c = re.sub(r'const \[setLoadFromDate\] = useState\(\(\) => \{[\s\S]*?\}\);', '', c)
-    with open(p, 'w') as f:
-        f.write(c)
+with open('src/pages/internal-accounts.tsx', 'r') as f:
+    c = f.read()
 
-def fix_parties():
-    p = 'src/pages/parties.tsx'
-    with open(p, 'r') as f:
-        c = f.read()
-    c = re.sub(r'\.filter\(p => \{else if[\s\S]*?const matchesSearch =', r'.filter(p => {\n    const matchesSearch =', c)
-    with open(p, 'w') as f:
-        f.write(c)
+bad_block = """                                                                try {
+                                                                    if (hiddenParties.includes(party.id)) {
+                                                                        await updateDoc(ref, { hiddenParties: arrayRemove(party.id) });
+                                                                    }
+                                                                    await refreshInternalData(); else {
+                                                                        await updateDoc(ref, { hiddenParties: arrayUnion(party.id) });
+                                                                    }
+                                                                    await refreshInternalData();
+                                                                } catch (err: any) {
+                                                                    if (err.code === 'not-found') {
+                                                                        await setDoc(ref, { mappings: {}, hiddenParties: [party.id] });
+                                                                    }
+                                                                    await refreshInternalData();
+                                                                }"""
 
-def fix_purchases():
-    p = 'src/pages/purchases.tsx'
-    with open(p, 'r') as f:
-        c = f.read()
-    c = re.sub(r'\.filter\(purchase => \{else if[\s\S]*?// Find the vehicles for this purchase\s*const purchaseVehicles =', r'.filter(purchase => {\n      // Find the vehicles for this purchase\n      const purchaseVehicles =', c)
-    with open(p, 'w') as f:
-        f.write(c)
+good_block = """                                                                try {
+                                                                    if (hiddenParties.includes(party.id)) {
+                                                                        await updateDoc(ref, { hiddenParties: arrayRemove(party.id) });
+                                                                    } else {
+                                                                        await updateDoc(ref, { hiddenParties: arrayUnion(party.id) });
+                                                                    }
+                                                                } catch (err: any) {
+                                                                    if (err.code === 'not-found') {
+                                                                        await setDoc(ref, { mappings: {}, hiddenParties: [party.id] });
+                                                                    }
+                                                                }
+                                                                await refreshInternalData();"""
 
-def fix_inventory():
-    p = 'src/pages/inventory.tsx'
-    with open(p, 'r') as f:
-        c = f.read()
-    c = re.sub(r'\.filter\(vehicle => \{else if[\s\S]*?const matchesSearch =', r'.filter(vehicle => {\n    const matchesSearch =', c)
-    with open(p, 'w') as f:
-        f.write(c)
+c = c.replace(bad_block, good_block)
 
-def fix_sales():
-    p = 'src/pages/sales.tsx'
-    with open(p, 'r') as f:
-        c = f.read()
-    c = re.sub(r'\.filter\(sale => \{else if[\s\S]*?const customer =', r'.filter(sale => {\n      const customer =', c)
-    with open(p, 'w') as f:
-        f.write(c)
+with open('src/pages/internal-accounts.tsx', 'w') as f:
+    f.write(c)
 
-fix_internal_accounts()
-fix_parties()
-fix_purchases()
-fix_inventory()
-fix_sales()
