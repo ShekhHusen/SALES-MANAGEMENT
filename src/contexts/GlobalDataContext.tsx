@@ -21,10 +21,6 @@ interface GlobalDataState {
   loadPurchases: () => void;
   loadSales: () => void;
   loadProcessDocumentData: () => void;
-  refreshVehicles: () => Promise<void>;
-  refreshParties: () => Promise<void>;
-  refreshPurchases: () => Promise<void>;
-  refreshSales: () => Promise<void>;
 }
 
 const initialState: GlobalDataState = {
@@ -44,10 +40,6 @@ const initialState: GlobalDataState = {
   loadPurchases: () => {},
   loadSales: () => {},
   loadProcessDocumentData: () => {},
-  refreshVehicles: async () => {},
-  refreshParties: async () => {},
-  refreshPurchases: async () => {},
-  refreshSales: async () => {},
 };
 
 const GlobalDataContext = createContext<GlobalDataState>(initialState);
@@ -61,61 +53,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       subscriptionErrors: [...(prev.subscriptionErrors || []), `${msg}: ${e.message || String(e)}`]
     }));
   }, []);
-
-  const refreshVehicles = useCallback(async () => {
-    try {
-      const s = await getDocs(collection(db, 'vehicles'));
-      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
-        const tA = (a.updatedAt as any)?.toMillis?.() || 0;
-        const tB = (b.updatedAt as any)?.toMillis?.() || 0;
-        return tB - tA;
-      });
-      setData(prev => ({ ...prev, vehicles: sorted }));
-    } catch (e) {
-      console.error(e);
-      addError("Vehicles", e);
-    }
-  }, [addError]);
-
-  const refreshParties = useCallback(async () => {
-    try {
-      const s = await getDocs(collection(db, 'parties'));
-      setData(prev => ({ ...prev, parties: s.docs.map(d => ({ ...d.data(), id: d.id } as Party)) }));
-    } catch (e) {
-      console.error(e);
-      addError("Parties", e);
-    }
-  }, [addError]);
-
-  const refreshPurchases = useCallback(async () => {
-    try {
-      const s = await getDocs(collection(db, 'purchases'));
-      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
-        const tA = (a.date as any)?.toMillis?.() || 0;
-        const tB = (b.date as any)?.toMillis?.() || 0;
-        return tB - tA;
-      });
-      setData(prev => ({ ...prev, purchases: sorted }));
-    } catch (e) {
-      console.error(e);
-      addError("Purchases", e);
-    }
-  }, [addError]);
-
-  const refreshSales = useCallback(async () => {
-    try {
-      const s = await getDocs(collection(db, 'sales'));
-      const sorted = s.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
-        const tA = (a.date as any)?.toMillis?.() || 0;
-        const tB = (b.date as any)?.toMillis?.() || 0;
-        return tB - tA;
-      });
-      setData(prev => ({ ...prev, sales: sorted }));
-    } catch (e) {
-      console.error(e);
-      addError("Sales", e);
-    }
-  }, [addError]);
 
   useEffect(() => {
     let active = true;
@@ -248,11 +185,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   return (
     <GlobalDataContext.Provider value={{
-      ...data,
-      refreshVehicles,
-      refreshParties,
-      refreshPurchases,
-      refreshSales
+      ...data
     }}>
       {children}
     </GlobalDataContext.Provider>

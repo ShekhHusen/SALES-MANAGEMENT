@@ -42,7 +42,7 @@ export function Parties() {
   
   
 
-  const { parties, purchases, sales, refreshParties } = useGlobalData();
+  const { parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);
@@ -101,14 +101,12 @@ export function Parties() {
           ...values,
           updatedAt: Timestamp.now(),
         });
-        await refreshParties();
       toast.success('Party updated successfully');
       } else {
         await addDoc(collection(db, 'parties'), {
           ...values,
           createdAt: Timestamp.now(),
         });
-        await refreshParties();
       toast.success('Party added successfully');
       }
       setIsDialogOpen(false);
@@ -125,7 +123,6 @@ export function Parties() {
     if (!partyToDelete) return;
     try {
       await deleteDoc(doc(db, 'parties', partyToDelete.id));
-      await refreshParties();
       toast.success('Stakeholder record deleted');
       setPartyToDelete(null);
     } catch (error) {

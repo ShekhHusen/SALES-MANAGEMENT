@@ -33,7 +33,7 @@ export function Inventory() {
   
 
   const { user } = useAuth();
-  const { vehicles, companies, models, colors, parties, purchases, sales, refreshVehicles } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
@@ -114,7 +114,6 @@ export function Inventory() {
       };
 
       await setDoc(vehicleRef, vehicleData);
-      await refreshVehicles();
       
       if (user) {
         logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', newVehicle.chassisNumber, newVehicle);
@@ -233,7 +232,6 @@ export function Inventory() {
       }
 
       toast.success('Vehicle updated successfully');
-      await refreshVehicles();
       setSelectedVehicle(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${originalChassisNumber}`);

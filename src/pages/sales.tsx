@@ -49,7 +49,7 @@ export function Sales() {
 
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, sales, refreshSales } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock');
   const isAdmin = userProfile?.role === 'admin';
@@ -247,7 +247,6 @@ export function Sales() {
         });
       }
 
-      await refreshSales();
       toast.success('Sale record updated successfully');
       setEditingSale(null);
     } catch (error) {
@@ -293,7 +292,6 @@ export function Sales() {
         logAction(user.uid, user.email || '', 'UPDATE', 'Sale', returnSale.id, { action: 'RETURNED', reason: returnReason });
       }
 
-      await refreshSales();
       toast.success(`Sale for ${returnSale.chassisNumber} marked as returned.`);
       setReturnSale(null);
       setReturnReason('');
@@ -328,7 +326,6 @@ export function Sales() {
         logAction(user.uid, user.email || '', 'DELETE', 'Sale', saleToDelete.id, saleToDelete);
       }
 
-      await refreshSales();
       toast.success('Sale record successfully removed.');
       setSaleToDelete(null);
     } catch (error) {
@@ -410,7 +407,6 @@ export function Sales() {
         chassisNumber: selectedChassis,
       });
 
-      await refreshSales();
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
       
       // Reset

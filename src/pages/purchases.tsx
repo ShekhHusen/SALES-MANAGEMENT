@@ -39,7 +39,7 @@ export function Purchases() {
   
 
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, purchases, refreshPurchases } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
   const vendors = parties.filter(p => p.type === 'vendor');
   const isAdmin = userProfile?.role === 'admin';
   const isClerk = userProfile?.role === 'inventory_clerk';
@@ -247,7 +247,6 @@ export function Purchases() {
         logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
       }
 
-      await refreshPurchases();
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
     } catch (error) {
@@ -419,7 +418,6 @@ export function Purchases() {
         });
       }
 
-      await refreshPurchases();
       toast.success(editingPurchase ? 'Purchase updated successfully' : 'Purchase recorded and inventory updated');
       
       // Reset
