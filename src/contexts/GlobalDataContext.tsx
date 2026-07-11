@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { collection, query, orderBy, getDocs, onSnapshot } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
+import { toast } from 'sonner';
 
 interface GlobalDataState {
   vehicles: Vehicle[];
@@ -188,6 +189,31 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor));
           } else if (name === 'parties') {
             sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Party));
+          }
+
+          // If this is not the initial load and the write is from a remote client (other users)
+          if (initialLoaded[name] && !snapshot.metadata.hasPendingWrites) {
+            snapshot.docChanges().forEach(change => {
+              if (change.type === 'added') {
+                const docData = change.doc.data();
+                if (name === 'vehicles') {
+                  toast.info(`🚗 New vehicle added to inventory: Chassis ${change.doc.id}`, { duration: 5000 });
+                } else if (name === 'purchases') {
+                  toast.info(`🧾 New purchase recorded: Invoice #${docData.invoiceNumber || change.doc.id}`, { duration: 5000 });
+                } else if (name === 'sales') {
+                  toast.info(`💰 New sale recorded for Chassis ${docData.chassisNumber || ''}`, { duration: 5000 });
+                } else if (name === 'parties') {
+                  toast.info(`👤 New party registered: ${docData.name || ''}`, { duration: 5000 });
+                }
+              } else if (change.type === 'modified') {
+                const docData = change.doc.data();
+                if (name === 'vehicles') {
+                  toast.info(`🔄 Vehicle ${change.doc.id} details updated in inventory.`, { duration: 4000 });
+                } else if (name === 'sales') {
+                  toast.info(`🔄 Sale status/data updated.`, { duration: 4000 });
+                }
+              }
+            });
           }
 
           setData(prev => ({

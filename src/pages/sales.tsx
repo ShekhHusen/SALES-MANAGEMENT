@@ -570,10 +570,16 @@ export function Sales() {
                           onChange={(e) => setCustomerSearchQuery(e.target.value)}
                         />
                         <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                          {customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).length === 0 ? (
+                          {customers.filter(c => 
+                            (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || 
+                            (c.contactNumber || "").includes(customerSearchQuery)
+                          ).length === 0 ? (
                             <p className="text-sm p-4 text-center text-slate-500 font-bold">No customer found.</p>
                           ) : (
-                            customers.filter(c => (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || (c.contactNumber?.includes || function(){return false;})(customerSearchQuery)).map(c => (
+                            customers.filter(c => 
+                              (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || 
+                              (c.contactNumber || "").includes(customerSearchQuery)
+                            ).map(c => (
                               <div
                                 key={c.id}
                                 className={`flex flex-col px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedCustomer === c.id ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}

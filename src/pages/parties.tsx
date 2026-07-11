@@ -154,7 +154,7 @@ export function Parties() {
   };
 
   const filteredParties = parties.filter(p => {
-    const matchesSearch = (p.name?.toLowerCase() || "").includes(search.toLowerCase()) || (p.contactNumber?.includes || function(){return false;})(search);
+    const matchesSearch = (p.name?.toLowerCase() || "").includes(search.toLowerCase()) || (p.contactNumber || "").includes(search);
     const matchesType = filterType === 'all' || p.type === filterType;
     return matchesSearch && matchesType;
   });
