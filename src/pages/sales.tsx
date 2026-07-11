@@ -1071,7 +1071,7 @@ export function Sales() {
                 {inStockVehicles
                   .filter(v => 
                     (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    (companies.find(c => c.id === v.companyId)?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
                   )
                   .map(vehicle => (
                     <TableRow 
@@ -1104,7 +1104,7 @@ export function Sales() {
                 }
                 {inStockVehicles.filter(v => 
                     (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    companies.find(c => c.id === v.companyId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    (companies.find(c => c.id === v.companyId)?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
                   ).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={3} className="text-center py-10 text-slate-400 italic text-sm">

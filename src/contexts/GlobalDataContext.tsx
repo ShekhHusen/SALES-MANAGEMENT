@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { collection, query, orderBy, getDocs } from '@/lib/trackedFirestore';
+import { collection, query, orderBy, getDocs, onSnapshot } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
 
@@ -118,63 +118,105 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   useEffect(() => {
     let active = true;
-    
-    const loadAll = async () => {
-      try {
-        const [veh, comp, mod, col, part, pur, sal] = await Promise.all([
-          getDocs(collection(db, 'vehicles')),
-          getDocs(collection(db, 'companies')),
-          getDocs(collection(db, 'models')),
-          getDocs(collection(db, 'colors')),
-          getDocs(collection(db, 'parties')),
-          getDocs(collection(db, 'purchases')),
-          getDocs(collection(db, 'sales'))
-        ]);
+    const unsubscribes: (() => void)[] = [];
 
-        if (active) {
-          const sortedVehicles = veh.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
-            const tA = (a.updatedAt as any)?.toMillis?.() || 0;
-            const tB = (b.updatedAt as any)?.toMillis?.() || 0;
-            return tB - tA;
-          });
+    const collectionsToListen = [
+      { name: 'vehicles' as const, path: 'vehicles' },
+      { name: 'companies' as const, path: 'companies' },
+      { name: 'models' as const, path: 'models' },
+      { name: 'colors' as const, path: 'colors' },
+      { name: 'parties' as const, path: 'parties' },
+      { name: 'purchases' as const, path: 'purchases' },
+      { name: 'sales' as const, path: 'sales' }
+    ];
 
-          const sortedPurchases = pur.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
-            const tA = (a.date as any)?.toMillis?.() || 0;
-            const tB = (b.date as any)?.toMillis?.() || 0;
-            return tB - tA;
-          });
+    const initialLoaded = {
+      vehicles: false,
+      companies: false,
+      models: false,
+      colors: false,
+      parties: false,
+      purchases: false,
+      sales: false
+    };
 
-          const sortedSales = sal.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
-            const tA = (a.date as any)?.toMillis?.() || 0;
-            const tB = (b.date as any)?.toMillis?.() || 0;
-            return tB - tA;
-          });
-
-          setData(prev => ({
-            ...prev,
-            vehicles: sortedVehicles,
-            companies: comp.docs.map(d => ({ ...d.data(), id: d.id } as Company)),
-            models: mod.docs.map(d => ({ ...d.data(), id: d.id } as Model)),
-            colors: col.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor)),
-            parties: part.docs.map(d => ({ ...d.data(), id: d.id } as Party)),
-            purchases: sortedPurchases,
-            sales: sortedSales,
-            loading: false
-          }));
-        }
-      } catch (e) {
-        console.error("Error loading global data", e);
-        if (active) {
-          addError("Global Load", e);
-          setData(prev => ({ ...prev, loading: false }));
-        }
+    const checkLoadingFinished = () => {
+      if (
+        initialLoaded.vehicles &&
+        initialLoaded.companies &&
+        initialLoaded.models &&
+        initialLoaded.colors &&
+        initialLoaded.parties &&
+        initialLoaded.purchases &&
+        initialLoaded.sales
+      ) {
+        setData(prev => ({ ...prev, loading: false }));
       }
     };
 
-    loadAll();
+    collectionsToListen.forEach(({ name, path }) => {
+      try {
+        const q = collection(db, path);
+        const unsub = onSnapshot(q, (snapshot) => {
+          if (!active) return;
+
+          let sortedDocs: any[] = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+
+          if (name === 'vehicles') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
+              const tA = (a.updatedAt as any)?.toMillis?.() || 0;
+              const tB = (b.updatedAt as any)?.toMillis?.() || 0;
+              return tB - tA;
+            });
+          } else if (name === 'purchases') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
+              const tA = (a.date as any)?.toMillis?.() || 0;
+              const tB = (b.date as any)?.toMillis?.() || 0;
+              return tB - tA;
+            });
+          } else if (name === 'sales') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
+              const tA = (a.date as any)?.toMillis?.() || 0;
+              const tB = (b.date as any)?.toMillis?.() || 0;
+              return tB - tA;
+            });
+          } else if (name === 'companies') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Company));
+          } else if (name === 'models') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Model));
+          } else if (name === 'colors') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor));
+          } else if (name === 'parties') {
+            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Party));
+          }
+
+          setData(prev => ({
+            ...prev,
+            [name]: sortedDocs
+          }));
+
+          initialLoaded[name] = true;
+          checkLoadingFinished();
+        }, (err) => {
+          console.error(`Error in real-time subscription for ${name}:`, err);
+          addError(name.toUpperCase(), err);
+          
+          initialLoaded[name] = true;
+          checkLoadingFinished();
+        });
+
+        unsubscribes.push(unsub);
+      } catch (err) {
+        console.error(`Failed to setup subscription for ${name}:`, err);
+        addError(name.toUpperCase(), err);
+        initialLoaded[name] = true;
+        checkLoadingFinished();
+      }
+    });
 
     return () => {
       active = false;
+      unsubscribes.forEach(unsub => unsub());
     };
   }, [addError]);
 
