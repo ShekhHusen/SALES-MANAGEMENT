@@ -3,7 +3,6 @@ import { collection, onSnapshot, query, orderBy, doc, updateDoc, Timestamp, getD
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Vehicle, Company, Model, BluebookStatus, NaamsariStatus, Purchase, Sale, Party } from '@/types';
 import { cn } from '@/lib/utils';
-import { logAction } from '@/lib/audit';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,10 +114,6 @@ export function Inventory() {
 
       await setDoc(vehicleRef, vehicleData);
       
-      if (user) {
-        logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', newVehicle.chassisNumber, newVehicle);
-      }
-      
       toast.success('Vehicle added successfully');
       setIsAddDialogOpen(false);
       setNewVehicle({
@@ -211,9 +206,6 @@ export function Inventory() {
         }
         
         await batch.commit();
-        if (user) {
-          logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', newChassisNumber, { action: 'renamed', old: originalChassisNumber, new: newChassisNumber, companyId, modelId });
-        }
       } else {
         const vehicleRef = doc(db, 'vehicles', originalChassisNumber);
         await updateDoc(vehicleRef, {
@@ -226,9 +218,6 @@ export function Inventory() {
           updatedAt: Timestamp.now(),
         });
         
-        if (user) {
-          logAction(user.uid, user.email || '', 'UPDATE', 'Vehicle', originalChassisNumber, { bluebookStatus: bluebook, naamsariStatus: naamsari, registrationNumber, color, companyId, modelId });
-        }
       }
 
       toast.success('Vehicle updated successfully');
@@ -242,10 +231,6 @@ export function Inventory() {
     if (!vehicleToDelete) return;
     try {
       await deleteDoc(doc(db, 'vehicles', vehicleToDelete.chassisNumber));
-      
-      if (user) {
-        logAction(user.uid, user.email || '', 'DELETE', 'Vehicle', vehicleToDelete.chassisNumber, vehicleToDelete);
-      }
 
       toast.success('Vehicle deleted from inventory');
       setVehicleToDelete(null);

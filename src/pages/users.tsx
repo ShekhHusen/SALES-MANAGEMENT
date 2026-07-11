@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { useAuth, UserProfile, UserRole } from '@/hooks/use-auth';
-import { logAction } from '@/lib/audit';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,14 +50,6 @@ export function UserManagement() {
       const userRef = doc(db, 'users', targetUser.uid);
       await updateDoc(userRef, { role: newRole });
       
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'User', targetUser.uid, {
-          targetEmail: targetUser.email,
-          previousRole: targetUser.role,
-          newRole: newRole
-        });
-      }
-      
       toast.success('User role updated');
     } catch (error) {
       console.error("Error updating role:", error);
@@ -80,13 +71,6 @@ export function UserManagement() {
       try {
         const userRef = doc(db, 'users', targetUser.uid);
         await deleteDoc(userRef);
-        
-        if (user) {
-          logAction(user.uid, user.email || '', 'DELETE', 'User', targetUser.uid, {
-            targetEmail: targetUser.email,
-            role: targetUser.role
-          });
-        }
         
         toast.success('User deleted successfully');
       } catch (error) {

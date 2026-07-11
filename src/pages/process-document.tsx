@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { collection, query, onSnapshot, orderBy, doc, updateDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
-import { logAction } from '@/lib/audit';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -597,13 +596,6 @@ export function ProcessDocument() {
         }
       });
       
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Document', selectedSale.id, {
-          documentationCompleted: true,
-          actionType: 'DOCUMENT_PROCESSED'
-        });
-      }
-
       toast.success('Documentation completed successfully!');
       setUnlockedTabs({ sold_vehicle: true, others_details: false, documents: false, completed: true });
       setActiveTab('completed');

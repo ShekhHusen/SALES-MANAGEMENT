@@ -2,7 +2,6 @@ import { useState, useEffect, Fragment } from 'react';
 import { collection, addDoc, getDocs, onSnapshot, query, where, Timestamp, writeBatch, doc, orderBy, deleteDoc, getDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Purchase } from '@/types';
-import { logAction } from '@/lib/audit';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -242,10 +241,6 @@ export function Purchases() {
       if (ops > 0) {
           await batch.commit();
       }
-      
-      if (user) {
-        logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
-      }
 
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
@@ -408,14 +403,6 @@ export function Purchases() {
       
       if (ops > 0) {
           await batch.commit();
-      }
-      
-      if (user) {
-        logAction(user.uid, user.email || '', editingPurchase ? 'UPDATE' : 'CREATE', 'Purchase', purchaseRef.id, {
-          invoiceNumber,
-          vendorId: selectedVendor,
-          chassisNumbers,
-        });
       }
 
       toast.success(editingPurchase ? 'Purchase updated successfully' : 'Purchase recorded and inventory updated');

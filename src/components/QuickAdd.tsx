@@ -10,7 +10,6 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useAuth } from '@/hooks/use-auth';
-import { logAction } from '@/lib/audit';
 
 export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', onAdded?: (id: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -120,9 +119,6 @@ export function QuickAddVehicle({ onAdded }: { onAdded?: (chassis: string) => vo
       
       await setDoc(vehicleRef, vehicleData);
       
-      if (user) {
-         logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', chassisUpper, vehicleData);
-      }
       toast.success('Vehicle registered successfully');
       if (onAdded) onAdded(chassisUpper);
       setIsOpen(false);

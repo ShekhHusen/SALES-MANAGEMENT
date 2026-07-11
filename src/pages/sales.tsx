@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField, runTransaction } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
-import { logAction } from '@/lib/audit';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -239,14 +238,6 @@ export function Sales() {
 
       batch.update(saleRef, updateData);
       await batch.commit();
-      
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Sale', editingSale.id, {
-          date: editSaleDate,
-          fileNumber: editFileNumber,
-          chassisNumber: editChassisNumber !== editingSale.chassisNumber ? editChassisNumber : undefined
-        });
-      }
 
       toast.success('Sale record updated successfully');
       setEditingSale(null);
@@ -289,10 +280,6 @@ export function Sales() {
         });
       });
 
-      if (user) {
-        logAction(user.uid, user.email || '', 'UPDATE', 'Sale', returnSale.id, { action: 'RETURNED', reason: returnReason });
-      }
-
       toast.success(`Sale for ${returnSale.chassisNumber} marked as returned.`);
       setReturnSale(null);
       setReturnReason('');
@@ -321,10 +308,6 @@ export function Sales() {
       } catch (vehError) {
         console.warn("Could not revert vehicle status (it may have been deleted):", vehError);
         // Non-blocking catch
-      }
-
-      if (user) {
-        logAction(user.uid, user.email || '', 'DELETE', 'Sale', saleToDelete.id, saleToDelete);
       }
 
       toast.success('Sale record successfully removed.');
@@ -391,14 +374,6 @@ export function Sales() {
         });
       });
       
-      if (user) {
-        logAction(user.uid, user.email || '', 'CREATE', 'Sale', saleRef.id, {
-          customerId: selectedCustomer,
-          chassisNumber: selectedChassis,
-          fileNumber: nextFileNumber,
-          companyId: currentVehicle.companyId,
-        });
-      }
 
       const cName = customers.find(c => c.id === selectedCustomer)?.name || 'Unknown';
       setSuccessModalData({
