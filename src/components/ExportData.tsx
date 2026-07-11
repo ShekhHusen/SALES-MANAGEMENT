@@ -32,18 +32,6 @@ export function ExportData() {
 
       const salesSnap = await getDocs(collection(db, 'sales'));
       const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Sale));
-      
-      const openingsSnap = await getDocs(collection(db, 'internal_openings'));
-      const openings = openingsSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
-
-      const transactionsSnap = await getDocs(collection(db, 'internal_transactions'));
-      const transactions = transactionsSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
-
-      const metadataSnap = await getDocs(collection(db, 'account_metadata'));
-      const accountMetadata = metadataSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
-
-      const mappingsDoc = await getDoc(doc(db, 'internal_data', 'mappings'));
-      const mappings = mappingsDoc.exists() ? mappingsDoc.data()?.mappings || {} : {};
 
       const wb = XLSX.utils.book_new();
 
@@ -74,90 +62,6 @@ export function ExportData() {
       if(allDataRows.length===0) allDataRows.push({'Message': 'No Data'});
       const wsAllData = XLSX.utils.json_to_sheet(allDataRows);
       XLSX.utils.book_append_sheet(wb, wsAllData, 'All Data');
-
-      // 0.5. All Accounts
-      const accMap = new Map<string, { opening: number, debit: number, credit: number, lastActivity: Date | null, verifyBy: string, mappedAccount: string }>();
-
-      const allAccountNames = new Set<string>();
-      openings.forEach(o => o.accountName && allAccountNames.add((o.accountName || '').trim()));
-      transactions.forEach(t => t.particulars && allAccountNames.add((t.particulars || '').trim()));
-
-      allAccountNames.forEach(name => {
-          let mappedAccount = '';
-          const partyId = mappings[name];
-          if (partyId) {
-              const party = parties.find(p => p.id === partyId);
-              if (party) mappedAccount = party.name;
-          } else {
-              const party = parties.find(p => (p.name || '').toLowerCase() === (name || '').toLowerCase());
-              if (party) mappedAccount = party.name;
-          }
-          accMap.set(name, { opening: 0, debit: 0, credit: 0, lastActivity: null, verifyBy: '', mappedAccount });
-      });
-
-      // Add Unlinked Parties to the map with 0 balances
-      parties.forEach(p => {
-          const isPartyMapped = Object.values(mappings).includes(p.id);
-          const hasExactName = Array.from(accMap.keys()).some(k => k.toLowerCase() === (p.name || '').toLowerCase());
-          if (!isPartyMapped && !hasExactName) {
-              if (p.name) {
-                  accMap.set(p.name, { opening: 0, debit: 0, credit: 0, lastActivity: null, verifyBy: '', mappedAccount: p.name });
-              }
-          }
-      });
-
-      openings.forEach(o => {
-          if (o.accountName && accMap.has(o.accountName)) {
-              const acc = accMap.get(o.accountName)!;
-              acc.opening += (o.debit || 0) - (o.credit || 0);
-          }
-      });
-
-      transactions.forEach(t => {
-          if (t.particulars && accMap.has(t.particulars)) {
-              const acc = accMap.get(t.particulars)!;
-              acc.debit += (t.debit || 0);
-              acc.credit += (t.credit || 0);
-              
-              let tDate: Date | null = null;
-              if (t.date) {
-                  if ((t.date as any).toDate) {
-                      tDate = (t.date as any).toDate();
-                  } else if (typeof t.date === 'string') {
-                      tDate = new Date(t.date);
-                  }
-              }
-              
-              if (tDate) {
-                  if (!acc.lastActivity || tDate > acc.lastActivity) {
-                      acc.lastActivity = tDate;
-                  }
-              }
-          }
-      });
-
-      // assign verify by
-      accountMetadata.forEach(meta => {
-          if (meta.accountName && accMap.has(meta.accountName)) {
-              const acc = accMap.get(meta.accountName)!;
-              acc.verifyBy = meta.verifiedBy || '';
-          }
-      });
-
-      const allAccountsRows = Array.from(accMap.entries()).map(([name, data]) => ({
-          'Account Name': name,
-          'Mapped Account': data.mappedAccount,
-          'Opening Balance': data.opening,
-          'Total Debit': data.debit,
-          'Total Credit': data.credit,
-          'Closing Balance': data.opening + data.debit - data.credit,
-          'Verified By': data.verifyBy,
-          'Last Activity': data.lastActivity ? data.lastActivity.toLocaleDateString() : ''
-      }));
-
-      if(allAccountsRows.length===0) (allAccountsRows as any[]).push({'Message': 'No Data'});
-      const wsAllAccounts = XLSX.utils.json_to_sheet(allAccountsRows);
-      XLSX.utils.book_append_sheet(wb, wsAllAccounts, 'All Accounts');
 
       // 1. Inventory
       const inventoryData: any[] = vehicles.map(v => ({

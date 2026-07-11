@@ -30,12 +30,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
-import { FollowUpNotifier } from '@/components/FollowUpNotifier';
-
 const navItems = [
   { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { label: 'Follow-ups', icon: BellRing, path: '/follow-ups', roles: ['admin', 'sales_manager'] },
-  { label: 'Internal Accounts', icon: BookOpen, path: '/internal-accounts', roles: ['admin', 'sales_manager'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
@@ -52,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { logout, user, userProfile, hasSetPassword } = useAuth();
   const location = useLocation();
-  const { loading: dataLoading, debugStates, subscriptionErrors, loadPurchases, loadSales, loadFollowups, loadProcessDocumentData, isPurchasesLoaded, isSalesLoaded, isFollowupsLoaded, isProcessDocumentLoaded } = useGlobalData();
+  const { loading: dataLoading, debugStates, subscriptionErrors, loadPurchases, loadSales, loadProcessDocumentData, isPurchasesLoaded, isSalesLoaded, isProcessDocumentLoaded } = useGlobalData();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -263,7 +259,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="h-4 w-4" />
           </Button>
 
-          <FollowUpNotifier />
           <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5">
             <Button 
               variant="ghost" 

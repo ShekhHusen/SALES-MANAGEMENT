@@ -736,127 +736,6 @@ export function Settings() {
               </Button>
             </div>
 
-            {/* Clear Internal Openings */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear Internal Openings</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes all opening balances in Internal Accounts.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear Internal Openings?",
-                    description: "Are you sure you want to clear all internal account openings? Openings linked to transactions will be preserved.",
-                    actionLabel: "Clear Openings",
-                    onConfirm: async () => {
-                      try {
-                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
-                        const usedAccounts = new Set(txnsSnap.docs.map(d => (d.data().particulars || '').toLowerCase().trim()));
-                        
-                        const openingsSnap = await getDocs(query(collection(db, 'internal_openings')));
-                        let deletedCount = 0;
-                        let skippedCount = 0;
-                        
-                        let batch = writeBatch(db);
-                        let ops = 0;
-                        
-                        for (const docSnap of openingsSnap.docs) {
-                            const accountName = (docSnap.data().accountName || '').toLowerCase().trim();
-                            if (usedAccounts.has(accountName)) {
-                                skippedCount++;
-                            } else {
-                                batch.delete(docSnap.ref);
-                                deletedCount++;
-                                ops++;
-
-                                if (ops === 400) {
-                                    await batch.commit();
-                                    batch = writeBatch(db);
-                                    ops = 0;
-                                }
-                            }
-                        }
-                        
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        
-                        toast.success(`Cleared ${deletedCount} openings. Skipped ${skippedCount} linked openings.`);
-                      } catch (err: any) {
-                        console.error('Clear openings error:', err);
-                        toast.error("Failed to clear internal account openings. " + err.message);
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Openings
-              </Button>
-            </div>
-
-            {/* Clear Internal Transactions */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear Internal Transactions</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes all transactions in Internal Accounts.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear Internal Transactions?",
-                    description: "Are you sure you want to clear all internal account transactions?",
-                    actionLabel: "Clear Transactions",
-                    onConfirm: async () => {
-                      try {
-                        let deletedCount = 0;
-                        const BATCH_SIZE = 400;
-                        
-                        const toastId = toast.loading('Clearing internal transactions... This may take a moment.');
-                        
-                        // We will batch delete in a loop until no more documents are left.
-                        // For 8777 documents, calling getDocs repeatedly could be needed if we only query small amounts,
-                        // but doing a single getDocs and then batching is also fine given client memory can handle a few thousand docs.
-                        const txnsSnap = await getDocs(query(collection(db, 'internal_transactions')));
-                        let batch = writeBatch(db);
-                        let ops = 0;
-                        
-                        for (const docSnap of txnsSnap.docs) {
-                            batch.delete(docSnap.ref);
-                            deletedCount++;
-                            ops++;
-                            
-                            if (ops === BATCH_SIZE) {
-                                await batch.commit();
-                                batch = writeBatch(db);
-                                ops = 0;
-                            }
-                        }
-                        
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        
-                        toast.success(`Successfully cleared ${deletedCount} internal transactions.`, { id: toastId });
-                      } catch (err: any) {
-                        console.error('Clear transactions error:', err);
-                        toast.error("Failed to clear internal account transactions. " + err.message);
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Transactions
-              </Button>
-            </div>
-
           </div>
 
           <div className="mt-8 pt-6 border-t font-mono border-red-200 dark:border-red-900/50">
@@ -877,7 +756,7 @@ export function Settings() {
                     actionLabel: "Clear Everything",
                     expectedText: "DELETE ALL",
                     onConfirm: async () => {
-                      const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models', 'internal_openings', 'internal_transactions', 'internal_data'];
+                      const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models'];
                       try {
                         for (const colName of collections) {
                           const q = query(collection(db, colName));
