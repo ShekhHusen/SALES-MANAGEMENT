@@ -74,6 +74,7 @@ export function Sales() {
   
   // Selection Dialog State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isNewSaleDialogOpen, setIsNewSaleDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Edit Sale State
@@ -408,6 +409,7 @@ export function Sales() {
       });
 
       toast.success(`Sale recorded. File Number: ${nextFileNumber}`);
+      setIsNewSaleDialogOpen(false);
       
       // Reset
       setSelectedChassis('');
@@ -445,40 +447,50 @@ export function Sales() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 lg:mb-[20px] lg:mt-[16px] lg:pt-0">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Sales Desk</h1>
+          <p className="text-sm text-slate-500 font-medium">Manage transactions and track sales history records.</p>
         </div>
-        <Button 
-          onClick={handleSaveSale} 
-          size="lg" 
-          disabled={!selectedChassis || !selectedCustomer || !canCreate}
-          className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold lg:mr-[250px]"
-        >
-          Finalize Transaction
-        </Button>
+        {canCreate && (
+          <Button 
+            onClick={() => setIsNewSaleDialogOpen(true)} 
+            size="lg" 
+            className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold"
+          >
+            New Sale
+          </Button>
+        )}
       </div>
 
-      <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
-        {/* Left Column: Selection */}
-        <div className="lg:col-span-12 xl:col-span-8 space-y-8">
-          <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
-            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px] lg:pb-0">
-              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+      {/* New Sale Dialog */}
+      <Dialog open={isNewSaleDialogOpen} onOpenChange={setIsNewSaleDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Record New Sale</DialogTitle>
+            <DialogDescription className="font-bold text-slate-500">
+              Select an available vehicle unit, map the customer details, and input registry attributes.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 py-4">
+            {/* Vehicle Selection */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <Car className="h-4 w-4" /> Vehicle Selection
                 </h3>
               </div>
-              <CardContent className="p-6 space-y-6 lg:pt-[10px] lg:pb-[10px]">
+              <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Chassis</label>
                   <div className="relative flex items-center gap-2">
                     <Select value={selectedChassis} onValueChange={setSelectedChassis}>
                       <SelectTrigger className="rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all h-12 flex-1">
-                        <SelectValue placeholder="Identify Unit by Chassis Number" />
+                        <SelectValue placeholder="Identify Unit by Chassis" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800">
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 max-h-[250px]">
                         {inStockVehicles.length > 0 ? (
                           inStockVehicles.map(v => (
-                            <SelectItem key={v.chassisNumber} value={v.chassisNumber} className="py-3 items-center">
-                              <div className="flex flex-col">
+                            <SelectItem key={v.chassisNumber} value={v.chassisNumber} className="py-2.5 items-center">
+                              <div className="flex flex-col text-left">
                                 <span className="font-bold text-sm">{v.chassisNumber}</span>
                                 <span className="text-[10px] uppercase font-black text-slate-400">
                                   {companies.find(c => c.id === v.companyId)?.name} • {v.color}
@@ -492,9 +504,6 @@ export function Sales() {
                       </SelectContent>
                     </Select>
                     <QuickAddVehicle onAdded={(chassis) => {
-                       // Just open selector or directly select if it's in-stock. 
-                       // Note: if it's just registered it is 'ready-to-purchase'. Not 'in-stock'. 
-                       // So it would need to be purchased first to show up here properly, but we expose the option per user request.
                        toast.info(`Vehicle ${chassis} created. To sell it, you must procure it in Purchase Operations first.`);
                     }} />
                     <Button 
@@ -509,12 +518,12 @@ export function Sales() {
                 </div>
 
                 {currentVehicle && (
-                  <div className="rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
-                     <div className="flex justify-between items-center pb-3 border-b border-slate-200/50">
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-4 space-y-3 animate-in fade-in slide-in-from-top-2">
+                     <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Manufacturer</span>
                         <span className="font-extrabold text-blue-600">{companies.find(c => c.id === currentVehicle.companyId)?.name}</span>
                      </div>
-                     <div className="space-y-3">
+                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Finish Assignment</label>
                         <Select value={editColor} onValueChange={setEditColor}>
                           <SelectTrigger className="h-10 rounded-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800">
@@ -529,17 +538,18 @@ export function Sales() {
                         <p className="text-[10px] text-slate-500 font-medium italic">Original procurement color was {currentVehicle.color}</p>
                      </div>
                   </div>
-        )}
-        </CardContent>
+                )}
+              </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px]">
-              <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+            {/* Customer Mapping */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   <User className="h-4 w-4" /> Customer Mapping
                 </h3>
               </div>
-              <CardContent className="p-6 space-y-6 lg:pt-[10px] lg:pb-[10px]">
+              <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
                   <div className="flex gap-2 items-center">
@@ -600,44 +610,56 @@ export function Sales() {
                 </div>
                 
                 {selectedCustomer && (
-                  <div className="rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 p-6 space-y-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="space-y-1">
+                  <div className="rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 p-4 space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-0.5">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Registry Address</p>
-                       <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{customers.find(c => c.id === selectedCustomer)?.address}</p>
+                       <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{customers.find(c => c.id === selectedCustomer)?.address}</p>
                     </div>
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Authorized Contact</p>
-                       <p className="text-sm font-black text-blue-600">{customers.find(c => c.id === selectedCustomer)?.contactNumber}</p>
+                       <p className="text-xs font-black text-blue-600">{customers.find(c => c.id === selectedCustomer)?.contactNumber}</p>
                     </div>
                   </div>
-        )}
-        </CardContent>
+                )}
+              </CardContent>
             </Card>
           </div>
-        </div>
 
-        {/* Right Column: Transaction Details */}
-        <div className="lg:col-span-12 xl:col-span-4 space-y-8">
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[10px]">
-            <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[10px] lg:pb-[10px]">
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Registry Attributes
-              </h3>
-            </div>
-            <CardContent className="px-6 py-[10px] space-y-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Date</label>
-                <Input 
-                  type="date" 
-                  value={saleDate} 
-                  onChange={(e) => setSaleDate(e.target.value)} 
-                  className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
-                />
+          <div className="space-y-4">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-[#0f172a] px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Registry Attributes
+                </h3>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Date</label>
+                  <Input 
+                    type="date" 
+                    value={saleDate} 
+                    onChange={(e) => setSaleDate(e.target.value)} 
+                    className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all font-bold"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6 border-t mt-4">
+            <Button variant="outline" className="h-12 px-6 rounded-xl font-bold" onClick={() => setIsNewSaleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveSale} 
+              disabled={!selectedChassis || !selectedCustomer || !canCreate}
+              className="rounded-xl h-12 px-8 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 font-bold"
+            >
+              Finalize Transaction
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="rounded-2xl border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-[600px] lg:pt-[5px] lg:pb-[5px] lg:h-[562px]">
         <CardHeader className="bg-slate-50/50 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between py-4 shrink-0 shadow-sm z-20 sticky top-0 lg:pt-0 lg:pb-[5px]">
