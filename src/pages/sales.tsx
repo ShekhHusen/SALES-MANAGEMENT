@@ -341,7 +341,7 @@ export function Sales() {
       setSaleToDelete(null);
     } catch (error) {
       console.error("Delete Sale Error:", error);
-      toast.error('Failed to delete sale record. Please check database connectivity.');
+      toast.error(`Failed to delete sale record: ${error instanceof Error ? error.message : 'Unknown error'}`);
       handleFirestoreError(error, OperationType.DELETE, `sales/${saleToDelete.id}`);
     }
   };

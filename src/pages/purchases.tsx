@@ -262,7 +262,7 @@ export function Purchases() {
       setPurchaseToDelete(null);
     } catch (error) {
       console.error("Delete Purchase Error:", error);
-      toast.error('Failed to purge records. Database connectivity issue.');
+      toast.error(`Failed to purge records: ${error instanceof Error ? error.message : 'Unknown error'}`);
       handleFirestoreError(error, OperationType.DELETE, 'purchases');
     }
   };
