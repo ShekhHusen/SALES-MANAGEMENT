@@ -13,7 +13,6 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
-import { UsageSection } from '@/components/UsageSection';
 
 export function Dashboard() {
   const { vehicles, purchases, sales, companies, models, parties } = useGlobalData();
@@ -120,9 +119,6 @@ export function Dashboard() {
         />
       </div>
 
-    <div className="mt-8">
-        <UsageSection />
-      </div>
     </div>
   );
 }

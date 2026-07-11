@@ -136,7 +136,7 @@ export function Purchases() {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [selectedVendor, setSelectedVendor] = useState('');
   
-  const [currentChassisEntries, setCurrentChassisEntries] = useState<(Partial<Vehicle> & { _id?: string })[]>([]);
+  const [currentChassisEntries, setCurrentChassisEntries] = useState<Partial<Vehicle>[]>([]);
   
   // Selection Dialog State
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -144,8 +144,7 @@ export function Purchases() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const addChassisRow = () => {
-    setCurrentChassisEntries(prev => [...prev, { 
-      _id: Math.random().toString(36).substr(2, 9),
+    setCurrentChassisEntries([...currentChassisEntries, { 
       chassisNumber: '', 
       companyId: '', 
       modelId: '', 
@@ -170,23 +169,17 @@ export function Purchases() {
   const openEditPurchase = (purchase: Purchase & { id: string }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setEditingPurchase(purchase);
-    setIsFormOpen(true);
     
     setPurchaseDate(purchase.date instanceof Timestamp ? purchase.date.toDate().toISOString().split('T')[0] : String(purchase.date));
     setInvoiceNumber(purchase.invoiceNumber || '');
     setSelectedVendor(purchase.vendorId || '');
 
-    // Get chassis numbers from both the purchase record and vehicles linked to this purchase
-    const linkedVehicles = allVehicles.filter(v => v.purchaseId === purchase.id);
-    const linkedChassis = linkedVehicles.map(v => v.chassisNumber);
-    const allChassisForPurchase = Array.from(new Set([...(purchase.chassisNumbers || []), ...linkedChassis]));
-
-    const entries = allChassisForPurchase.map(chassis => {
+    const entries = (purchase.chassisNumbers || []).map(chassis => {
        const v = allVehicles.find(veh => veh.chassisNumber === chassis);
        if (v) {
-         return { ...v, _id: Math.random().toString(36).substr(2, 9) };
+         return v;
        }
-       return { _id: Math.random().toString(36).substr(2, 9), chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle> & { _id?: string };
+       return { chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle>;
     });
     
     setCurrentChassisEntries(entries);
@@ -254,15 +247,12 @@ export function Purchases() {
         logAction(user.uid, user.email || '', 'DELETE', 'Purchase', purchaseToDelete.id, purchaseToDelete);
       }
 
-      removeLocal('purchases', purchaseToDelete.id);
-      purchaseToDelete.chassisNumbers?.forEach(chassis => {
-          removeLocal('vehicles', chassis);
-      });
+      await refreshPurchases();
       toast.success('Purchase manifest and linked inventory records purged.');
       setPurchaseToDelete(null);
     } catch (error) {
       console.error("Delete Purchase Error:", error);
-      toast.error(`Failed to purge records: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error('Failed to purge records. Database connectivity issue.');
       handleFirestoreError(error, OperationType.DELETE, 'purchases');
     }
   };
@@ -347,11 +337,11 @@ export function Purchases() {
         
         if (vehicleDoc.exists()) {
            const vehicleData = vehicleDoc.data();
-           if (vehicleData.purchaseId && vehicleData.purchaseId !== (editingPurchase?.id || '')) {
+           if (vehicleData.purchaseId) {
              toast.error(`Chassis number ${chassis} is already linked to a purchase.`);
              return;
            }
-           if (vehicleData.status === 'sold' && vehicleData.purchaseId !== (editingPurchase?.id || '')) {
+           if (vehicleData.status === 'sold') {
              toast.error(`Chassis number ${chassis} is marked as sold and cannot be purchased.`);
              return;
            }
@@ -383,17 +373,14 @@ export function Purchases() {
       ops++;
 
       for (const rc of removedChassis) {
-         const vData = allVehicles.find(v => v.chassisNumber === rc);
-         if (vData) {
-             batch.update(doc(db, 'vehicles', rc), {
-                 purchaseId: null,
-                 currentOwnerId: null,
-                 status: 'ready-to-purchase',
-                 updatedAt: Timestamp.now()
-             });
-             ops++;
-             if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
-         }
+         batch.update(doc(db, 'vehicles', rc), {
+             purchaseId: null,
+             currentOwnerId: null,
+             status: 'ready-to-purchase',
+             updatedAt: Timestamp.now()
+         });
+         ops++;
+         if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
       }
 
       for (const entry of sanitizedEntries) {
@@ -432,52 +419,7 @@ export function Purchases() {
         });
       }
 
-      if (editingPurchase) {
-         updateLocal('purchases', editingPurchase.id, {
-            date: Timestamp.fromDate(new Date(purchaseDate)),
-            invoiceNumber,
-            vendorId: selectedVendor,
-            chassisNumbers,
-            updatedAt: Timestamp.now(),
-         });
-      } else {
-         addLocal('purchases', {
-            id: purchaseRef.id,
-            date: Timestamp.fromDate(new Date(purchaseDate)),
-            invoiceNumber,
-            vendorId: selectedVendor,
-            chassisNumbers,
-            createdAt: Timestamp.now(),
-         });
-      }
-
-      removedChassis.forEach(rc => {
-         updateLocal('vehicles', rc, { purchaseId: null, currentOwnerId: null, status: 'ready-to-purchase' });
-      });
-
-      sanitizedEntries.forEach(entry => {
-         const existingVehicle = allVehicles.find(v => v.chassisNumber === entry.chassisNumber);
-         const isNewToPurchase = newChassis.includes(entry.chassisNumber);
-         if (!existingVehicle) {
-             addLocal('vehicles', {
-                 ...entry,
-                 id: entry.chassisNumber,
-                 status: 'in-stock',
-                 purchaseId: purchaseRef.id,
-                 currentOwnerId: selectedVendor,
-                 bluebookStatus: 'Not Received',
-                 naamsariStatus: 'Pending',
-                 createdAt: Timestamp.now(),
-             });
-         } else {
-             updateLocal('vehicles', entry.chassisNumber, {
-                 ...entry,
-                 status: existingVehicle.status === 'sold' ? 'sold' : 'in-stock',
-                 purchaseId: purchaseRef.id,
-                 currentOwnerId: selectedVendor,
-             });
-         }
-      });
+      await refreshPurchases();
       toast.success(editingPurchase ? 'Purchase updated successfully' : 'Purchase recorded and inventory updated');
       
       // Reset
@@ -543,8 +485,8 @@ export function Purchases() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="flex flex-col gap-8">
-        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit shrink-0">
+            <div className="grid gap-8 grid-cols-1 lg:grid-cols-12">
+        <Card className={cn(isInvoiceExpanded ? "lg:col-span-4" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden h-fit lg:pt-[5px] lg:pb-0")}>
           <div 
             className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 lg:pt-[5px] lg:pb-[5px] flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
             onClick={() => setIsInvoiceExpanded(!isInvoiceExpanded)}
@@ -555,7 +497,7 @@ export function Purchases() {
             </Button>
           </div>
           {isInvoiceExpanded && (
-          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 lg:pt-[10px] lg:pb-[10px] items-end">
+          <CardContent className="p-6 space-y-6 lg:pt-0 lg:pb-[10px]">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Procurement Date</label>
               <Input 
@@ -596,22 +538,15 @@ export function Purchases() {
           )}
         </Card>
 
-        <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex-1 flex flex-col min-h-[400px]">
+        <Card className={cn(isInvoiceExpanded ? "lg:col-span-8" : "lg:col-span-12", "shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden lg:pt-[5px] lg:pb-0")}>
           <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between lg:pt-0 lg:pb-0">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{editingPurchase ? "Edit Chassis Manifest" : "Chassis Manifest"}</h3>
             <div className="flex gap-2">
-               <QuickAddVehicle onAdded={(chassis, vehicleData) => {
-                 if (vehicleData) {
-                    setCurrentChassisEntries(prev => [...prev, {
-                      ...vehicleData,
-                      _id: Math.random().toString(36).substr(2, 9)
-                    }]);
-                 } else {
-                    setTargetRowIndex(currentChassisEntries.length);
-                    addChassisRow();
-                    setSearchQuery(chassis);
-                    setIsSelectorOpen(true);
-                 }
+               <QuickAddVehicle onAdded={(chassis) => {
+                 setTargetRowIndex(currentChassisEntries.length);
+                 addChassisRow();
+                 setSearchQuery(chassis);
+                 setIsSelectorOpen(true);
                }} />
                <Button variant="outline" size="sm" onClick={addChassisRow} className="rounded-lg h-11 bg-white dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-xs text-blue-600 px-4">
                  <Plus className="h-4 w-4 mr-1" /> Add Entry Row
@@ -632,7 +567,7 @@ export function Purchases() {
                 </TableHeader>
                 <TableBody>
                   {currentChassisEntries.map((entry, index) => (
-                    <TableRow key={entry._id || index} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
+                    <TableRow key={index} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                       <TableCell className="px-6 py-2.5">
                         <div className="relative flex items-center">
                           <Input 

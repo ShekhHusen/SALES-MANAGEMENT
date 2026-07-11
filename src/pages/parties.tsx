@@ -101,14 +101,14 @@ export function Parties() {
           ...values,
           updatedAt: Timestamp.now(),
         });
-        updateLocal('parties', editingParty.id, values);
+        await refreshParties();
       toast.success('Party updated successfully');
       } else {
-        const docRef = await addDoc(collection(db, 'parties'), {
+        await addDoc(collection(db, 'parties'), {
           ...values,
           createdAt: Timestamp.now(),
         });
-        addLocal('parties', { ...values, id: docRef.id });
+        await refreshParties();
       toast.success('Party added successfully');
       }
       setIsDialogOpen(false);
@@ -125,7 +125,7 @@ export function Parties() {
     if (!partyToDelete) return;
     try {
       await deleteDoc(doc(db, 'parties', partyToDelete.id));
-      removeLocal('parties', partyToDelete.id);
+      await refreshParties();
       toast.success('Stakeholder record deleted');
       setPartyToDelete(null);
     } catch (error) {
@@ -154,7 +154,7 @@ export function Parties() {
   };
 
   const filteredParties = parties.filter(p => {
-    const matchesSearch = (p.name?.toLowerCase() || "").includes(search.toLowerCase()) || (p.contactNumber || "").includes(search);
+    const matchesSearch = (p.name?.toLowerCase() || "").includes(search.toLowerCase()) || (p.contactNumber?.includes || function(){return false;})(search);
     const matchesType = filterType === 'all' || p.type === filterType;
     return matchesSearch && matchesType;
   });

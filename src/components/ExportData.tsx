@@ -33,7 +33,13 @@ export function ExportData() {
       const salesSnap = await getDocs(collection(db, 'sales'));
       const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Sale));
       
-      
+      const openingsSnap = await getDocs(collection(db, 'internal_openings'));
+      const openings = openingsSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
+
+      const transactionsSnap = await getDocs(collection(db, 'internal_transactions'));
+      const transactions = transactionsSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
+
+      const metadataSnap = await getDocs(collection(db, 'account_metadata'));
       const accountMetadata = metadataSnap.docs.map(d => ({ ...d.data(), id: d.id } as any));
 
       const mappingsDoc = await getDoc(doc(db, 'internal_data', 'mappings'));

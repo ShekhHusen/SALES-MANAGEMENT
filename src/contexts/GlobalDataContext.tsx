@@ -3,9 +3,7 @@ import { collection, query, orderBy, getDocs } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
 
-import type { UserProfile } from '@/types';
 interface GlobalDataState {
-  users: UserProfile[];
   vehicles: Vehicle[];
   companies: Company[];
   models: Model[];
@@ -13,29 +11,26 @@ interface GlobalDataState {
   parties: Party[];
   purchases: Purchase[];
   sales: Sale[];
+  followups: any[];
   loading: boolean;
   debugStates?: any;
   subscriptionErrors?: string[];
   isPurchasesLoaded: boolean;
   isSalesLoaded: boolean;
+  isFollowupsLoaded: boolean;
   isProcessDocumentLoaded: boolean;
   loadPurchases: () => void;
   loadSales: () => void;
+  loadFollowups: () => void;
   loadProcessDocumentData: () => void;
   refreshVehicles: () => Promise<void>;
   refreshParties: () => Promise<void>;
   refreshPurchases: () => Promise<void>;
-  refreshVehicles: () => Promise<void>;
   refreshSales: () => Promise<void>;
-  
-  // Local merge operations
-  addLocal: (collectionName: string, item: any) => void;
-  updateLocal: (collectionName: string, id: string, item: any) => void;
-  removeLocal: (collectionName: string, id: string) => void;
+  refreshFollowups: () => Promise<void>;
 }
 
 const initialState: GlobalDataState = {
-  users: [],
   vehicles: [],
   companies: [],
   models: [],
@@ -43,22 +38,23 @@ const initialState: GlobalDataState = {
   parties: [],
   purchases: [],
   sales: [],
+  followups: [],
   loading: true,
   debugStates: {},
   subscriptionErrors: [],
   isPurchasesLoaded: true,
   isSalesLoaded: true,
+  isFollowupsLoaded: true,
   isProcessDocumentLoaded: true,
   loadPurchases: () => {},
   loadSales: () => {},
+  loadFollowups: () => {},
   loadProcessDocumentData: () => {},
   refreshVehicles: async () => {},
   refreshParties: async () => {},
   refreshPurchases: async () => {},
   refreshSales: async () => {},
-  addLocal: () => {},
-  updateLocal: () => {},
-  removeLocal: () => {},
+  refreshFollowups: async () => {},
 };
 
 const GlobalDataContext = createContext<GlobalDataState>(initialState);
@@ -130,41 +126,20 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const refreshFollowups = useCallback(async () => {
     try {
+      const s = await getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc')));
+      setData(prev => ({ ...prev, followups: s.docs.map(d => ({ id: d.id, ...d.data() })) }));
     } catch (e) {
       console.error(e);
       addError("Followups", e);
     }
   }, [addError]);
 
-  const addLocal = useCallback((collectionName: keyof GlobalDataState, item: any) => {
-    setData(prev => {
-      const current = (prev[collectionName] as any[]) || [];
-      return { ...prev, [collectionName]: [...current, item] };
-    });
-  }, []);
-
-  const updateLocal = useCallback((collectionName: keyof GlobalDataState, id: string, item: any) => {
-    setData(prev => {
-      const current = (prev[collectionName] as any[]) || [];
-      const updated = current.map(x => x.id === id ? { ...x, ...item } : x);
-      return { ...prev, [collectionName]: updated };
-    });
-  }, []);
-
-  const removeLocal = useCallback((collectionName: keyof GlobalDataState, id: string) => {
-    setData(prev => {
-      const current = (prev[collectionName] as any[]) || [];
-      const updated = current.filter(x => x.id !== id);
-      return { ...prev, [collectionName]: updated };
-    });
-  }, []);
-
   useEffect(() => {
     let active = true;
     
     const loadAll = async () => {
       try {
-        const [veh, comp, mod, col, part, pur, sal, usrs] = await Promise.all([
+        const [veh, comp, mod, col, part, pur, sal, fol] = await Promise.all([
           getDocs(collection(db, 'vehicles')),
           getDocs(collection(db, 'companies')),
           getDocs(collection(db, 'models')),
@@ -172,7 +147,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           getDocs(collection(db, 'parties')),
           getDocs(collection(db, 'purchases')),
           getDocs(collection(db, 'sales')),
-          getDocs(collection(db, 'users'))
+          getDocs(query(collection(db, 'followups'), orderBy('createdAt', 'desc')))
         ]);
 
         if (active) {
@@ -203,7 +178,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             parties: part.docs.map(d => ({ ...d.data(), id: d.id } as Party)),
             purchases: sortedPurchases,
             sales: sortedSales,
-            users: usrs.docs.map((d: any) => ({ ...(d.data() as UserProfile), uid: d.id })),
+            followups: fol.docs.map(d => ({ id: d.id, ...d.data() })),
             loading: false
           }));
         }
@@ -230,9 +205,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       refreshParties,
       refreshPurchases,
       refreshSales,
-      addLocal,
-      updateLocal,
-      removeLocal
+      refreshFollowups
     }}>
       {children}
     </GlobalDataContext.Provider>

@@ -6,9 +6,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Layout } from '@/components/layout';
-
+import { FollowUps } from '@/pages/follow-ups';
 import { Dashboard } from '@/pages/dashboard';
-
+import { InternalAccounts } from '@/pages/internal-accounts';
 import { Inventory } from '@/pages/inventory';
 import { Parties } from '@/pages/parties';
 import { Purchases } from '@/pages/purchases';
@@ -63,14 +63,14 @@ function AppRoutes() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          
+          <Route path="/internal-accounts" element={<InternalAccounts />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/parties" element={<Parties />} />
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/process-document" element={<ProcessDocument />} />
           <Route path="/quotation" element={<Quotation />} />
-          
+          <Route path="/follow-ups" element={<FollowUps />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

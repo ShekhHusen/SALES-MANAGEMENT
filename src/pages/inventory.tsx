@@ -33,7 +33,7 @@ export function Inventory() {
   
 
   const { user } = useAuth();
-  const { vehicles, companies, models, colors, parties, purchases, sales, addLocal, updateLocal, refreshVehicles } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales, refreshVehicles } = useGlobalData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
@@ -114,7 +114,7 @@ export function Inventory() {
       };
 
       await setDoc(vehicleRef, vehicleData);
-      addLocal('vehicles', { ...vehicleData, id: newVehicle.chassisNumber });
+      await refreshVehicles();
       
       if (user) {
         logAction(user.uid, user.email || '', 'CREATE', 'Vehicle', newVehicle.chassisNumber, newVehicle);
@@ -198,7 +198,7 @@ export function Inventory() {
           const pDoc = await getDoc(pRef);
           if (pDoc.exists()) {
              const pData = pDoc.data();
-             const updatedChassisNumbers = (pData.chassisNumbers || []).map((c: string) => c.trim().toUpperCase() === originalChassisNumber.trim().toUpperCase() ? newChassisNumber : c);
+             const updatedChassisNumbers = (pData.chassisNumbers || []).map((c: string) => c === originalChassisNumber ? newChassisNumber : c);
              batch.update(pRef, { chassisNumbers: updatedChassisNumbers });
           }
         }
@@ -233,19 +233,7 @@ export function Inventory() {
       }
 
       toast.success('Vehicle updated successfully');
-      if (newChassisNumber !== originalChassisNumber) {
-          await refreshVehicles();
-      } else {
-          updateLocal('vehicles', originalChassisNumber, {
-              companyId,
-              modelId,
-              bluebookStatus: bluebook,
-              naamsariStatus: naamsari,
-              registrationNumber: registrationNumber || '',
-              color: color || '',
-              updatedAt: Timestamp.now(),
-          });
-      }
+      await refreshVehicles();
       setSelectedVehicle(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${originalChassisNumber}`);
@@ -289,7 +277,7 @@ export function Inventory() {
   const processedVehicles = vehicles.filter(v => {
     const sale = sales.find(s => s.chassisNumber === v.chassisNumber);
     const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
-    const matchesSearch = !search || (v.chassisNumber?.toLowerCase() || "").includes(search.toLowerCase()) || (customer?.name || "").toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !search || (v.chassisNumber?.toLowerCase() || "").includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
       const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
     const matchesCompany = filterCompany.length === 0 || filterCompany.includes(v.companyId);
     const matchesModel = filterModel.length === 0 || filterModel.includes(v.modelId);
