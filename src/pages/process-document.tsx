@@ -6,7 +6,7 @@ import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash,
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc } from '@/lib/trackedFirestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
@@ -79,16 +79,100 @@ export function ProcessDocument() {
 
   // Pagination State for Sold Vehicles
   const [soldCurrentPage, setSoldCurrentPage] = useState(1);
-  const [soldItemsPerPage, setSoldItemsPerPage] = useState<number | 'all'>(20);
+  const [soldItemsPerPage, setSoldItemsPerPage] = useState<number | 'all'>('all');
 
   // Sorting State for Sold Vehicles
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
-  // Pagination State for Completed
+  // Server-side Pagination State for Completed Sales
+  const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
-  const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(20);
+  const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedTotalPages, setCompletedTotalPages] = useState(1);
+  const [completedTotalItems, setCompletedTotalItems] = useState<number>(0);
+  const [completedCursors, setCompletedCursors] = useState<any[]>([null]); // index 0 is page 1 start cursor
+  const [completedError, setCompletedError] = useState<string | null>(null);
 
-  // Sorting State for Completed
+  // Added getCountFromServer to track total items
+  const fetchCompletedSales = async (pageIndex: number, itemsPerPage: number | 'all') => {
+    setCompletedLoading(true);
+    setCompletedError(null);
+    try {
+      // Get total count (runs once or when needed)
+      if (pageIndex === 1) {
+        try {
+          const { getCountFromServer } = await import('firebase/firestore');
+          const countSnap = await getCountFromServer(query(collection(db, 'sales'), where('documentationCompleted', '==', true)));
+          setCompletedTotalItems(countSnap.data().count);
+        } catch (e) {
+          console.warn("Could not get count", e);
+        }
+      }
+
+      let q = query(
+        collection(db, 'sales'),
+        where('documentationCompleted', '==', true),
+        orderBy('createdAt', 'desc')
+      );
+      
+      if (itemsPerPage !== 'all') {
+         q = query(q, limit(itemsPerPage));
+      }
+
+      // If we have a cursor for this page, use startAfter
+      const cursor = completedCursors[pageIndex - 1];
+      if (cursor && itemsPerPage !== 'all') {
+        q = query(
+          collection(db, 'sales'),
+          where('documentationCompleted', '==', true),
+          orderBy('createdAt', 'desc'),
+          startAfter(cursor),
+          limit(itemsPerPage)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+      
+      setCompletedSalesData(fetchedSales);
+      
+      if (itemsPerPage === 'all') {
+        setCompletedTotalPages(1);
+      } else {
+        // Setup cursor for next page if we got a full page
+        if (snapshot.docs.length === itemsPerPage) {
+          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+          setCompletedCursors(prev => {
+            const newCursors = [...prev];
+            newCursors[pageIndex] = lastVisible;
+            return newCursors;
+          });
+          setCompletedTotalPages(Math.max(completedTotalPages, pageIndex + 1));
+        } else {
+          setCompletedTotalPages(pageIndex);
+        }
+      }
+    } catch (err: any) {
+      console.error("Error fetching completed sales:", err);
+      if (err.message?.includes('index')) {
+        setCompletedError("An index is building or required in Firestore. Please wait or check Firestore console.");
+        toast.error("Firestore index required. Check console for URL.");
+      } else {
+        setCompletedError(err.message || "Failed to load completed sales");
+      }
+    } finally {
+      setCompletedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'completed') {
+      fetchCompletedSales(completedCurrentPage, completedItemsPerPage);
+    }
+  }, [activeTab, completedCurrentPage, completedItemsPerPage]);
+
+  // Keep old sort config state just in case, but disable sorting for completed since it's server-paginated
   const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
   const handleSoldSort = (key: string) => {
@@ -666,46 +750,21 @@ export function ProcessDocument() {
   
   // Pagination logic for Sold Vehicles
   const totalSold = sortedSoldSales.length;
-  const soldTotalPages = soldItemsPerPage === 'all' ? 1 : Math.ceil(totalSold / soldItemsPerPage);
+  const soldTotalPages = soldItemsPerPage === 'all' ? 1 : Math.ceil(totalSold / (soldItemsPerPage as number));
   const currentSoldSales = soldItemsPerPage === 'all' 
     ? sortedSoldSales 
-    : sortedSoldSales.slice((soldCurrentPage - 1) * soldItemsPerPage, soldCurrentPage * soldItemsPerPage);
+    : sortedSoldSales.slice((soldCurrentPage - 1) * (soldItemsPerPage as number), soldCurrentPage * (soldItemsPerPage as number));
 
   // Completed Sales
-  const completedSalesRaw = sales.filter(s => s.documentationCompleted);
-  const filteredCompletedSales = completedSalesRaw.filter(s => {
+  const filteredCompletedSales = completedSalesData.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
     return s.chassisNumber.toLowerCase().includes(searchLow) || 
            (customer?.name?.toLowerCase() || "").includes(searchLow) ||
            (customer?.contactNumber?.toLowerCase() || "").includes(searchLow);
   });
-  const sortedCompletedSales = [...filteredCompletedSales].sort((a, b) => {
-    let aVal: any = a[completedSortConfig.key as keyof Sale];
-    let bVal: any = b[completedSortConfig.key as keyof Sale];
-    
-    if (completedSortConfig.key === 'customerName') {
-      aVal = customers.find(c => c.id === a.customerId)?.name || '';
-      bVal = customers.find(c => c.id === b.customerId)?.name || '';
-    } else if (completedSortConfig.key === 'createdAt') {
-      aVal = a.createdAt?.toMillis() || 0;
-      bVal = b.createdAt?.toMillis() || 0;
-    } else if (completedSortConfig.key === 'fileNumber') {
-      aVal = Number(a.fileNumber) || 0;
-      bVal = Number(b.fileNumber) || 0;
-    }
-
-    if (aVal < bVal) return completedSortConfig.direction === 'asc' ? -1 : 1;
-    if (aVal > bVal) return completedSortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
   
-  // Pagination logic for Completed Sales
-  const totalCompleted = sortedCompletedSales.length;
-  const completedTotalPages = completedItemsPerPage === 'all' ? 1 : Math.ceil(totalCompleted / completedItemsPerPage);
-  const currentCompletedSales = completedItemsPerPage === 'all' 
-    ? sortedCompletedSales 
-    : sortedCompletedSales.slice((completedCurrentPage - 1) * completedItemsPerPage, completedCurrentPage * completedItemsPerPage);
+  const currentCompletedSales = filteredCompletedSales;
 
   return (
     <div className="flex flex-col h-[599px] overflow-hidden md:p-2 pt-[8px] pb-0 md:pb-0 lg:pt-[10px]">
@@ -1390,7 +1449,7 @@ export function ProcessDocument() {
               onPageChange={setCompletedCurrentPage}
               itemsPerPage={completedItemsPerPage}
               setItemsPerPage={setCompletedItemsPerPage}
-              totalItems={totalCompleted}
+              totalItems={completedTotalItems}
             />
           </div>
         )}
