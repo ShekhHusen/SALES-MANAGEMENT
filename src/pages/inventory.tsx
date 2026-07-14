@@ -140,8 +140,10 @@ export function Inventory() {
       const pDoc = await getDoc(doc(db, 'purchases', vehicle.purchaseId));
       if (pDoc.exists()) setPurchaseDetails({ id: pDoc.id, ...pDoc.data() } as Purchase);
     }
-    if (vehicle.saleId) {
-      const sDoc = await getDoc(doc(db, 'sales', vehicle.saleId));
+    const saleFromGlobal = sales.find(s => s.chassisNumber === vehicle.chassisNumber);
+    const saleIdToUse = vehicle.saleId || saleFromGlobal?.id;
+    if (saleIdToUse) {
+      const sDoc = await getDoc(doc(db, 'sales', saleIdToUse));
       if (sDoc.exists()) setSaleDetails({ id: sDoc.id, ...sDoc.data() } as Sale);
     }
   };
@@ -197,8 +199,10 @@ export function Inventory() {
           }
         }
         
-        if (data.saleId) {
-           const sRef = doc(db, 'sales', data.saleId);
+        const saleFromGlobal = sales.find(s => s.chassisNumber === originalChassisNumber);
+        const saleIdToUse = data.saleId || saleFromGlobal?.id;
+        if (saleIdToUse) {
+           const sRef = doc(db, 'sales', saleIdToUse);
            const sDoc = await getDoc(sRef);
            if (sDoc.exists()) {
              batch.update(sRef, { chassisNumber: newChassisNumber });
@@ -243,7 +247,9 @@ export function Inventory() {
 
   const deleteVehicle = async (vehicle: Vehicle) => {
     // Check if sold
-    if (vehicle.status === 'sold' || vehicle.saleId) {
+    const saleFromGlobal = sales.find(s => s.chassisNumber === vehicle.chassisNumber);
+    const isSold = vehicle.status === 'sold' || !!vehicle.saleId || !!saleFromGlobal;
+    if (isSold) {
       toast.error(`Cannot delete chassis ${vehicle.chassisNumber}. It has already been sold. Delete the sale record first.`);
       return;
     }
@@ -261,7 +267,9 @@ export function Inventory() {
     const sale = sales.find(s => s.chassisNumber === v.chassisNumber);
     const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
     const matchesSearch = !search || (v.chassisNumber?.toLowerCase() || "").includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
-      const matchesStatus = filterStatus.length === 0 || filterStatus.includes(v.status);
+    
+    const effectiveStatus = sale ? 'sold' : v.status;
+    const matchesStatus = filterStatus.length === 0 || filterStatus.includes(effectiveStatus);
     const matchesCompany = filterCompany.length === 0 || filterCompany.includes(v.companyId);
     const matchesModel = filterModel.length === 0 || filterModel.includes(v.modelId);
     const matchesColor = filterColor.length === 0 || filterColor.includes(v.color || '');
@@ -276,8 +284,10 @@ export function Inventory() {
       if (sortField === 'chassis') {
          return sortOrder === 'asc' ? a.chassisNumber.localeCompare(b.chassisNumber) : b.chassisNumber.localeCompare(a.chassisNumber);
       } else if (sortField === 'customer') {
-         const customerA = (a.saleId ? parties.find(p => p.id === sales.find(s => s.id === a.saleId)?.customerId)?.name : '') || '';
-         const customerB = (b.saleId ? parties.find(p => p.id === sales.find(s => s.id === b.saleId)?.customerId)?.name : '') || '';
+         const saleA = sales.find(s => s.chassisNumber === a.chassisNumber);
+         const saleB = sales.find(s => s.chassisNumber === b.chassisNumber);
+         const customerA = (saleA ? parties.find(p => p.id === saleA.customerId)?.name : '') || '';
+         const customerB = (saleB ? parties.find(p => p.id === saleB.customerId)?.name : '') || '';
          return sortOrder === 'asc' ? customerA.localeCompare(customerB) : customerB.localeCompare(customerA);
       }
       return 0;
@@ -302,7 +312,7 @@ export function Inventory() {
         'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
         'Color': v.color,
         'Registration Number': v.registrationNumber,
-        'Inventory Status': v.status,
+        'Inventory Status': sales.find(s => s.chassisNumber === v.chassisNumber) ? 'sold' : v.status,
         'Bluebook Status': v.bluebookStatus,
         'Naamsari Status': v.naamsariStatus,
       }));
@@ -662,33 +672,34 @@ export function Inventory() {
             </TableHeader>
             <TableBody>
               {paginatedVehicles.map((vehicle) => {
-                const saleDetails = vehicle.saleId ? sales.find(s => s.id === vehicle.saleId) : null;
+                const saleDetails = sales.find(s => s.chassisNumber === vehicle.chassisNumber);
                 const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
+                const effectiveStatus = saleDetails ? 'sold' : vehicle.status;
                 
                 return (
                 <TableRow key={vehicle.chassisNumber} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
                   <TableCell className="px-6 py-2.5 font-mono font-bold text-slate-700 text-sm">{vehicle.chassisNumber}</TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex flex-col">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
-                      <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
-                      <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600 dark:text-slate-300">{vehicle.color}</span></span>
+                       <span className="font-bold text-slate-900 dark:text-slate-100">{companies.find(c => c.id === vehicle.companyId)?.name}</span>
+                       <span className="text-xs text-slate-500 font-medium">{models.find(m => m.id === vehicle.modelId)?.name}</span>
+                       <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Color: <span className="font-semibold text-slate-600 dark:text-slate-300">{vehicle.color}</span></span>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-2.5">
                     <div className="flex items-center gap-2">
                        <div className={cn(
                         "h-2 w-2 rounded-full", 
-                        vehicle.status === 'in-stock' ? "bg-emerald-500" : 
-                        vehicle.status === 'ready-to-purchase' ? "bg-amber-500" : "bg-slate-300"
+                        effectiveStatus === 'in-stock' ? "bg-emerald-500" : 
+                        effectiveStatus === 'ready-to-purchase' ? "bg-amber-500" : "bg-slate-300"
                         )} />
                        <span className={cn(
                         "text-xs font-bold capitalize", 
-                        vehicle.status === 'in-stock' ? "text-emerald-700" : 
-                        vehicle.status === 'ready-to-purchase' ? "text-amber-700" : "text-slate-500"
+                        effectiveStatus === 'in-stock' ? "text-emerald-700" : 
+                        effectiveStatus === 'ready-to-purchase' ? "text-amber-700" : "text-slate-500"
                         )}>
-                        {vehicle.status === 'in-stock' ? 'In-Stock' : 
-                         vehicle.status === 'ready-to-purchase' ? 'Ready to Purchase' : 'Sold'}
+                        {effectiveStatus === 'in-stock' ? 'In-Stock' : 
+                         effectiveStatus === 'ready-to-purchase' ? 'Ready to Purchase' : 'Sold'}
                        </span>
                     </div>
                   </TableCell>
@@ -871,7 +882,7 @@ export function Inventory() {
                                   <SelectContent>
                                     <SelectItem value="Pending">Pending</SelectItem>
                                     <SelectItem value="Names of JBMT" disabled={selectedVehicle?.bluebookStatus !== 'Received'}>Names of JBMT</SelectItem>
-                                    <SelectItem value="Customer Done" disabled={selectedVehicle?.status !== 'sold'}>Customer Done</SelectItem>
+                                    <SelectItem value="Customer Done" disabled={selectedVehicle ? (sales.some(s => s.chassisNumber === selectedVehicle.chassisNumber) ? false : selectedVehicle.status !== 'sold') : true}>Customer Done</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>

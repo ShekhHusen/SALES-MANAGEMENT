@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export function AuthScreen() {
   const { loginWithGoogle, loginWithEmail, signupWithEmail, resetPassword } = useAuth();
@@ -10,6 +11,7 @@ export function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,11 +22,11 @@ export function AuthScreen() {
     try {
       if (mode === 'login') {
         if (!password) return;
-        await loginWithEmail(email, password);
+        await loginWithEmail(email, password, rememberMe);
         window.location.href = '/';
       } else if (mode === 'signup') {
         if (!password) return;
-        await signupWithEmail(email, password);
+        await signupWithEmail(email, password, rememberMe);
         window.location.href = '/';
       } else if (mode === 'reset') {
         await resetPassword(email);
@@ -65,29 +67,45 @@ export function AuthScreen() {
               />
             </div>
             {mode !== 'reset' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  {mode === 'login' && (
-                    <button 
-                      type="button" 
-                      onClick={() => setMode('reset')}
-                      className="text-sm font-bold text-blue-600 hover:text-blue-500 transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    {mode === 'login' && (
+                      <button 
+                        type="button" 
+                        onClick={() => setMode('reset')}
+                        className="text-sm font-bold text-blue-600 hover:text-blue-500 transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <Input 
+                    id="password"
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-12"
+                  />
                 </div>
-                <Input 
-                  id="password"
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-12"
-                />
-              </div>
+
+                <div className="flex items-center space-x-2.5 pt-1 select-none">
+                  <Checkbox
+                    id="remember-me"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
+                  />
+                  <Label 
+                    htmlFor="remember-me" 
+                    className="text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  >
+                    Keep me signed in on this device
+                  </Label>
+                </div>
+              </>
             )}
           </div>
 
@@ -109,7 +127,7 @@ export function AuthScreen() {
             <button
               onClick={async () => {
                 try {
-                  await loginWithGoogle();
+                  await loginWithGoogle(rememberMe);
                   window.location.href = '/';
                 } catch (e) {}
               }}

@@ -9,7 +9,10 @@ import {
   createUserWithEmailAndPassword,
   updatePassword,
   fetchSignInMethodsForEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from '@/lib/trackedFirestore';
 import { auth, db } from '@/lib/firebase';
@@ -31,9 +34,9 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  loginWithGoogle: () => Promise<void>;
-  loginWithEmail: (email: string, pass: string) => Promise<void>;
-  signupWithEmail: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: (rememberMe?: boolean) => Promise<void>;
+  loginWithEmail: (email: string, pass: string, rememberMe?: boolean) => Promise<void>;
+  signupWithEmail: (email: string, pass: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   setUserPassword: (pass: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -140,8 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (rememberMe = false) => {
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account'
@@ -160,8 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithEmail = async (email: string, pass: string) => {
+  const loginWithEmail = async (email: string, pass: string, rememberMe = false) => {
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, pass);
       toast.success('Logged in successfully');
     } catch (error: any) {
@@ -171,8 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signupWithEmail = async (email: string, pass: string) => {
+  const signupWithEmail = async (email: string, pass: string, rememberMe = false) => {
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await createUserWithEmailAndPassword(auth, email, pass);
       toast.success('Account created successfully');
     } catch (error: any) {
