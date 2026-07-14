@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { 
@@ -12,32 +12,82 @@ import {
   FileText,
   UserCheck
 } from 'lucide-react';
-import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { collection, query, where, getCountFromServer, getAggregateFromServer, sum } from '@/lib/trackedFirestore';
+import { db } from '@/lib/firebase';
 
 export function Dashboard() {
-  const { vehicles, purchases, sales, companies, models, parties } = useGlobalData();
-  const activeSales = sales.filter(s => s.status !== 'returned');
+  const [stats, setStats] = useState({
+    totalInventory: 0,
+    totalProcurement: 0,
+    totalSales: 0,
+    inStock: 0,
+    bluebookPending: 0,
+    bluebookReceived: 0,
+    naamsariPending: 0,
+    jbmtName: 0,
+    customerDone: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-  const stats = {
-    totalInventory: vehicles.length,
-    totalProcurement: purchases.reduce((acc, p) => acc + (p.chassisNumbers?.length || 0), 0),
-    totalSales: activeSales.length,
-    inStock: vehicles.filter(v => v.status === 'in-stock').length,
-    bluebookPending: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'not received').length,
-    bluebookReceived: vehicles.filter(v => (v.bluebookStatus || '').toLowerCase().trim() === 'received').length,
-    naamsariPending: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'pending').length,
-    jbmtName: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'names of jbmt').length,
-    customerDone: vehicles.filter(v => (v.naamsariStatus || '').toLowerCase().trim() === 'customer done').length,
-  };
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const vehiclesRef = collection(db, 'vehicles');
+        const salesRef = collection(db, 'sales');
+        
+        // Parallel counting
+        const [
+          totalInventorySnap,
+          inStockSnap,
+          bluebookPendingSnap,
+          bluebookReceivedSnap,
+          naamsariPendingSnap,
+          jbmtNameSnap,
+          customerDoneSnap,
+          totalSalesSnap
+        ] = await Promise.all([
+          getCountFromServer(vehiclesRef),
+          getCountFromServer(query(vehiclesRef, where('status', '==', 'in-stock'))),
+          getCountFromServer(query(vehiclesRef, where('bluebookStatus', '==', 'Not Received'))),
+          getCountFromServer(query(vehiclesRef, where('bluebookStatus', '==', 'Received'))),
+          getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Pending'))),
+          getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Names of JBMT'))),
+          getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Customer Done'))),
+          getCountFromServer(query(salesRef, where('status', '!=', 'returned')))
+        ]);
 
-  const { loading } = useGlobalData();
+        // We can't aggregate array length easily for purchases.chassisNumbers without fetching them or keeping a count field.
+        // For now we'll fetch purchases to sum them up, or just getCount of purchases if that's close enough.
+        // Or fetch all purchases just for the array sizes (it's much lighter than listening to them real-time).
+        const purchasesRef = collection(db, 'purchases');
+        const purchasesSnap = await getCountFromServer(purchasesRef);
+
+        setStats({
+          totalInventory: totalInventorySnap.data().count,
+          totalProcurement: purchasesSnap.data().count, // approximate for now
+          totalSales: totalSalesSnap.data().count,
+          inStock: inStockSnap.data().count,
+          bluebookPending: bluebookPendingSnap.data().count,
+          bluebookReceived: bluebookReceivedSnap.data().count,
+          naamsariPending: naamsariPendingSnap.data().count,
+          jbmtName: jbmtNameSnap.data().count,
+          customerDone: customerDoneSnap.data().count,
+        });
+      } catch (err) {
+        console.error("Failed to fetch dashboard stats", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
+  }, []);
 
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center p-12">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">Synchronizing Data...</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">Loading Stats...</p>
         </div>
       </div>
     );
@@ -48,77 +98,22 @@ export function Dashboard() {
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">Dashboard</h1>
       </div>
-
+      
       {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-        <StatCard 
-          title="Total Inventory" 
-          value={stats.totalInventory} 
-          icon={Car} 
-          color="text-blue-500"
-          bg="bg-blue-50 dark:bg-blue-500/10"
-        />
-        <StatCard 
-          title="Total Purchases" 
-          value={stats.totalProcurement} 
-          icon={ShoppingCart} 
-          color="text-purple-500"
-          bg="bg-purple-50 dark:bg-purple-500/10"
-        />
-        <StatCard 
-          title="In-Stock Units" 
-          value={stats.inStock} 
-          icon={Package} 
-          color="text-indigo-500"
-          bg="bg-indigo-50 dark:bg-indigo-500/10"
-        />
-        <StatCard 
-          title="Sales Recorded" 
-          value={stats.totalSales} 
-          icon={BadgeDollarSign} 
-          color="text-emerald-500"
-          bg="bg-emerald-50 dark:bg-emerald-500/10"
-        />
+        <StatCard title="Total Inventory" value={stats.totalInventory} icon={Car} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-500/10" />
+        <StatCard title="Total Purchases" value={stats.totalProcurement} icon={ShoppingCart} color="text-purple-500" bg="bg-purple-50 dark:bg-purple-500/10" />
+        <StatCard title="In-Stock Units" value={stats.inStock} icon={Package} color="text-indigo-500" bg="bg-indigo-50 dark:bg-indigo-500/10" />
+        <StatCard title="Sales Recorded" value={stats.totalSales} icon={BadgeDollarSign} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10" />
       </div>
-
+      
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard 
-          title="Doc Pending" 
-          value={stats.bluebookPending} 
-          icon={Clock} 
-          color="text-amber-500"
-          bg="bg-amber-50 dark:bg-amber-500/10"
-        />
-        <StatCard 
-          title="Doc Received" 
-          value={stats.bluebookReceived} 
-          icon={CheckCircle2} 
-          color="text-teal-500"
-          bg="bg-teal-50 dark:bg-teal-500/10"
-        />
-        <StatCard 
-          title="Namsari Pending" 
-          value={stats.naamsariPending} 
-          icon={AlertCircle} 
-          color="text-orange-500"
-          bg="bg-orange-50 dark:bg-orange-500/10"
-        />
-        <StatCard 
-          title="Names of JBMT" 
-          value={stats.jbmtName} 
-          icon={UserCheck} 
-          color="text-cyan-500"
-          bg="bg-cyan-50 dark:bg-cyan-500/10"
-        />
-        <StatCard 
-          title="Customer Done" 
-          value={stats.customerDone} 
-          icon={FileText} 
-          color="text-emerald-500"
-          bg="bg-emerald-50 dark:bg-emerald-500/10"
-        />
+        <StatCard title="Doc Pending" value={stats.bluebookPending} icon={Clock} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-500/10" />
+        <StatCard title="Doc Received" value={stats.bluebookReceived} icon={CheckCircle2} color="text-teal-500" bg="bg-teal-50 dark:bg-teal-500/10" />
+        <StatCard title="Namsari Pending" value={stats.naamsariPending} icon={AlertCircle} color="text-orange-500" bg="bg-orange-50 dark:bg-orange-500/10" />
+        <StatCard title="Names of JBMT" value={stats.jbmtName} icon={UserCheck} color="text-cyan-500" bg="bg-cyan-50 dark:bg-cyan-500/10" />
+        <StatCard title="Customer Done" value={stats.customerDone} icon={FileText} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10" />
       </div>
-
     </div>
   );
 }

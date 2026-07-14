@@ -32,7 +32,10 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 export function ProcessDocument() {
   const location = useLocation();
   const { user, userProfile } = useAuth();
-  const { sales, parties, vehicles, companies, models } = useGlobalData();
+  const { sales, parties, vehicles, companies, models, loadProcessDocumentData, isProcessDocumentLoaded } = useGlobalData();
+  useEffect(() => {
+    loadProcessDocumentData();
+  }, []);
   const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
   const [searchQuery, setSearchQuery] = useState('');

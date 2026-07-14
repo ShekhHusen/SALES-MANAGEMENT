@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { collection, query, orderBy, getDocs, onSnapshot } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
 import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
@@ -15,11 +15,16 @@ interface GlobalDataState {
   loading: boolean;
   debugStates?: any;
   subscriptionErrors?: string[];
+  
+  isVehiclesLoaded: boolean;
   isPurchasesLoaded: boolean;
   isSalesLoaded: boolean;
-  isProcessDocumentLoaded: boolean;
+  isPartiesLoaded: boolean;
+  
+  loadVehicles: () => void;
   loadPurchases: () => void;
   loadSales: () => void;
+  loadParties: () => void;
   loadProcessDocumentData: () => void;
 }
 
@@ -34,11 +39,14 @@ const initialState: GlobalDataState = {
   loading: true,
   debugStates: {},
   subscriptionErrors: [],
-  isPurchasesLoaded: true,
-  isSalesLoaded: true,
-  isProcessDocumentLoaded: true,
+  isVehiclesLoaded: false,
+  isPurchasesLoaded: false,
+  isSalesLoaded: false,
+  isPartiesLoaded: false,
+  loadVehicles: () => {},
   loadPurchases: () => {},
   loadSales: () => {},
+  loadParties: () => {},
   loadProcessDocumentData: () => {},
 };
 
@@ -46,6 +54,7 @@ const GlobalDataContext = createContext<GlobalDataState>(initialState);
 
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [data, setData] = useState<GlobalDataState>(initialState);
+  const activeListeners = useRef<Set<string>>(new Set());
 
   const addError = useCallback((msg: string, e: any) => {
     setData(prev => ({
@@ -54,138 +63,114 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    const unsubscribes: (() => void)[] = [];
+  const setupListener = useCallback((name: string, path: string, mapFunc?: (doc: any) => any, sortFunc?: (a: any, b: any) => number) => {
+    if (activeListeners.current.has(name)) return;
+    activeListeners.current.add(name);
+    
+    try {
+      const q = collection(db, path);
+      const unsub = onSnapshot(q, (snapshot) => {
+        let docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+        if (mapFunc) docs = docs.map(mapFunc);
+        if (sortFunc) docs = docs.sort(sortFunc);
 
-    const collectionsToListen = [
-      { name: 'vehicles' as const, path: 'vehicles' },
-      { name: 'companies' as const, path: 'companies' },
-      { name: 'models' as const, path: 'models' },
-      { name: 'colors' as const, path: 'colors' },
-      { name: 'parties' as const, path: 'parties' },
-      { name: 'purchases' as const, path: 'purchases' },
-      { name: 'sales' as const, path: 'sales' }
+        if (!snapshot.metadata.hasPendingWrites) {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+              const docData = change.doc.data();
+              if (name === 'vehicles') toast.info(`🚗 New vehicle added: Chassis ${change.doc.id}`, { duration: 5000 });
+              else if (name === 'purchases') toast.info(`🧾 New purchase: Invoice #${docData.invoiceNumber || change.doc.id}`, { duration: 5000 });
+              else if (name === 'sales') toast.info(`💰 New sale for Chassis ${docData.chassisNumber || ''}`, { duration: 5000 });
+              else if (name === 'parties') toast.info(`👤 New party: ${docData.name || ''}`, { duration: 5000 });
+            } else if (change.type === 'modified') {
+              if (name === 'vehicles') toast.info(`🔄 Vehicle ${change.doc.id} updated.`, { duration: 4000 });
+              else if (name === 'sales') toast.info(`🔄 Sale status updated.`, { duration: 4000 });
+            }
+          });
+        }
+
+        setData(prev => ({
+          ...prev,
+          [name]: docs,
+          [`is${name.charAt(0).toUpperCase() + name.slice(1)}Loaded`]: true
+        }));
+      }, (err) => {
+        console.error(`Error in subscription for ${name}:`, err);
+        addError(name.toUpperCase(), err);
+        setData(prev => ({ ...prev, [`is${name.charAt(0).toUpperCase() + name.slice(1)}Loaded`]: true }));
+      });
+      return unsub;
+    } catch (err) {
+      console.error(`Failed to setup subscription for ${name}:`, err);
+      addError(name.toUpperCase(), err);
+      setData(prev => ({ ...prev, [`is${name.charAt(0).toUpperCase() + name.slice(1)}Loaded`]: true }));
+      return () => {};
+    }
+  }, [addError]);
+
+  // Initial load for small reference collections
+  useEffect(() => {
+    let unsubs: (() => void)[] = [];
+    
+    const smallCollections = [
+      { name: 'companies', path: 'companies' },
+      { name: 'models', path: 'models' },
+      { name: 'colors', path: 'colors' }
     ];
 
-    const initialLoaded = {
-      vehicles: false,
-      companies: false,
-      models: false,
-      colors: false,
-      parties: false,
-      purchases: false,
-      sales: false
-    };
-
-    const checkLoadingFinished = () => {
-      if (
-        initialLoaded.vehicles &&
-        initialLoaded.companies &&
-        initialLoaded.models &&
-        initialLoaded.colors &&
-        initialLoaded.parties &&
-        initialLoaded.purchases &&
-        initialLoaded.sales
-      ) {
-        setData(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    collectionsToListen.forEach(({ name, path }) => {
-      try {
-        const q = collection(db, path);
-        const unsub = onSnapshot(q, (snapshot) => {
-          if (!active) return;
-
-          let sortedDocs: any[] = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-
-          if (name === 'vehicles') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id } as Vehicle)).sort((a, b) => {
-              const tA = (a.updatedAt as any)?.toMillis?.() || 0;
-              const tB = (b.updatedAt as any)?.toMillis?.() || 0;
-              return tB - tA;
-            });
-          } else if (name === 'purchases') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Purchase)).sort((a, b) => {
-              const tA = (a.date as any)?.toMillis?.() || 0;
-              const tB = (b.date as any)?.toMillis?.() || 0;
-              return tB - tA;
-            });
-          } else if (name === 'sales') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sale)).sort((a, b) => {
-              const tA = (a.date as any)?.toMillis?.() || 0;
-              const tB = (b.date as any)?.toMillis?.() || 0;
-              return tB - tA;
-            });
-          } else if (name === 'companies') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Company));
-          } else if (name === 'models') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Model));
-          } else if (name === 'colors') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as VehicleColor));
-          } else if (name === 'parties') {
-            sortedDocs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Party));
-          }
-
-          // If this is not the initial load and the write is from a remote client (other users)
-          if (initialLoaded[name] && !snapshot.metadata.hasPendingWrites) {
-            snapshot.docChanges().forEach(change => {
-              if (change.type === 'added') {
-                const docData = change.doc.data();
-                if (name === 'vehicles') {
-                  toast.info(`🚗 New vehicle added to inventory: Chassis ${change.doc.id}`, { duration: 5000 });
-                } else if (name === 'purchases') {
-                  toast.info(`🧾 New purchase recorded: Invoice #${docData.invoiceNumber || change.doc.id}`, { duration: 5000 });
-                } else if (name === 'sales') {
-                  toast.info(`💰 New sale recorded for Chassis ${docData.chassisNumber || ''}`, { duration: 5000 });
-                } else if (name === 'parties') {
-                  toast.info(`👤 New party registered: ${docData.name || ''}`, { duration: 5000 });
-                }
-              } else if (change.type === 'modified') {
-                const docData = change.doc.data();
-                if (name === 'vehicles') {
-                  toast.info(`🔄 Vehicle ${change.doc.id} details updated in inventory.`, { duration: 4000 });
-                } else if (name === 'sales') {
-                  toast.info(`🔄 Sale status/data updated.`, { duration: 4000 });
-                }
-              }
-            });
-          }
-
-          setData(prev => ({
-            ...prev,
-            [name]: sortedDocs
-          }));
-
-          initialLoaded[name] = true;
-          checkLoadingFinished();
-        }, (err) => {
-          console.error(`Error in real-time subscription for ${name}:`, err);
-          addError(name.toUpperCase(), err);
-          
-          initialLoaded[name] = true;
-          checkLoadingFinished();
-        });
-
-        unsubscribes.push(unsub);
-      } catch (err) {
-        console.error(`Failed to setup subscription for ${name}:`, err);
-        addError(name.toUpperCase(), err);
-        initialLoaded[name] = true;
-        checkLoadingFinished();
-      }
+    smallCollections.forEach(({ name, path }) => {
+      const unsub = setupListener(name, path, d => d as any);
+      if (unsub) unsubs.push(unsub);
     });
 
+    // Mark global loading as false once initial setup is done
+    // In a real app we might wait for these small collections to load
+    setData(prev => ({ ...prev, loading: false }));
+
     return () => {
-      active = false;
-      unsubscribes.forEach(unsub => unsub());
+      unsubs.forEach(u => u());
     };
-  }, [addError]);
+  }, [setupListener]);
+
+  const loadVehicles = useCallback(() => {
+    setupListener('vehicles', 'vehicles', 
+      d => ({ ...d, chassisNumber: d.id } as Vehicle),
+      (a, b) => ((b.updatedAt as any)?.toMillis?.() || 0) - ((a.updatedAt as any)?.toMillis?.() || 0)
+    );
+  }, [setupListener]);
+
+  const loadPurchases = useCallback(() => {
+    setupListener('purchases', 'purchases', 
+      d => d as Purchase,
+      (a, b) => ((b.date as any)?.toMillis?.() || 0) - ((a.date as any)?.toMillis?.() || 0)
+    );
+  }, [setupListener]);
+
+  const loadSales = useCallback(() => {
+    setupListener('sales', 'sales', 
+      d => d as Sale,
+      (a, b) => ((b.date as any)?.toMillis?.() || 0) - ((a.date as any)?.toMillis?.() || 0)
+    );
+  }, [setupListener]);
+
+  const loadParties = useCallback(() => {
+    setupListener('parties', 'parties', d => d as Party);
+  }, [setupListener]);
+
+  const loadProcessDocumentData = useCallback(() => {
+    loadSales();
+    loadParties();
+    loadVehicles();
+  }, [loadSales, loadParties, loadVehicles]);
 
   return (
     <GlobalDataContext.Provider value={{
-      ...data
+      ...data,
+      loadVehicles,
+      loadPurchases,
+      loadSales,
+      loadParties,
+      loadProcessDocumentData
     }}>
       {children}
     </GlobalDataContext.Provider>

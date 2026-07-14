@@ -42,7 +42,12 @@ export function Parties() {
   
   
 
-  const { parties, purchases, sales } = useGlobalData();
+  const { parties, purchases, sales, loadParties, loadPurchases, loadSales, isPartiesLoaded } = useGlobalData();
+  useEffect(() => {
+    loadParties();
+    loadPurchases();
+    loadSales();
+  }, []);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);

@@ -38,7 +38,12 @@ export function Purchases() {
   
 
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, purchases } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, purchases, loadPurchases, loadVehicles, loadParties, isPurchasesLoaded } = useGlobalData();
+  useEffect(() => {
+    loadPurchases();
+    loadVehicles();
+    loadParties();
+  }, []);
   const vendors = parties.filter(p => p.type === 'vendor');
   const isAdmin = userProfile?.role === 'admin';
   const isClerk = userProfile?.role === 'inventory_clerk';

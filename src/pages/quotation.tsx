@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,7 +20,12 @@ export function Quotation() {
     return <Navigate to="/" replace />;
   }
 
-  const { sales: allSales, vehicles, parties, companies, models } = useGlobalData();
+  const { sales: allSales, vehicles, parties, companies, models, loadSales, loadVehicles, loadParties, isSalesLoaded } = useGlobalData();
+  useEffect(() => {
+    loadSales();
+    loadVehicles();
+    loadParties();
+  }, []);
   const sales = allSales.filter(s => s.documentationCompleted);
   const customers = parties.filter(p => p.type === 'customer');
   

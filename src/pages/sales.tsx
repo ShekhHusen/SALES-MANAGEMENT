@@ -48,7 +48,12 @@ export function Sales() {
 
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
-  const { companies, models, parties, vehicles: allVehicles, sales } = useGlobalData();
+  const { companies, models, parties, vehicles: allVehicles, sales, loadSales, loadVehicles, loadParties, isSalesLoaded } = useGlobalData();
+  useEffect(() => {
+    loadSales();
+    loadVehicles();
+    loadParties();
+  }, []);
   const customers = parties.filter(p => p.type === 'customer');
   const inStockVehicles = allVehicles.filter(v => v.status === 'in-stock');
   const isAdmin = userProfile?.role === 'admin';

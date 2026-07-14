@@ -32,7 +32,13 @@ export function Inventory() {
   
 
   const { user } = useAuth();
-  const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();
+  const { vehicles, companies, models, colors, parties, purchases, sales, loadVehicles, loadPurchases, loadSales, loadParties, isVehiclesLoaded } = useGlobalData();
+  useEffect(() => {
+    loadVehicles();
+    loadPurchases();
+    loadSales();
+    loadParties();
+  }, []);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
