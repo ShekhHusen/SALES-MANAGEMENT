@@ -67,6 +67,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (activeListeners.current.has(name)) return;
     activeListeners.current.add(name);
     
+    let isInitialSnapshot = true;
+
     try {
       const q = collection(db, path);
       const unsub = onSnapshot(q, (snapshot) => {
@@ -74,7 +76,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (mapFunc) docs = docs.map(mapFunc);
         if (sortFunc) docs = docs.sort(sortFunc);
 
-        if (!snapshot.metadata.hasPendingWrites) {
+        if (!snapshot.metadata.hasPendingWrites && !isInitialSnapshot) {
           snapshot.docChanges().forEach(change => {
             if (change.type === 'added') {
               const docData = change.doc.data();
@@ -88,6 +90,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }
           });
         }
+
+        isInitialSnapshot = false;
 
         setData(prev => ({
           ...prev,
