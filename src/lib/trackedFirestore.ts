@@ -65,15 +65,20 @@ export const onSnapshot = ((...args: any[]) => {
   if (callbackIndex !== -1) {
     const originalCallback = args[callbackIndex] as Function;
     args[callbackIndex] = (snapshot: any) => {
-      // For query snapshots
-      if ('docChanges' in snapshot && typeof snapshot.docChanges === 'function') {
-        const changes = snapshot.docChanges();
-        if (changes.length > 0) {
-          useUsageStore.getState().incrementReads(changes.length);
+      // Check if this snapshot is served from local cache. 
+      // Cache-served snapshots cost 0 Firestore billed reads on the server.
+      const fromCache = snapshot.metadata?.fromCache;
+      if (!fromCache) {
+        // For query snapshots
+        if ('docChanges' in snapshot && typeof snapshot.docChanges === 'function') {
+          const changes = snapshot.docChanges();
+          if (changes.length > 0) {
+            useUsageStore.getState().incrementReads(changes.length);
+          }
+        } else {
+          // Document snapshot
+          useUsageStore.getState().incrementReads(1);
         }
-      } else {
-        // Document snapshot
-        useUsageStore.getState().incrementReads(1);
       }
       return originalCallback(snapshot);
     };

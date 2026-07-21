@@ -87,31 +87,7 @@ export function ProcessDocument() {
   // Sorting State for Sold Vehicles
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
-  // Server-side Pending Sales State
-  const [pendingSalesData, setPendingSalesData] = useState<Sale[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'sold') {
-      setPendingLoading(true);
-      const q = query(
-        collection(db, 'sales'),
-        where('documentationCompleted', '==', false),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-        setPendingSalesData(fetchedSales);
-        setPendingLoading(false);
-      }, (err) => {
-        console.error("Error fetching pending sales:", err);
-        setPendingLoading(false);
-      });
-      
-      return () => unsubscribe();
-    }
-  }, [activeTab]);
+  // Completed Sales State
   const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
@@ -562,7 +538,7 @@ export function ProcessDocument() {
     if (location.state && location.state.saleId) {
       const saleId = location.state.saleId;
       const fetchSale = async () => {
-        let tSale = [...pendingSalesData, ...completedSalesData].find(s => s.id === saleId);
+        let tSale = [...sales, ...completedSalesData].find(s => s.id === saleId);
         if (!tSale) {
            const { getDoc, doc } = await import('@/lib/trackedFirestore');
            const sDoc = await getDoc(doc(db, 'sales', saleId));
@@ -580,7 +556,7 @@ export function ProcessDocument() {
       };
       fetchSale();
     }
-  }, [location.state, pendingSalesData, completedSalesData]);
+  }, [location.state, sales, completedSalesData]);
 
   useEffect(() => {
     if (vehiclePrice !== '' && paidAmount !== '') {
@@ -752,7 +728,7 @@ export function ProcessDocument() {
     }
   };
 
-  const pendingSales = pendingSalesData;
+  const pendingSales = sales.filter(s => !s.documentationCompleted);
   const filteredSales = pendingSales.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
