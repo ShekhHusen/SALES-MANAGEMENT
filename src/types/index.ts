@@ -64,6 +64,7 @@ export interface Sale {
   fileNumber: number;
   companyId: string;
   documentationCompleted?: boolean;
+  driveFolderUrl?: string;
   otherDetails?: any;
   createdAt: Timestamp;
   status?: 'active' | 'returned';
