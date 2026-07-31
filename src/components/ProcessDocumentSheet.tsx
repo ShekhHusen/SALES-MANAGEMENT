@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogClose } from '@/components/ui/dialog';
-import { Info, Hash, FileText, CreditCard, Battery, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Info, Hash, FileText, CreditCard, Battery, Image as ImageIcon, ChevronLeft, ChevronRight, FolderOpen, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Sale } from '@/types';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
@@ -9,9 +10,10 @@ interface ProcessDocumentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   viewSale: Sale | null;
+  onEditDriveLink?: (sale: Sale) => void;
 }
 
-export function ProcessDocumentSheet({ open, onOpenChange, viewSale }: ProcessDocumentSheetProps) {
+export function ProcessDocumentSheet({ open, onOpenChange, viewSale, onEditDriveLink }: ProcessDocumentSheetProps) {
   const { parties, vehicles, companies, models } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
 
@@ -21,10 +23,38 @@ export function ProcessDocumentSheet({ open, onOpenChange, viewSale }: ProcessDo
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-5xl overflow-y-auto bg-[#F8FAFC]">
-          <SheetHeader className="mb-6">
-            <SheetTitle className="text-2xl font-black text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-4">
-              Process Document Details
-            </SheetTitle>
+          <SheetHeader className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div className="flex items-center justify-between gap-4">
+              <SheetTitle className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                Process Document Details
+              </SheetTitle>
+              {viewSale && (
+                <div className="flex items-center gap-2 mr-6">
+                  {viewSale.driveFolderUrl ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl font-bold gap-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                      onClick={() => window.open(viewSale.driveFolderUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      <FolderOpen className="w-4 h-4 text-emerald-600" />
+                      Google Drive Folder
+                      <ExternalLink className="w-3.5 h-3.5 ml-0.5 opacity-70" />
+                    </Button>
+                  ) : onEditDriveLink ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl font-bold gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                      onClick={() => onEditDriveLink(viewSale)}
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                      Add Google Drive Link
+                    </Button>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </SheetHeader>
           
           {viewSale && (
