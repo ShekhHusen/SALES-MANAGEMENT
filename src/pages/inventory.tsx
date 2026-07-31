@@ -43,7 +43,7 @@ export function Inventory() {
   const [filterStatus, setFilterStatus] = useState<string[]>([]);
   
   // Custom Filters & Sorting
-  const [sortField, setSortField] = useState<'chassis' | 'customer' | null>(null);
+  const [sortField, setSortField] = useState<'chassis' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterCompany, setFilterCompany] = useState<string[]>([]);
   const [filterModel, setFilterModel] = useState<string[]>([]);
@@ -271,8 +271,14 @@ export function Inventory() {
 
   const processedVehicles = vehicles.filter(v => {
     const sale = sales.find(s => s.chassisNumber === v.chassisNumber);
-    const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
-    const matchesSearch = !search || (v.chassisNumber?.toLowerCase() || "").includes(search.toLowerCase()) || (customer?.name?.toLowerCase().includes(search.toLowerCase()) || false);
+    const company = companies.find(c => c.id === v.companyId);
+    const model = models.find(m => m.id === v.modelId);
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+      (v.chassisNumber?.toLowerCase() || "").includes(searchLower) ||
+      (v.registrationNumber?.toLowerCase() || "").includes(searchLower) ||
+      (company?.name?.toLowerCase() || "").includes(searchLower) ||
+      (model?.name?.toLowerCase() || "").includes(searchLower);
     
     const effectiveStatus = sale ? 'sold' : v.status;
     const matchesStatus = filterStatus.length === 0 || filterStatus.includes(effectiveStatus);
@@ -289,12 +295,6 @@ export function Inventory() {
     processedVehicles.sort((a, b) => {
       if (sortField === 'chassis') {
          return sortOrder === 'asc' ? a.chassisNumber.localeCompare(b.chassisNumber) : b.chassisNumber.localeCompare(a.chassisNumber);
-      } else if (sortField === 'customer') {
-         const saleA = sales.find(s => s.chassisNumber === a.chassisNumber);
-         const saleB = sales.find(s => s.chassisNumber === b.chassisNumber);
-         const customerA = (saleA ? parties.find(p => p.id === saleA.customerId)?.name : '') || '';
-         const customerB = (saleB ? parties.find(p => p.id === saleB.customerId)?.name : '') || '';
-         return sortOrder === 'asc' ? customerA.localeCompare(customerB) : customerB.localeCompare(customerA);
       }
       return 0;
     });
@@ -351,7 +351,7 @@ export function Inventory() {
           <div className="relative flex-1 sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Search by Chassis or Customer Name..." 
+              placeholder="Search by Chassis, Reg No, Make, Model..." 
               className="pl-10 h-10 bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 transition-all rounded-lg"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -657,29 +657,12 @@ export function Inventory() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableHead>
-                <TableHead className="py-2.5 px-6">
-                  <div 
-                    className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
-                    onClick={() => {
-                      if (sortField === 'customer') {
-                        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                      } else {
-                        setSortField('customer');
-                        setSortOrder('asc');
-                      }
-                    }}
-                  >
-                    Customer Details
-                    <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'customer' && "opacity-100 text-[#1a4731]")} />
-                  </div>
-                </TableHead>
                 <TableHead className="py-2.5 px-6 text-[11px] font-extrabold uppercase tracking-widest text-slate-500 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedVehicles.map((vehicle) => {
                 const saleDetails = sales.find(s => s.chassisNumber === vehicle.chassisNumber);
-                const customer = saleDetails ? parties.find(p => p.id === saleDetails.customerId) : null;
                 const effectiveStatus = saleDetails ? 'sold' : vehicle.status;
                 
                 return (
@@ -733,17 +716,6 @@ export function Inventory() {
                         </span>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="px-6 py-2.5">
-                    {customer ? (
-                        <div className="flex flex-col">
-                            <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{customer.name}</span>
-                            <span className="text-[10px] text-slate-500">{customer.contactNumber}</span>
-                            <span className="text-[10px] text-slate-400 line-clamp-1">{customer.address}</span>
-                        </div>
-                    ) : (
-                        <span className="text-[10px] text-slate-400 font-medium italic">Pending Sale</span>
-                    )}
                   </TableCell>
                   <TableCell className="px-6 py-2.5 text-right">
                     <div className="flex justify-end gap-2">

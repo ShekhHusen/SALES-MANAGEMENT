@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { TableHead } from "@/components/ui/table";
 import { Card, CardContent } from '@/components/ui/card';
-import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash, Image as ImageIcon, Download, Printer, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown, FolderOpen, ExternalLink, Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter } from '@/lib/trackedFirestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, deleteField } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
@@ -31,6 +31,8 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function ProcessDocument() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const processedLocationSaleIdRef = useRef<string | null>(null);
   const { user, userProfile } = useAuth();
   const { sales, parties, vehicles, companies, models, loadProcessDocumentData, isProcessDocumentLoaded } = useGlobalData();
   useEffect(() => {
@@ -87,7 +89,31 @@ export function ProcessDocument() {
   // Sorting State for Sold Vehicles
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
-  // Completed Sales State
+  // Server-side Pending Sales State
+  const [pendingSalesData, setPendingSalesData] = useState<Sale[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'sold') {
+      setPendingLoading(true);
+      const q = query(
+        collection(db, 'sales'),
+        where('documentationCompleted', '==', false),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+        setPendingSalesData(fetchedSales);
+        setPendingLoading(false);
+      }, (err) => {
+        console.error("Error fetching pending sales:", err);
+        setPendingLoading(false);
+      });
+      
+      return () => unsubscribe();
+    }
+  }, [activeTab]);
   const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
@@ -96,6 +122,41 @@ export function ProcessDocument() {
   const [completedTotalItems, setCompletedTotalItems] = useState<number>(0);
   const [completedCursors, setCompletedCursors] = useState<any[]>([null]); // index 0 is page 1 start cursor
   const [completedError, setCompletedError] = useState<string | null>(null);
+
+  // Google Drive folder link state
+  const [driveModalSale, setDriveModalSale] = useState<Sale | null>(null);
+  const [driveFolderInput, setDriveFolderInput] = useState<string>('');
+  const [savingDriveLink, setSavingDriveLink] = useState(false);
+
+  const handleOpenDriveModal = (sale: Sale) => {
+    setDriveModalSale(sale);
+    setDriveFolderInput(sale.driveFolderUrl || '');
+  };
+
+  const handleSaveDriveLink = async () => {
+    if (!driveModalSale?.id) return;
+    setSavingDriveLink(true);
+    try {
+      const formattedUrl = driveFolderInput.trim();
+      await updateDoc(doc(db, 'sales', driveModalSale.id), {
+        driveFolderUrl: formattedUrl
+      });
+      toast.success('Google Drive folder link saved successfully!');
+      
+      const updatedSale = { ...driveModalSale, driveFolderUrl: formattedUrl };
+      if (viewSale?.id === driveModalSale.id) setViewSale(updatedSale);
+      if (selectedSale?.id === driveModalSale.id) setSelectedSale(updatedSale);
+      
+      setCompletedSalesData(prev => prev.map(s => s.id === driveModalSale.id ? updatedSale : s));
+      setDriveModalSale(null);
+    } catch (error) {
+      console.error("Error saving Drive link:", error);
+      toast.error("Failed to save Google Drive link");
+      handleFirestoreError(error, OperationType.UPDATE, `sales/${driveModalSale.id}`);
+    } finally {
+      setSavingDriveLink(false);
+    }
+  };
 
   // Added getCountFromServer to track total items
   const fetchCompletedSales = async (pageIndex: number, itemsPerPage: number | 'all') => {
@@ -537,8 +598,13 @@ export function ProcessDocument() {
   useEffect(() => {
     if (location.state && location.state.saleId) {
       const saleId = location.state.saleId;
+      if (processedLocationSaleIdRef.current === saleId) return;
+      processedLocationSaleIdRef.current = saleId;
+
+      const targetTab = location.state.tab;
+
       const fetchSale = async () => {
-        let tSale = [...sales, ...completedSalesData].find(s => s.id === saleId);
+        let tSale = [...pendingSalesData, ...completedSalesData].find(s => s.id === saleId);
         if (!tSale) {
            const { getDoc, doc } = await import('@/lib/trackedFirestore');
            const sDoc = await getDoc(doc(db, 'sales', saleId));
@@ -548,15 +614,17 @@ export function ProcessDocument() {
         }
         if (tSale) {
           setSelectedSale(tSale);
-          if (location.state.tab === 'others_details') {
+          if (targetTab === 'others_details') {
             setActiveTab('others_details');
             setUnlockedTabs(prev => ({ ...prev, others_details: true }));
           }
         }
+        // Clear history state after consuming initial navigation parameters
+        navigate(location.pathname, { replace: true, state: null });
       };
       fetchSale();
     }
-  }, [location.state, sales, completedSalesData]);
+  }, [location.state, pendingSalesData, completedSalesData, navigate, location.pathname]);
 
   useEffect(() => {
     if (vehiclePrice !== '' && paidAmount !== '') {
@@ -664,33 +732,10 @@ export function ProcessDocument() {
     if (!selectedSale?.id) return;
     setLoading(true);
     try {
-      // Complete document process
+      // Complete document process without saving otherDetails/documents to DB
       await updateDoc(doc(db, 'sales', selectedSale.id), {
         documentationCompleted: true,
-        otherDetails: {
-          vehiclePrice,
-          paidAmount,
-          duesAmount,
-          fathersName,
-          grandFathersName,
-          customerAltNumber,
-          engineNumber,
-          vehicleNumber,
-          citizenshipNumber,
-          onEmi,
-          emiVehiclePrice,
-          emiDownPayment,
-          emiPeriod,
-          emiInterest,
-          batteryType,
-          batteryBrand,
-          bluetoothId,
-          productId,
-          notes,
-          noOfBattery,
-          serialNumbers,
-          images
-        }
+        otherDetails: deleteField()
       });
       
       toast.success('Documentation completed successfully!');
@@ -728,7 +773,7 @@ export function ProcessDocument() {
     }
   };
 
-  const pendingSales = sales.filter(s => !s.documentationCompleted);
+  const pendingSales = pendingSalesData;
   const filteredSales = pendingSales.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
@@ -793,7 +838,7 @@ export function ProcessDocument() {
           value={activeTab} 
           onValueChange={(val) => {
             const newTab = val as TabType;
-            if (newTab === 'others_details' || newTab === 'documents') return;
+            if (!unlockedTabs[newTab]) return;
             setActiveTab(newTab);
             if (newTab === 'sold_vehicle') {
                setUnlockedTabs(prev => ({ ...prev, others_details: false, documents: false }));
@@ -806,7 +851,7 @@ export function ProcessDocument() {
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                disabled={!unlockedTabs[tab.id] || ((tab.id === 'others_details' || tab.id === 'documents') && activeTab !== tab.id)}
+                disabled={!unlockedTabs[tab.id]}
                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-600/20 rounded-xl font-bold text-sm px-6 py-[5px] h-[30px] transition-all lg:pt-[4px] lg:pb-[4px] lg:px-[24px]"
               >
                 {tab.label}
@@ -1411,7 +1456,7 @@ export function ProcessDocument() {
                         <div className="flex items-center gap-1">Customer Details <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
                       <TableHead className="px-4 py-[10px] w-[140px]">Document Status</TableHead>
-                      <TableHead className="px-4 py-[10px] w-[150px]">Action</TableHead>
+                      <TableHead className="px-4 py-[10px] w-[210px]">Action</TableHead>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/60 [&_tr:last-child]:border-0">
@@ -1434,18 +1479,63 @@ export function ProcessDocument() {
                           <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-black whitespace-nowrap overflow-hidden text-ellipsis">{customer?.name || '---'}</td>
                           <td className="px-4 py-3"><span className="px-3 py-1 rounded-md text-[10px] font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white uppercase tracking-widest shadow-sm shadow-emerald-500/20">Completed</span></td>
                           <td className="px-4 py-3">
-                            <Button 
-                               variant="outline" 
-                               size="sm" 
-                               className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
-                               onClick={(e) => {
-                                e.stopPropagation();
-                                setViewSale(sale);
-                                setViewSheetOpen(true);
-                              }}
-                            >
-                              View Document
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
+                                 onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewSale(sale);
+                                  setViewSheetOpen(true);
+                                }}
+                              >
+                                View
+                              </Button>
+
+                              {sale.driveFolderUrl ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                     variant="outline"
+                                     size="sm"
+                                     className="font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 transition-all border shadow-sm"
+                                     onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(sale.driveFolderUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                  >
+                                    <FolderOpen className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                    Drive
+                                    <ExternalLink className="w-3 h-3 ml-0.5 opacity-60" />
+                                  </Button>
+                                  <Button
+                                     variant="ghost"
+                                     size="icon"
+                                     className="h-8 w-8 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                     title="Edit Drive Link"
+                                     onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenDriveModal(sale);
+                                    }}
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="font-bold rounded-xl border-blue-200 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all border shadow-sm"
+                                   onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDriveModal(sale);
+                                  }}
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5 mr-1 text-blue-500" />
+                                  + Drive Link
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1497,7 +1587,57 @@ export function ProcessDocument() {
         open={viewSheetOpen} 
         onOpenChange={setViewSheetOpen} 
         viewSale={viewSale} 
+        onEditDriveLink={handleOpenDriveModal}
       />
+
+      {/* Google Drive Folder Modal */}
+      <Dialog open={!!driveModalSale} onOpenChange={(open) => !open && setDriveModalSale(null)}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-emerald-600" /> Google Drive Folder Link
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Attach or view the Google Drive folder link for File <span className="font-bold text-blue-600">#{driveModalSale?.fileNumber}</span> (Chassis: <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{driveModalSale?.chassisNumber}</span>).
+            </p>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Google Drive Folder URL</label>
+              <Input 
+                placeholder="https://drive.google.com/drive/folders/..." 
+                value={driveFolderInput}
+                onChange={(e) => setDriveFolderInput(e.target.value)}
+                className="rounded-xl font-medium"
+              />
+            </div>
+            {driveModalSale?.driveFolderUrl && (
+              <div className="pt-1">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="p-0 h-auto text-xs text-emerald-600 font-bold gap-1"
+                  onClick={() => window.open(driveModalSale.driveFolderUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open Current Google Drive Folder
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button variant="outline" className="rounded-xl font-bold" onClick={() => setDriveModalSale(null)}>
+              Cancel
+            </Button>
+            <Button 
+              className="rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={savingDriveLink}
+              onClick={handleSaveDriveLink}
+            >
+              {savingDriveLink ? 'Saving...' : 'Save Drive Link'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Cross Check Dialog */}
       <Dialog open={showCrossCheckModal} onOpenChange={setShowCrossCheckModal}>
         <DialogContent className="sm:max-w-lg rounded-2xl">

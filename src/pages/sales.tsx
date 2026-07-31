@@ -755,49 +755,6 @@ export function Sales() {
                     />
                   </div>
                 </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">
-                  <div className="flex items-center justify-between gap-1.5">
-                    Document Status
-                    <Popover open={activePopover === 'status'} onOpenChange={(open) => setActivePopover(open ? 'status' : null)}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
-                          <FilterIcon className={`w-3.5 h-3.5 ${(statusFilter !== 'ALL' || bluebookFilter !== 'ALL') ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <div className="space-y-3 p-3 w-[200px]">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Bluebook Status</label>
-                            <Select value={bluebookFilter} onValueChange={(val) => { setBluebookFilter(val); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
-                                <SelectValue placeholder="All Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ALL">All Status</SelectItem>
-                                <SelectItem value="Not Received">Pending</SelectItem>
-                                <SelectItem value="Received">Received</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Naamsari Status</label>
-                            <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setActivePopover(null); }}>
-                              <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
-                                <SelectValue placeholder="All Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ALL">All Status</SelectItem>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="Names of JBMT">Names of JBMT</SelectItem>
-                                <SelectItem value="Customer Done">Customer Done</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableHead>
                 <TableHead className="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -845,22 +802,6 @@ export function Sales() {
                         <span className="text-[11px] font-bold text-slate-500 uppercase">
                           {customer?.address} <span className="ml-1">• {customer?.contactNumber}</span>
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-4 py-2.5">
-                      <div className="flex flex-col justify-center gap-1.5">
-                        <span className="font-bold text-xs uppercase text-slate-800 dark:text-slate-200 px-1">
-                          {vehicle?.registrationNumber || 'UNREGISTERED'}
-                        </span>
-                        <div className="flex items-center gap-1 px-1">
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 dark:bg-slate-800 text-slate-600 ${vehicle?.bluebookStatus === 'Received' ? 'bg-emerald-100 text-emerald-700' : ''}`}>
-                            {vehicle?.bluebookStatus || 'NOT RECEIVED'}
-                          </Badge>
-                          <span className="text-slate-300">-</span>
-                          <Badge variant="outline" className={`text-[9px] font-black uppercase px-2 py-0.5 border-none bg-slate-100 dark:bg-slate-800 text-slate-600 ${vehicle?.naamsariStatus === 'Customer Done' ? 'bg-indigo-100 text-indigo-700' : vehicle?.naamsariStatus === 'Names of JBMT' ? 'bg-blue-100 text-blue-700' : ''}`}>
-                            {vehicle?.naamsariStatus || 'PENDING'}
-                          </Badge>
-                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-2.5 text-center">
