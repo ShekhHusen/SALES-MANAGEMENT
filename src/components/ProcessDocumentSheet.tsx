@@ -5,6 +5,7 @@ import { Info, Hash, FileText, CreditCard, Battery, Image as ImageIcon, ChevronL
 import { Button } from '@/components/ui/button';
 import { Sale } from '@/types';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { openPopup } from '@/lib/utils';
 
 interface ProcessDocumentSheetProps {
   open: boolean;
@@ -35,7 +36,7 @@ export function ProcessDocumentSheet({ open, onOpenChange, viewSale, onEditDrive
                       variant="outline"
                       size="sm"
                       className="rounded-xl font-bold gap-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                      onClick={() => window.open(viewSale.driveFolderUrl, '_blank', 'noopener,noreferrer')}
+                      onClick={() => openPopup(viewSale.driveFolderUrl, 'DriveFolder')}
                     >
                       <FolderOpen className="w-4 h-4 text-emerald-600" />
                       Google Drive Folder

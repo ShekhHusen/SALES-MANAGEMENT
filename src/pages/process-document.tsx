@@ -10,6 +10,7 @@ import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, g
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
+import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -24,6 +25,7 @@ import { jsPDF } from 'jspdf';
 import { Pagination } from '@/components/Pagination';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { PdfTemplates } from '@/components/PdfTemplates';
+import { openPopup } from '@/lib/utils';
 
 type TabType = 'sold_vehicle' | 'others_details' | 'documents' | 'completed';
 
@@ -122,6 +124,47 @@ export function ProcessDocument() {
   const [completedTotalItems, setCompletedTotalItems] = useState<number>(0);
   const [completedCursors, setCompletedCursors] = useState<any[]>([null]); // index 0 is page 1 start cursor
   const [completedError, setCompletedError] = useState<string | null>(null);
+
+  // Google Auth & Picker
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { showPicker, isReady: isPickerReady } = useGooglePicker(accessToken);
+
+  useEffect(() => {
+    import('@/lib/googleAuth').then(({ initAuth }) => {
+      initAuth(
+        (_user, token) => {
+          setAccessToken(token);
+          setNeedsAuth(false);
+        },
+        () => setNeedsAuth(true)
+      );
+    });
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const { googleSignIn } = await import('@/lib/googleAuth');
+      const result = await googleSignIn();
+      if (result) {
+        setAccessToken(result.accessToken);
+        setNeedsAuth(false);
+      }
+    } catch (err) {
+      console.error('Google login failed:', err);
+      toast.error('Failed to sign in with Google');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handlePickFolder = () => {
+    showPicker((folderUrl) => {
+      setDriveFolderInput(folderUrl);
+    });
+  };
 
   // Google Drive folder link state
   const [driveModalSale, setDriveModalSale] = useState<Sale | null>(null);
@@ -1501,7 +1544,7 @@ export function ProcessDocument() {
                                      className="font-bold rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 transition-all border shadow-sm"
                                      onClick={(e) => {
                                       e.stopPropagation();
-                                      window.open(sale.driveFolderUrl, '_blank', 'noopener,noreferrer');
+                                      openPopup(sale.driveFolderUrl, 'DriveFolder');
                                     }}
                                   >
                                     <FolderOpen className="w-3.5 h-3.5 mr-1 text-emerald-600" />
@@ -1603,7 +1646,20 @@ export function ProcessDocument() {
               Attach or view the Google Drive folder link for File <span className="font-bold text-blue-600">#{driveModalSale?.fileNumber}</span> (Chassis: <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{driveModalSale?.chassisNumber}</span>).
             </p>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Google Drive Folder URL</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Google Drive Folder URL</label>
+                {needsAuth ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={handleGoogleLogin} disabled={isLoggingIn} className="h-6 text-[10px] gap-1 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                    <svg className="w-3 h-3" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    {isLoggingIn ? 'Connecting...' : 'Sign in to Drive'}
+                  </Button>
+                ) : (
+                  <Button type="button" variant="ghost" size="sm" onClick={handlePickFolder} disabled={!isPickerReady} className="h-6 text-[10px] gap-1 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                    <FolderOpen className="w-3 h-3" />
+                    Select from Drive
+                  </Button>
+                )}
+              </div>
               <Input 
                 placeholder="https://drive.google.com/drive/folders/..." 
                 value={driveFolderInput}
@@ -1617,7 +1673,7 @@ export function ProcessDocument() {
                   type="button"
                   variant="link"
                   className="p-0 h-auto text-xs text-emerald-600 font-bold gap-1"
-                  onClick={() => window.open(driveModalSale.driveFolderUrl, '_blank', 'noopener,noreferrer')}
+                  onClick={() => openPopup(driveModalSale.driveFolderUrl, 'DriveFolder')}
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Open Current Google Drive Folder
                 </Button>

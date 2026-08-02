@@ -11,7 +11,7 @@ if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-}, firebaseConfig.firestoreDatabaseId);
+}, (firebaseConfig as any).firestoreDatabaseId || 'ai-studio-e5e03ab2-ddcf-42bf-a5fd-8bf5f05d41ff');
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
