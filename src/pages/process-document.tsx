@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TableHead } from "@/components/ui/table";
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash,
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, deleteField } from '@/lib/trackedFirestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, deleteField, addDoc, serverTimestamp } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
@@ -36,7 +36,8 @@ export function ProcessDocument() {
   const navigate = useNavigate();
   const processedLocationSaleIdRef = useRef<string | null>(null);
   const { user, userProfile } = useAuth();
-  const { sales, parties, vehicles, companies, models, loadProcessDocumentData, isProcessDocumentLoaded } = useGlobalData();
+  const { sales, parties, vehicles, companies, models, loadProcessDocumentData, loading: globalLoading } = useGlobalData();
+  const isProcessDocumentLoaded = !globalLoading;
   useEffect(() => {
     loadProcessDocumentData();
   }, []);
@@ -92,30 +93,7 @@ export function ProcessDocument() {
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
   // Server-side Pending Sales State
-  const [pendingSalesData, setPendingSalesData] = useState<Sale[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'sold') {
-      setPendingLoading(true);
-      const q = query(
-        collection(db, 'sales'),
-        where('documentationCompleted', '==', false),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-        setPendingSalesData(fetchedSales);
-        setPendingLoading(false);
-      }, (err) => {
-        console.error("Error fetching pending sales:", err);
-        setPendingLoading(false);
-      });
-      
-      return () => unsubscribe();
-    }
-  }, [activeTab]);
+  const pendingSalesData = useMemo(() => sales.filter(s => s.documentationCompleted !== true && s.status !== 'returned'), [sales]);
   const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
@@ -771,10 +749,27 @@ export function ProcessDocument() {
     setActiveTab('documents');
   };
 
-  const handleComplete = async () => {
+    const handleComplete = async () => {
     if (!selectedSale?.id) return;
     setLoading(true);
     try {
+      if (onEmi) {
+        const loanAmount = Number(emiVehiclePrice) - Number(emiDownPayment);
+        await addDoc(collection(db, 'emis'), {
+          saleId: selectedSale.id,
+          chassisNumber: selectedSale.chassisNumber,
+          customerId: selectedSale.customerId,
+          customerName: customers.find(c => c.id === selectedSale.customerId)?.name || '',
+          customerContact: customers.find(c => c.id === selectedSale.customerId)?.contactNumber || '',
+          loanAmount: loanAmount || 0,
+          interestRate: Number(emiInterest) || 0,
+          periodMonths: Number(emiPeriod) || 0,
+          emiVehiclePrice: Number(emiVehiclePrice) || 0,
+          emiDownPayment: Number(emiDownPayment) || 0,
+          createdAt: serverTimestamp(),
+        });
+      }
+
       // Complete document process without saving otherDetails/documents to DB
       await updateDoc(doc(db, 'sales', selectedSale.id), {
         documentationCompleted: true,
@@ -820,9 +815,9 @@ export function ProcessDocument() {
   const filteredSales = pendingSales.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
-    return s.chassisNumber.toLowerCase().includes(searchLow) || 
-           (customer?.name?.toLowerCase() || "").includes(searchLow) ||
-           (customer?.contactNumber?.toLowerCase() || "").includes(searchLow);
+    return ((s.chassisNumber || "").toLowerCase()).includes(searchLow) || 
+           (((customer || {}).name || "").toLowerCase()).includes(searchLow) ||
+           (((customer || {}).contactNumber || "").toLowerCase()).includes(searchLow);
   });
 
   // Sort Sold Vehicles: dynamic sort based on configurable columns
@@ -860,9 +855,9 @@ export function ProcessDocument() {
   const filteredCompletedSales = completedSalesData.filter(s => {
     const customer = customers.find(c => c.id === s.customerId);
     const searchLow = searchQuery.toLowerCase();
-    return s.chassisNumber.toLowerCase().includes(searchLow) || 
-           (customer?.name?.toLowerCase() || "").includes(searchLow) ||
-           (customer?.contactNumber?.toLowerCase() || "").includes(searchLow);
+    return ((s.chassisNumber || "").toLowerCase()).includes(searchLow) || 
+           (((customer || {}).name || "").toLowerCase()).includes(searchLow) ||
+           (((customer || {}).contactNumber || "").toLowerCase()).includes(searchLow);
   });
   
   const currentCompletedSales = filteredCompletedSales;
@@ -958,7 +953,9 @@ export function ProcessDocument() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/60 [&_tr:last-child]:border-0">
-                  {currentSoldSales.length === 0 ? (
+                  {!isProcessDocumentLoaded ? (
+                    <tr><td colSpan={5} className="p-8 text-center text-slate-500 font-medium">Loading...</td></tr>
+                  ) : currentSoldSales.length === 0 ? (
                     <tr><td colSpan={5} className="p-8 text-center text-slate-500 font-medium">No Data Available</td></tr>
                   ) : (
                     currentSoldSales.map(sale => {

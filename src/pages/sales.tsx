@@ -135,11 +135,11 @@ export function Sales() {
       const vehicle = allVehicles.find(v => v.chassisNumber === sale.chassisNumber);
       
       const matchesFile = (sale.fileNumber?.toString() || "").includes(fileNumberFilter);
-      const matchesCustomer = customer?.name?.toLowerCase().includes(customerFilter.toLowerCase()) || false;
+      const matchesCustomer = (((customer || {}).name || "").toLowerCase()).includes(customerFilter.toLowerCase()) || false;
       const matchesCompany = companyFilter === 'ALL' || sale.companyId === companyFilter;
       const matchesModel = modelFilter === 'ALL' || vehicle?.modelId === modelFilter;
       const matchesColor = colorFilter === 'ALL' || vehicle?.color === colorFilter;
-      const matchesChassis = !chassisFilter || vehicle?.chassisNumber.toLowerCase().includes(chassisFilter.toLowerCase());
+      const matchesChassis = !chassisFilter || (((vehicle || {}).chassisNumber || "").toLowerCase()).includes(chassisFilter.toLowerCase());
       const matchesStatus = statusFilter === 'ALL' || vehicle?.naamsariStatus === statusFilter;
       const matchesBluebook = bluebookFilter === 'ALL' || vehicle?.bluebookStatus === bluebookFilter;
       
@@ -368,6 +368,7 @@ export function Sales() {
           fileNumber: nextFileNumber,
           companyId: currentVehicle.companyId,
           createdAt: Timestamp.now(),
+          documentationCompleted: false,
         });
 
         tx.update(vehicleRef, {
@@ -557,13 +558,13 @@ export function Sales() {
                         />
                         <div className="max-h-60 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                           {customers.filter(c => 
-                            (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || 
+                            ((c.name || "").toLowerCase()).includes(customerSearchQuery.toLowerCase()) || 
                             (c.contactNumber || "").includes(customerSearchQuery)
                           ).length === 0 ? (
                             <p className="text-sm p-4 text-center text-slate-500 font-bold">No customer found.</p>
                           ) : (
                             customers.filter(c => 
-                              (c.name?.toLowerCase() || "").includes(customerSearchQuery.toLowerCase()) || 
+                              ((c.name || "").toLowerCase()).includes(customerSearchQuery.toLowerCase()) || 
                               (c.contactNumber || "").includes(customerSearchQuery)
                             ).map(c => (
                               <div
@@ -1015,8 +1016,8 @@ export function Sales() {
               <TableBody>
                 {inStockVehicles
                   .filter(v => 
-                    (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    (companies.find(c => c.id === v.companyId)?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
+                    ((v.chassisNumber || "").toLowerCase()).includes(searchQuery.toLowerCase()) ||
+                    ((((companies.find(c => c.id === v.companyId)) || {}).name || "").toLowerCase()).includes(searchQuery.toLowerCase())
                   )
                   .map(vehicle => (
                     <TableRow 
@@ -1048,8 +1049,8 @@ export function Sales() {
                   ))
                 }
                 {inStockVehicles.filter(v => 
-                    (v.chassisNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-                    (companies.find(c => c.id === v.companyId)?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
+                    ((v.chassisNumber || "").toLowerCase()).includes(searchQuery.toLowerCase()) ||
+                    ((((companies.find(c => c.id === v.companyId)) || {}).name || "").toLowerCase()).includes(searchQuery.toLowerCase())
                   ).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={3} className="text-center py-10 text-slate-400 italic text-sm">

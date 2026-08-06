@@ -275,10 +275,10 @@ export function Inventory() {
     const model = models.find(m => m.id === v.modelId);
     const searchLower = search.toLowerCase();
     const matchesSearch = !search || 
-      (v.chassisNumber?.toLowerCase() || "").includes(searchLower) ||
-      (v.registrationNumber?.toLowerCase() || "").includes(searchLower) ||
-      (company?.name?.toLowerCase() || "").includes(searchLower) ||
-      (model?.name?.toLowerCase() || "").includes(searchLower);
+      ((v.chassisNumber || "").toLowerCase()).includes(searchLower) ||
+      ((v.registrationNumber || "").toLowerCase()).includes(searchLower) ||
+      (((company || {}).name || "").toLowerCase()).includes(searchLower) ||
+      (((model || {}).name || "").toLowerCase()).includes(searchLower);
     
     const effectiveStatus = sale ? 'sold' : v.status;
     const matchesStatus = filterStatus.length === 0 || filterStatus.includes(effectiveStatus);

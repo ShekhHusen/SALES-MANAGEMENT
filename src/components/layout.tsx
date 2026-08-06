@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  BarChart3, 
+  BarChart3,
+  Calculator, 
   Car, 
   Users, 
   ShoppingCart, 
@@ -31,12 +32,14 @@ import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 const navItems = [
-  { label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
+  { label: 'Dashboard', icon: BarChart3,
+  Calculator, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
   { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
   { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
   { label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager'] },
   { label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager'] },
+  { label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager'] },
   { label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin'] },
   { label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
   { label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin'] },

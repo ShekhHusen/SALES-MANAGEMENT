@@ -12,6 +12,7 @@ import { Parties } from '@/pages/parties';
 import { Purchases } from '@/pages/purchases';
 import { Sales } from '@/pages/sales';
 import { ProcessDocument } from '@/pages/process-document';
+import { EmiManagement } from '@/pages/emi-management';
 import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { UserManagement } from '@/pages/users';
@@ -66,6 +67,7 @@ function AppRoutes() {
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/process-document" element={<ProcessDocument />} />
+          <Route path="/emi-management" element={<EmiManagement />} />
           <Route path="/quotation" element={<Quotation />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/settings" element={<Settings />} />

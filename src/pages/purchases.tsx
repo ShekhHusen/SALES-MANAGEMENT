@@ -97,7 +97,7 @@ export function Purchases() {
       const purchaseVehicles = allVehicles.filter(v => (purchase.chassisNumbers || []).includes(v.chassisNumber));
       
       const matchesVendor = vendorFilter === 'ALL' || purchase.vendorId === vendorFilter;
-      const matchesChassis = !chassisFilter || purchaseVehicles.some(v => (v.chassisNumber?.toLowerCase() || "").includes(chassisFilter.toLowerCase()));
+      const matchesChassis = !chassisFilter || purchaseVehicles.some(v => ((v.chassisNumber || "").toLowerCase()).includes(chassisFilter.toLowerCase()));
       
       if (!matchesVendor) return false;
       if (!matchesChassis) return false;
@@ -696,7 +696,7 @@ export function Purchases() {
                     const modelName = models.find(m => m.id === v.modelId)?.name || '';
                     
                     return (
-                      (v.chassisNumber?.toLowerCase() || "").includes(searchLower) ||
+                      ((v.chassisNumber || "").toLowerCase()).includes(searchLower) ||
                       companyName.toLowerCase().includes(searchLower) ||
                       modelName.toLowerCase().includes(searchLower)
                     );

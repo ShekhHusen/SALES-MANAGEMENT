@@ -114,3 +114,16 @@ export interface FollowUp {
   isCompleted?: boolean;
   priority?: 'high' | 'medium' | 'low';
 }
+
+export interface Emi {
+  id: string; // The emi ID
+  saleId: string;
+  chassisNumber: string;
+  customerId: string;
+  loanAmount: number;
+  interestRate: number;
+  periodMonths: number;
+  emiVehiclePrice: number;
+  emiDownPayment: number;
+  createdAt: Timestamp;
+}
