@@ -779,7 +779,7 @@ export function Purchases() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <div className="space-y-1 p-3 w-[200px]">
+                        <div className="space-y-1 p-3">
                           <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
                           <Select value={vendorFilter} onValueChange={(val) => { setVendorFilter(val); setActivePopover(null); }}>
                             <SelectTrigger className="h-8 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 font-bold text-[10px] shadow-sm hover:bg-white dark:hover:bg-slate-900 transition-colors w-full">
@@ -813,7 +813,7 @@ export function Purchases() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <div className="space-y-3 p-3 w-[200px]">
+                        <div className="space-y-3 p-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
                             <Input 

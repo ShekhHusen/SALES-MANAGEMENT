@@ -688,7 +688,7 @@ export function Sales() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <div className="space-y-3 p-3 w-[200px]">
+                        <div className="space-y-3 p-3">
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Chassis Number</label>
                             <Input 

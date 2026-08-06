@@ -770,10 +770,32 @@ export function ProcessDocument() {
         });
       }
 
-      // Complete document process without saving otherDetails/documents to DB
       await updateDoc(doc(db, 'sales', selectedSale.id), {
         documentationCompleted: true,
-        otherDetails: deleteField()
+        otherDetails: {
+          vehiclePrice,
+          paidAmount,
+          duesAmount,
+          fathersName,
+          grandFathersName,
+          customerAltNumber,
+          engineNumber,
+          vehicleNumber,
+          citizenshipNumber,
+          onEmi,
+          emiVehiclePrice,
+          emiDownPayment,
+          emiPeriod,
+          emiInterest,
+          batteryType,
+          batteryBrand,
+          bluetoothId,
+          productId,
+          notes,
+          noOfBattery,
+          serialNumbers,
+          images
+        }
       });
       
       toast.success('Documentation completed successfully!');
@@ -802,9 +824,13 @@ export function ProcessDocument() {
       setNoOfBattery('');
       setSerialNumbers([]);
       setImages({});
-    } catch (error) {
+} catch (error: any) {
       console.error('Error updating document process', error);
-      toast.error('Failed to save document process');
+      if (error?.code === 'not-found') {
+        toast.error('This sale record has been deleted. Cannot save process.');
+      } else {
+        toast.error('Failed to save document process');
+      }
       handleFirestoreError(error, OperationType.UPDATE, `sales/${selectedSale.id}`);
     } finally {
       setLoading(false);
@@ -932,22 +958,22 @@ export function ProcessDocument() {
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
             <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
               <div className="min-w-[700px] flex-1 flex flex-col relative overflow-y-auto">
-                <table className="w-full text-left caption-bottom text-sm border-collapse table-fixed">
+                <table className="w-full text-left caption-bottom text-sm border-collapse">
                   <thead className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#0f172a]/95 backdrop-blur-sm shadow-sm font-black text-slate-500 dark:text-slate-400 text-sm tracking-wider uppercase border-b border-slate-200/60 dark:border-slate-700">
                     <tr>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[120px]" onClick={() => handleSoldSort('date')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('date')}>
                         <div className="flex items-center gap-1">Sale Date <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'date' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[100px]" onClick={() => handleSoldSort('fileNumber')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('fileNumber')}>
                         <div className="flex items-center gap-1">File No. <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[180px]" onClick={() => handleSoldSort('chassisNumber')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('chassisNumber')}>
                         <div className="flex items-center gap-1">Chassis Number <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
                       <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('customerName')}>
                         <div className="flex items-center gap-1">Customer Name <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[150px]" onClick={() => handleSoldSort('contactNumber')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleSoldSort('contactNumber')}>
                         <div className="flex items-center gap-1">Contact Number <ArrowUpDown className={`w-3 h-3 ${soldSortConfig.key === 'contactNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
                     </tr>
@@ -1479,24 +1505,24 @@ export function ProcessDocument() {
           <div className="flex flex-col h-[444px] pt-0 pb-0 animate-in fade-in slide-in-from-bottom-2 duration-300 max-md:mt-[10px] lg:pt-[10px] lg:pb-[10px] flex-1">
             <div className="overflow-x-auto w-full max-md:mt-0 flex-1 flex flex-col h-full">
               <div className="min-w-[800px] flex-1 flex flex-col relative overflow-y-auto">
-                <table className="w-full text-left caption-bottom text-sm border-collapse table-fixed">
+                <table className="w-full text-left caption-bottom text-sm border-collapse">
                   <thead className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#0f172a]/95 backdrop-blur-sm shadow-sm font-black text-slate-500 dark:text-slate-400 text-sm tracking-wider uppercase border-b border-slate-200/60 dark:border-slate-700">
                     <tr>
-                      <TableHead className="px-4 py-[10px] w-[80px]">SN.</TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[120px]" onClick={() => handleCompletedSort('date')}>
+                      <TableHead className="px-4 py-[10px]">SN.</TableHead>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('date')}>
                         <div className="flex items-center gap-1">Sale Date <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'date' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[100px]" onClick={() => handleCompletedSort('fileNumber')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('fileNumber')}>
                         <div className="flex items-center gap-1">File No. <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'fileNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-[180px]" onClick={() => handleCompletedSort('chassisNumber')}>
+                      <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('chassisNumber')}>
                         <div className="flex items-center gap-1">Chassis Details <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'chassisNumber' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
                       <TableHead className="px-4 py-[10px] cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => handleCompletedSort('customerName')}>
                         <div className="flex items-center gap-1">Customer Details <ArrowUpDown className={`w-3 h-3 ${completedSortConfig.key === 'customerName' ? 'text-blue-500' : 'text-slate-400'}`} /></div>
                       </TableHead>
-                      <TableHead className="px-4 py-[10px] w-[140px]">Document Status</TableHead>
-                      <TableHead className="px-4 py-[10px] w-[210px]">Action</TableHead>
+                      <TableHead className="px-4 py-[10px]">Document Status</TableHead>
+                      <TableHead className="px-4 py-[10px]">Action</TableHead>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/60 [&_tr:last-child]:border-0">

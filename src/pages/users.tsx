@@ -166,7 +166,7 @@ export function UserManagement() {
                             onValueChange={(val) => handleRoleChange(u, val as UserRole)}
                             disabled={u.uid === userProfile.uid || u.email === 'husnailalam06@gmail.com'}
                           >
-                            <SelectTrigger className="h-9 w-[180px]">
+                            <SelectTrigger className="h-9">
                               <SelectValue placeholder="Change Role" />
                             </SelectTrigger>
                             <SelectContent>
