@@ -44,11 +44,9 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-lg">
+      <DialogTrigger render={<Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-lg">
           <Plus className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+        </Button>} />
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-black">Add New {type === 'vendor' ? 'Vendor' : 'Customer'}</DialogTitle>
@@ -133,11 +131,9 @@ export function QuickAddVehicle({ onAdded }: { onAdded?: (chassis: string) => vo
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-lg">
+      <DialogTrigger render={<Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-lg">
           <Plus className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+        </Button>} />
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-black">Add New Vehicle</DialogTitle>

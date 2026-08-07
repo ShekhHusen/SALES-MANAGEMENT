@@ -358,14 +358,12 @@ export function Inventory() {
             />
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-[180px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] justify-start text-left font-normal text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border transition-all hover:text-slate-800 dark:hover:text-slate-200">
+            <DropdownMenuTrigger render={<Button variant="outline" className="w-[180px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] justify-start text-left font-normal text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border transition-all hover:text-slate-800 dark:hover:text-slate-200">
                 <Filter className="h-3.5 w-3.5 text-slate-400 mr-2" />
                 {filterStatus.length === 0 ? "All Inventory" : 
                  filterStatus.length === 1 ? (filterStatus[0] === 'ready-to-purchase' ? 'Ready to Purchase' : filterStatus[0] === 'in-stock' ? 'In Stock Units' : 'Sold Units') : 
                  `${filterStatus.length} Selected`}
-              </Button>
-            </DropdownMenuTrigger>
+              </Button>} />
             <DropdownMenuContent className="w-[180px]">
               <DropdownMenuCheckboxItem checked={filterStatus.length === 0} onCheckedChange={() => setFilterStatus([])}>
                 All Inventory
@@ -394,11 +392,9 @@ export function Inventory() {
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm">
+            <DialogTrigger render={<Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm">
                 <Plus className="h-4 w-4 mr-2" /> Add Vehicle
-              </Button>
-            </DialogTrigger>
+              </Button>} />
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black">Add New Vehicle</DialogTitle>
@@ -720,11 +716,9 @@ export function Inventory() {
                   <TableCell className="px-6 py-2.5 text-right">
                     <div className="flex justify-end gap-2">
                       <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 text-slate-500 hover:text-primary hover:bg-primary/5 font-bold text-xs" onClick={() => fetchExtendedDetails(vehicle)}>
+                        <DialogTrigger render={<Button variant="ghost" size="sm" className="h-8 text-slate-500 hover:text-primary hover:bg-primary/5 font-bold text-xs" onClick={() => fetchExtendedDetails(vehicle)}>
                             <Info className="h-3.5 w-3.5 mr-1" /> View Details
-                          </Button>
-                        </DialogTrigger>
+                          </Button>} />
                         <DialogContent showCloseButton={false} className="max-w-5xl xl:max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-0">
                         <div className="p-8 bg-[#0F172A] text-white overflow-hidden relative">
                            <div className="absolute top-0 right-0 p-12 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />

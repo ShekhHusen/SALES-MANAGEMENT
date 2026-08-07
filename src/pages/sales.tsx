@@ -535,8 +535,7 @@ export function Sales() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Customer</label>
                   <div className="flex gap-2 items-center">
                     <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-bold rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 transition-all h-12 flex-1 hover:bg-white dark:hover:bg-slate-900 overflow-hidden">
+                      <PopoverTrigger render={<Button variant="outline" className="justify-start text-left font-bold rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 transition-all h-12 flex-1 hover:bg-white dark:hover:bg-slate-900 overflow-hidden">
                           <div className="flex flex-col truncate w-full pt-1">
                             {selectedCustomer ? (
                               <>
@@ -547,8 +546,7 @@ export function Sales() {
                               <span className="text-slate-500 font-normal">Identify Registered Party</span>
                             )}
                           </div>
-                        </Button>
-                      </PopoverTrigger>
+                        </Button>} />
                       <PopoverContent className="w-[300px] p-2 border-slate-200 dark:border-slate-800 rounded-xl" align="start">
                         <input
                           placeholder="Search customer..."
@@ -682,11 +680,9 @@ export function Sales() {
                   <div className="flex items-center justify-between gap-1.5">
                     Vehicle Details
                     <Popover open={activePopover === 'company'} onOpenChange={(open) => setActivePopover(open ? 'company' : null)}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                      <PopoverTrigger render={<Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
                           <FilterIcon className={`w-3.5 h-3.5 ${(companyFilter !== 'ALL' || modelFilter !== 'ALL' || colorFilter !== 'ALL' || chassisFilter !== '') ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
-                        </Button>
-                      </PopoverTrigger>
+                        </Button>} />
                       <PopoverContent className="w-auto p-0" align="start">
                         <div className="space-y-3 p-3">
                           <div className="space-y-1">

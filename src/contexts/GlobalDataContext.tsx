@@ -54,13 +54,23 @@ const GlobalDataContext = createContext<GlobalDataState>(initialState);
 
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [data, setData] = useState<GlobalDataState>(initialState);
-  const activeListeners = useRef<Set<string>>(new Set());
-
-  const addError = useCallback((msg: string, e: any) => {
+  const addError = useCallback((name: string, err: any) => {
     setData(prev => ({
       ...prev,
-      subscriptionErrors: [...(prev.subscriptionErrors || []), `${msg}: ${e.message || String(e)}`]
+      subscriptionErrors: [...(prev.subscriptionErrors || []), `Failed to load ${name}: ${err?.message || err}`]
     }));
+  }, []);
+
+  const activeListeners = useRef<Set<string>>(new Set());
+  const unsubsRef = useRef<Map<string, () => void>>(new Map());
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      unsubsRef.current.forEach(unsub => unsub());
+      unsubsRef.current.clear();
+      activeListeners.current.clear();
+    };
   }, []);
 
   const setupListener = useCallback((name: string, path: string, mapFunc?: (doc: any) => any, sortFunc?: (a: any, b: any) => number) => {
@@ -76,21 +86,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (mapFunc) docs = docs.map(mapFunc);
         if (sortFunc) docs = docs.sort(sortFunc);
 
-        if (!snapshot.metadata.hasPendingWrites && !isInitialSnapshot) {
-          snapshot.docChanges().forEach(change => {
-            if (change.type === 'added') {
-              const docData = change.doc.data();
-              if (name === 'vehicles') toast.info(`🚗 New vehicle added: Chassis ${change.doc.id}`, { duration: 5000 });
-              else if (name === 'purchases') toast.info(`🧾 New purchase: Invoice #${docData.invoiceNumber || change.doc.id}`, { duration: 5000 });
-              else if (name === 'sales') toast.info(`💰 New sale for Chassis ${docData.chassisNumber || ''}`, { duration: 5000 });
-              else if (name === 'parties') toast.info(`👤 New party: ${docData.name || ''}`, { duration: 5000 });
-            } else if (change.type === 'modified') {
-              if (name === 'vehicles') toast.info(`🔄 Vehicle ${change.doc.id} updated.`, { duration: 4000 });
-              else if (name === 'sales') toast.info(`🔄 Sale status updated.`, { duration: 4000 });
-            }
-          });
-        }
-
         isInitialSnapshot = false;
 
         setData(prev => ({
@@ -103,6 +98,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addError(name.toUpperCase(), err);
         setData(prev => ({ ...prev, [`is${name.charAt(0).toUpperCase() + name.slice(1)}Loaded`]: true }));
       });
+      unsubsRef.current.set(name, unsub);
       return unsub;
     } catch (err) {
       console.error(`Failed to setup subscription for ${name}:`, err);

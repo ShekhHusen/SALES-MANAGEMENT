@@ -76,6 +76,11 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn();
     }
 
+    match /emis/{emiId} { // Trigger reload
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
     match /otherDetails/{docId} {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();

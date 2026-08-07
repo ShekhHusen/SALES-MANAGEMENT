@@ -773,11 +773,9 @@ export function Purchases() {
                   <div className="flex items-center justify-between gap-1.5">
                     Party Name
                     <Popover open={activePopover === 'vendor'} onOpenChange={(open) => setActivePopover(open ? 'vendor' : null)}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                      <PopoverTrigger render={<Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
                           <FilterIcon className={`w-3.5 h-3.5 ${vendorFilter !== 'ALL' ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
-                        </Button>
-                      </PopoverTrigger>
+                        </Button>} />
                       <PopoverContent className="w-auto p-0" align="start">
                         <div className="space-y-1 p-3">
                           <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-1">Vendor</label>
@@ -807,11 +805,9 @@ export function Purchases() {
                   <div className="flex items-center justify-between gap-1.5">
                     Vehicle Details
                     <Popover open={activePopover === 'company'} onOpenChange={(open) => setActivePopover(open ? 'company' : null)}>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
+                      <PopoverTrigger render={<Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-slate-200/50 -mr-2">
                           <FilterIcon className={`w-3.5 h-3.5 ${chassisFilter !== '' ? 'text-blue-600 fill-blue-600/20' : 'text-slate-500'}`} />
-                        </Button>
-                      </PopoverTrigger>
+                        </Button>} />
                       <PopoverContent className="w-auto p-0" align="start">
                         <div className="space-y-3 p-3">
                           <div className="space-y-1">

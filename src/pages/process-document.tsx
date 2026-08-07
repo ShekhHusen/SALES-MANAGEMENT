@@ -6,7 +6,8 @@ import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash,
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, deleteField, addDoc, serverTimestamp } from '@/lib/trackedFirestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, addDoc } from '@/lib/trackedFirestore';
+import { deleteField, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
@@ -755,48 +756,40 @@ export function ProcessDocument() {
     try {
       if (onEmi) {
         const loanAmount = Number(emiVehiclePrice) - Number(emiDownPayment);
-        await addDoc(collection(db, 'emis'), {
-          saleId: selectedSale.id,
-          chassisNumber: selectedSale.chassisNumber,
-          customerId: selectedSale.customerId,
-          customerName: customers.find(c => c.id === selectedSale.customerId)?.name || '',
-          customerContact: customers.find(c => c.id === selectedSale.customerId)?.contactNumber || '',
-          loanAmount: loanAmount || 0,
-          interestRate: Number(emiInterest) || 0,
-          periodMonths: Number(emiPeriod) || 0,
-          emiVehiclePrice: Number(emiVehiclePrice) || 0,
-          emiDownPayment: Number(emiDownPayment) || 0,
-          createdAt: serverTimestamp(),
-        });
+        try {
+          await addDoc(collection(db, 'emis'), {
+            saleId: selectedSale.id,
+            chassisNumber: selectedSale.chassisNumber,
+            customerId: selectedSale.customerId,
+            customerName: customers.find(c => c.id === selectedSale.customerId)?.name || '',
+            customerContact: customers.find(c => c.id === selectedSale.customerId)?.contactNumber || '',
+            fileNumber: selectedSale.fileNumber || '',
+            saleDate: selectedSale.date || null,
+            loanAmount: loanAmount || 0,
+            interestRate: Number(emiInterest) || 0,
+            periodMonths: Number(emiPeriod) || 0,
+            emiVehiclePrice: Number(emiVehiclePrice) || 0,
+            emiDownPayment: Number(emiDownPayment) || 0,
+            createdAt: serverTimestamp(),
+          });
+        } catch (e: any) {
+          console.error("Error creating EMI:", e);
+          handleFirestoreError(e, OperationType.CREATE, `emis`);
+          throw e; // stop execution
+        }
       }
 
-      await updateDoc(doc(db, 'sales', selectedSale.id), {
-        documentationCompleted: true,
-        otherDetails: {
-          vehiclePrice,
-          paidAmount,
-          duesAmount,
-          fathersName,
-          grandFathersName,
-          customerAltNumber,
-          engineNumber,
-          vehicleNumber,
-          citizenshipNumber,
-          onEmi,
-          emiVehiclePrice,
-          emiDownPayment,
-          emiPeriod,
-          emiInterest,
-          batteryType,
-          batteryBrand,
-          bluetoothId,
-          productId,
-          notes,
-          noOfBattery,
-          serialNumbers,
-          images
-        }
-      });
+// Complete document process without saving otherDetails/documents to DB
+      try {
+        await updateDoc(doc(db, 'sales', selectedSale.id), {
+          documentationCompleted: true,
+          otherDetails: deleteField()
+        });
+      } catch(e: any) {
+        console.error("Error updating sale:", e);
+        handleFirestoreError(e, OperationType.UPDATE, `sales/${selectedSale.id}`);
+        throw e;
+      }
       
       toast.success('Documentation completed successfully!');
       setUnlockedTabs({ sold_vehicle: true, others_details: false, documents: false, completed: true });
@@ -831,7 +824,6 @@ export function ProcessDocument() {
       } else {
         toast.error('Failed to save document process');
       }
-      handleFirestoreError(error, OperationType.UPDATE, `sales/${selectedSale.id}`);
     } finally {
       setLoading(false);
     }
