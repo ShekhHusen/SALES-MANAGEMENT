@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
@@ -35,6 +36,8 @@ interface EmiRecord {
 export function EmiManagement() {
   const [emis, setEmis] = useState<EmiRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [emiMonthFilter, setEmiMonthFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const handleSavePayment = async () => {
     if (!selectedEmiForView || !paymentEmiDetail) return;
     setIsSavingPayment(true);
@@ -220,13 +223,73 @@ export function EmiManagement() {
     return () => unsubscribe();
   }, []);
 
-  const filteredEmis = emis.filter(emi => {
+  const enhancedEmis = emis.map(emi => {
+    const createdAtDate = emi.saleDate ? new Date(emi.saleDate.seconds * 1000) : (emi.createdAt ? new Date(emi.createdAt.seconds * 1000) : new Date());
+    const now = new Date();
+    
+    let monthsPassed = (now.getFullYear() - createdAtDate.getFullYear()) * 12 + now.getMonth() - createdAtDate.getMonth();
+    if (now.getDate() < createdAtDate.getDate()) {
+      monthsPassed--;
+    }
+    if (monthsPassed < 0) monthsPassed = 0;
+
+    const paidEmisCount = emi.paidEmis || 0;
+    let overdueEmisCount = monthsPassed - paidEmisCount;
+    if (overdueEmisCount < 0) overdueEmisCount = 0;
+    
+    let remainingEmisCount = emi.periodMonths - paidEmisCount - overdueEmisCount;
+    if (remainingEmisCount < 0) remainingEmisCount = 0;
+
+    const principal = emi.loanAmount || 0;
+    const rate = emi.interestRate || 0;
+    const monthlyRate = rate / 12 / 100;
+    const months = emi.periodMonths || 0;
+    const monthlyEmi = months > 0 
+      ? (rate === 0 ? principal / months : (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1))
+      : 0;
+
+    const pendingEmiSum = overdueEmisCount * monthlyEmi;
+
+    const nextEmiDate = new Date(createdAtDate);
+    nextEmiDate.setMonth(nextEmiDate.getMonth() + paidEmisCount + overdueEmisCount + 1);
+
+    const isCompleted = paidEmisCount >= months;
+
+    return {
+      ...emi,
+      overdueEmisCount,
+      remainingEmisCount,
+      pendingEmiSum,
+      nextEmiDate,
+      monthlyEmi,
+      isCompleted
+    };
+  });
+
+  const filteredEmis = enhancedEmis.filter(emi => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       (emi.customerName || '').toLowerCase().includes(searchLower) ||
       (emi.chassisNumber || '').toLowerCase().includes(searchLower) ||
       (emi.customerContact || '').toLowerCase().includes(searchLower)
     );
+
+    let matchesMonth = true;
+    if (emiMonthFilter && !emi.isCompleted) {
+      const filterDate = new Date(emiMonthFilter + '-01');
+      matchesMonth = emi.nextEmiDate.getFullYear() === filterDate.getFullYear() && emi.nextEmiDate.getMonth() === filterDate.getMonth();
+    }
+
+    let matchesStatus = true;
+    if (statusFilter === 'overdue') {
+      matchesStatus = emi.overdueEmisCount > 0;
+    } else if (statusFilter === 'pending') {
+      matchesStatus = emi.remainingEmisCount > 0 || emi.overdueEmisCount > 0;
+    } else if (statusFilter === 'completed') {
+      matchesStatus = emi.isCompleted;
+    }
+
+    return matchesSearch && matchesMonth && matchesStatus;
   });
 
   return (
@@ -240,14 +303,38 @@ export function EmiManagement() {
 
       <Card className="flex-1 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
-              placeholder="Search by customer name, chassis or contact..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
-            />
+          <div className="flex flex-wrap gap-4 items-center flex-1">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input 
+                placeholder="Search customer, chassis..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
+              />
+            </div>
+            <div className="w-full max-w-[180px]">
+              <Input 
+                type="month"
+                value={emiMonthFilter}
+                onChange={(e) => setEmiMonthFilter(e.target.value)}
+                className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
+                title="Filter by Coming EMI Month"
+              />
+            </div>
+            <div className="w-full max-w-[160px]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner h-10">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl">
             <Calculator className="w-4 h-4" />
@@ -293,34 +380,8 @@ export function EmiManagement() {
                 </TableRow>
               ) : (
                 filteredEmis.map((emi) => {
-                  const createdAtDate = emi.saleDate ? new Date(emi.saleDate.seconds * 1000) : (emi.createdAt ? new Date(emi.createdAt.seconds * 1000) : new Date());
-                  const now = new Date();
-                  
-                  let monthsPassed = (now.getFullYear() - createdAtDate.getFullYear()) * 12 + now.getMonth() - createdAtDate.getMonth();
-                  if (now.getDate() < createdAtDate.getDate()) {
-                    monthsPassed--;
-                  }
-                  if (monthsPassed < 0) monthsPassed = 0;
-
+                  const { overdueEmisCount, remainingEmisCount, pendingEmiSum, nextEmiDate, monthlyEmi, isCompleted } = emi;
                   const paidEmisCount = emi.paidEmis || 0;
-                  let overdueEmisCount = monthsPassed - paidEmisCount;
-                  if (overdueEmisCount < 0) overdueEmisCount = 0;
-                  
-                  let remainingEmisCount = emi.periodMonths - paidEmisCount - overdueEmisCount;
-                  if (remainingEmisCount < 0) remainingEmisCount = 0;
-
-                  const principal = emi.loanAmount || 0;
-                  const rate = emi.interestRate || 0;
-                  const monthlyRate = rate / 12 / 100;
-                  const months = emi.periodMonths || 0;
-                  const monthlyEmi = months > 0 
-                    ? (rate === 0 ? principal / months : (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1))
-                    : 0;
-
-                  const pendingEmiSum = overdueEmisCount * monthlyEmi;
-
-                  const nextEmiDate = new Date(createdAtDate);
-                  nextEmiDate.setMonth(nextEmiDate.getMonth() + paidEmisCount + overdueEmisCount + 1);
 
                   return (
                     <TableRow key={emi.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-slate-100 dark:border-slate-800 transition-colors">
