@@ -130,15 +130,15 @@ export function EmiManagement() {
       
       const paymentRecord = emiPaymentsList.find(p => p.emiNo === emiNo);
       const paymentDateStr = paymentRecord?.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : '';
-      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / ₹${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
+      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
 
       tableRows += `
         <tr>
           <td style="border: 1px solid black; padding: 8px; text-align: center;">${emiNo}</td>
           <td style="border: 1px solid black; padding: 8px;">${emiDate.toLocaleDateString('en-GB')}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">₹${Math.round(principalForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">₹${Math.round(interestForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">₹${Math.round(balance).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(principalForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(interestForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(balance).toLocaleString()}</td>
           <td style="border: 1px solid black; padding: 8px;">${paymentInfo}</td>
         </tr>
       `;
@@ -168,11 +168,11 @@ export function EmiManagement() {
               <div class="details-row"><div class="details-label">Chassis Number:</div><div>${selectedEmiForView.chassisNumber || '---'}</div></div>
             </div>
             <div class="details-col">
-              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>₹${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
-              <div class="details-row"><div class="details-label">Down Payment:</div><div>₹${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>रु${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Down Payment:</div><div>रु${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
               <div class="details-row"><div class="details-label">Interest Rate:</div><div>${selectedEmiForView.interestRate}%</div></div>
               <div class="details-row"><div class="details-label">Period:</div><div>${selectedEmiForView.periodMonths} Months</div></div>
-              <div class="details-row"><div class="details-label">Loan Amount:</div><div>₹${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Loan Amount:</div><div>रु${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
             </div>
           </div>
           <table>
@@ -337,16 +337,16 @@ export function EmiManagement() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {emi.loanAmount ? `₹${emi.loanAmount.toLocaleString()}` : '---'}
+                        {emi.loanAmount ? `रु${emi.loanAmount.toLocaleString()}` : '---'}
                       </TableCell>
                       <TableCell className="text-right font-bold text-indigo-600 dark:text-indigo-400">
-                        ₹{Math.round(monthlyEmi).toLocaleString()}
+                        रु{Math.round(monthlyEmi).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-center font-medium text-slate-700 dark:text-slate-300">
                         {nextEmiDate.toLocaleDateString('en-GB')}
                       </TableCell>
                       <TableCell className="text-right font-medium text-red-500">
-                        ₹{pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        रु{pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1.5">
@@ -434,15 +434,15 @@ export function EmiManagement() {
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Vehicle Price</p>
-                        <p className="font-medium font-mono text-emerald-600">₹{(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-emerald-600">रु{(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Down Payment</p>
-                        <p className="font-medium font-mono text-blue-600">₹{(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-blue-600">रु{(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Loan Amount</p>
-                        <p className="font-medium font-mono text-purple-600">₹{(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-purple-600">रु{(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
@@ -539,16 +539,16 @@ export function EmiManagement() {
                                     {emiDate.toLocaleDateString('en-GB')}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-blue-600 dark:text-blue-400">
-                                    ₹{Math.round(principalForMonth).toLocaleString()}
+                                    रु{Math.round(principalForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-orange-500">
-                                    ₹{Math.round(interestForMonth).toLocaleString()}
+                                    रु{Math.round(interestForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-slate-700 dark:text-slate-300">
-                                    ₹{Math.round(remainingBalance).toLocaleString()}
+                                    रु{Math.round(remainingBalance).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-emerald-600 dark:text-emerald-400 text-xs">
-                                    {paymentRecord ? `${paymentRecord.receiptNumber} / ₹${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
+                                    {paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -602,11 +602,11 @@ export function EmiManagement() {
               <div className="mt-2 bg-slate-50 dark:bg-slate-900 rounded-lg p-4 grid grid-cols-2 gap-4 text-sm border border-slate-100 dark:border-slate-800">
                 <div>
                   <p className="text-slate-500 mb-1">Pending Principal</p>
-                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">₹{Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">रु{Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-slate-500 mb-1">Pending Interest</p>
-                  <p className="font-mono font-medium text-orange-500">₹{Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-orange-500">रु{Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
                 </div>
               </div>
             )}
