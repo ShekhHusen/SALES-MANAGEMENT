@@ -28,6 +28,7 @@ export interface UserProfile {
   role: UserRole;
   createdAt: any;
   hasSetPassword?: boolean;
+  allowedTabs?: string[];
 }
 
 interface AuthContextType {

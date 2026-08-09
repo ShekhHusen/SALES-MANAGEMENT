@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Layout } from '@/components/layout';
@@ -21,6 +22,39 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/hooks/use-theme';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
+
+import { ShieldAlert } from 'lucide-react';
+
+function TabGuard({ path, children }: { path: string; children: React.ReactNode }) {
+  const { userProfile } = useAuth();
+  const currentRole = userProfile?.role || 'user';
+
+  if (currentRole === 'admin' && (path === '/users' || path === '/')) {
+    return <>{children}</>;
+  }
+
+  if (userProfile?.allowedTabs && Array.isArray(userProfile.allowedTabs)) {
+    const isAllowed = userProfile.allowedTabs.includes(path);
+    if (!isAllowed) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 flex items-center justify-center mb-4">
+            <ShieldAlert className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Tab Access Restricted</h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md text-sm mb-6">
+            You do not have permission to view this tab. Please contact your administrator to request access.
+          </p>
+          <a href="/" className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition-colors">
+            Return to Dashboard
+          </a>
+        </div>
+      );
+    }
+  }
+
+  return <>{children}</>;
+}
 
 function AppRoutes() {
   const { user, loading, userProfile, logout } = useAuth();
@@ -61,16 +95,16 @@ function AppRoutes() {
     <GlobalDataProvider>
       <Layout>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/parties" element={<Parties />} />
-          <Route path="/purchases" element={<Purchases />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/process-document" element={<ProcessDocument />} />
-          <Route path="/emi-management" element={<EmiManagement />} />
-          <Route path="/quotation" element={<Quotation />} />
-          <Route path="/users" element={<UserManagement />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/" element={<TabGuard path="/"><Dashboard /></TabGuard>} />
+          <Route path="/inventory" element={<TabGuard path="/inventory"><Inventory /></TabGuard>} />
+          <Route path="/parties" element={<TabGuard path="/parties"><Parties /></TabGuard>} />
+          <Route path="/purchases" element={<TabGuard path="/purchases"><Purchases /></TabGuard>} />
+          <Route path="/sales" element={<TabGuard path="/sales"><Sales /></TabGuard>} />
+          <Route path="/process-document" element={<TabGuard path="/process-document"><ProcessDocument /></TabGuard>} />
+          <Route path="/emi-management" element={<TabGuard path="/emi-management"><EmiManagement /></TabGuard>} />
+          <Route path="/quotation" element={<TabGuard path="/quotation"><Quotation /></TabGuard>} />
+          <Route path="/users" element={<TabGuard path="/users"><UserManagement /></TabGuard>} />
+          <Route path="/settings" element={<TabGuard path="/settings"><Settings /></TabGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

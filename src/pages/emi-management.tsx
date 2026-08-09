@@ -14,6 +14,7 @@ import { updateDoc, doc, addDoc } from '@/lib/trackedFirestore';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 interface EmiRecord {
   id: string;
@@ -22,6 +23,7 @@ interface EmiRecord {
   customerId: string;
   customerName: string;
   customerContact: string;
+  customerAddress?: string;
   loanAmount: number;
   interestRate: number;
   periodMonths: number;
@@ -34,7 +36,13 @@ interface EmiRecord {
 }
 
 export function EmiManagement() {
+  const { parties, loadParties } = useGlobalData();
   const [emis, setEmis] = useState<EmiRecord[]>([]);
+
+  useEffect(() => {
+    loadParties();
+  }, [loadParties]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [emiMonthFilter, setEmiMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -147,6 +155,9 @@ export function EmiManagement() {
       `;
     }
 
+    const party = parties.find(p => p.id === selectedEmiForView.customerId || p.name === selectedEmiForView.customerName);
+    const customerAddress = selectedEmiForView.customerAddress || party?.address || '---';
+
     const printContent = `
       <html>
         <head>
@@ -168,6 +179,7 @@ export function EmiManagement() {
             <div class="details-col">
               <div class="details-row"><div class="details-label">Customer Name:</div><div>${selectedEmiForView.customerName || '---'}</div></div>
               <div class="details-row"><div class="details-label">Mobile Number:</div><div>${selectedEmiForView.customerContact || '---'}</div></div>
+              <div class="details-row"><div class="details-label">Address:</div><div>${customerAddress}</div></div>
               <div class="details-row"><div class="details-label">Chassis Number:</div><div>${selectedEmiForView.chassisNumber || '---'}</div></div>
             </div>
             <div class="details-col">
@@ -176,6 +188,7 @@ export function EmiManagement() {
               <div class="details-row"><div class="details-label">Interest Rate:</div><div>${selectedEmiForView.interestRate}%</div></div>
               <div class="details-row"><div class="details-label">Period:</div><div>${selectedEmiForView.periodMonths} Months</div></div>
               <div class="details-row"><div class="details-label">Loan Amount:</div><div>रु${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Monthly EMI:</div><div>रु${Math.round(monthlyEmi).toLocaleString()}</div></div>
             </div>
           </div>
           <table>
@@ -478,6 +491,10 @@ export function EmiManagement() {
                         <p className="text-slate-500 mb-1">Contact</p>
                         <p className="font-medium">{selectedEmiForView.customerContact || '---'}</p>
                       </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className="text-slate-500 mb-1">Address</p>
+                        <p className="font-medium">{selectedEmiForView.customerAddress || parties.find(p => p.id === selectedEmiForView.customerId || p.name === selectedEmiForView.customerName)?.address || '---'}</p>
+                      </div>
                     </div>
                   </div>
 
@@ -504,6 +521,18 @@ export function EmiManagement() {
                       <div>
                         <p className="text-slate-500 mb-1">Loan Amount</p>
                         <p className="font-medium font-mono text-purple-600">रु{(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 mb-1">Monthly EMI</p>
+                        <p className="font-medium font-mono text-indigo-600">
+                          रु{Math.round(
+                            selectedEmiForView.periodMonths > 0
+                              ? (selectedEmiForView.interestRate === 0
+                                  ? (selectedEmiForView.loanAmount || 0) / selectedEmiForView.periodMonths
+                                  : ((selectedEmiForView.loanAmount || 0) * (selectedEmiForView.interestRate / 12 / 100) * Math.pow(1 + (selectedEmiForView.interestRate / 12 / 100), selectedEmiForView.periodMonths)) / (Math.pow(1 + (selectedEmiForView.interestRate / 12 / 100), selectedEmiForView.periodMonths) - 1))
+                              : 0
+                          ).toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   </div>

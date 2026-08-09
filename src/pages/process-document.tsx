@@ -763,6 +763,7 @@ export function ProcessDocument() {
             customerId: selectedSale.customerId,
             customerName: customers.find(c => c.id === selectedSale.customerId)?.name || '',
             customerContact: customers.find(c => c.id === selectedSale.customerId)?.contactNumber || '',
+            customerAddress: customers.find(c => c.id === selectedSale.customerId)?.address || '',
             fileNumber: selectedSale.fileNumber || '',
             saleDate: selectedSale.date || null,
             loanAmount: loanAmount || 0,
