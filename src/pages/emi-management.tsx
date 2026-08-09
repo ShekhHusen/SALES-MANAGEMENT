@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer } from 'lucide-react';
+import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,12 @@ export function EmiManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [emiMonthFilter, setEmiMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, emiMonthFilter, statusFilter, pageSize]);
   const handleSavePayment = async () => {
     if (!selectedEmiForView || !paymentEmiDetail) return;
     setIsSavingPayment(true);
@@ -305,39 +311,42 @@ export function EmiManagement() {
     return matchesSearch && matchesMonth && matchesStatus;
   });
 
+  const totalPages = Math.ceil(filteredEmis.length / pageSize) || 1;
+  const paginatedEmis = filteredEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] lg:h-screen w-full max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-300 px-4 md:px-6 lg:px-8 py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] lg:h-screen w-full max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">EMI Management</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and view customer EMI details.</p>
         </div>
       </div>
 
-      <Card className="flex-1 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-wrap gap-4 items-center flex-1">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input 
-                placeholder="Search customer, chassis..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
-              />
-            </div>
-            <div className="w-full max-w-[180px]">
+      <Card className="flex-1 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl sm:py-0">
+        <div className="p-3 sm:p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col lg:flex-row gap-2 items-stretch lg:items-center justify-between">
+          <div className="relative w-full sm:max-w-xs md:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input 
+              placeholder="Search customer, chassis..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner w-full text-xs sm:text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3 items-center w-full lg:w-auto">
+            <div className="w-full sm:w-[160px]">
               <Input 
                 type="month"
                 value={emiMonthFilter}
                 onChange={(e) => setEmiMonthFilter(e.target.value)}
-                className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
+                className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner w-full text-xs sm:text-sm px-1.5 sm:px-3 h-10"
                 title="Filter by Coming EMI Month"
               />
             </div>
-            <div className="w-full max-w-[160px]">
+            <div className="w-full sm:w-[150px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner h-10">
+                <SelectTrigger className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner h-10 w-full text-xs sm:text-sm px-1.5 sm:px-3">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -348,14 +357,14 @@ export function EmiManagement() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl">
-            <Calculator className="w-4 h-4" />
-            <span>Total EMIs: {filteredEmis.length}</span>
+            <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1 sm:px-4 h-10 rounded-xl w-full border border-emerald-100 dark:border-emerald-900/30">
+              <Calculator className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="truncate">Total: {filteredEmis.length}</span>
+            </div>
           </div>
         </div>
 
-        <CardContent className="flex-1 p-0 overflow-auto mx-4 md:mx-6 mb-6">
+        <CardContent className="flex-1 p-0 overflow-auto mx-4 md:mx-6 mb-0">
           <Table className="w-full whitespace-nowrap">
             <TableHeader className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
               <TableRow className="border-none">
@@ -392,7 +401,7 @@ export function EmiManagement() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEmis.map((emi) => {
+                paginatedEmis.map((emi) => {
                   const { overdueEmisCount, remainingEmisCount, pendingEmiSum, nextEmiDate, monthlyEmi, isCompleted } = emi;
                   const paidEmisCount = emi.paidEmis || 0;
 
@@ -445,6 +454,55 @@ export function EmiManagement() {
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Pagination Footer */}
+        <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 text-slate-500 font-medium">
+            <span>Rows:</span>
+            <Select value={String(pageSize)} onValueChange={(val) => setPageSize(Number(val))}>
+              <SelectTrigger className="w-16 h-8 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border-none shadow-inner px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-slate-600 dark:text-slate-400 font-semibold ml-1">
+              {filteredEmis.length > 0 
+                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, filteredEmis.length)} / ${filteredEmis.length}`
+                : '0 / 0'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 rounded-lg border-slate-200 dark:border-slate-800 text-xs"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+            <span className="px-2 font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 rounded-lg border-slate-200 dark:border-slate-800 text-xs"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-3.5 h-3.5 sm:ml-1" />
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <Dialog open={!!selectedEmiForView} onOpenChange={(open) => !open && setSelectedEmiForView(null)}>
