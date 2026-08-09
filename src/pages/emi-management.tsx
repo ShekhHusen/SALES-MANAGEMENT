@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { updateDoc, doc, addDoc } from '@/lib/trackedFirestore';
+import { Textarea } from '@/components/ui/textarea';
+import { updateDoc, doc, addDoc, deleteDoc } from '@/lib/trackedFirestore';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -104,6 +105,71 @@ export function EmiManagement() {
       setEmiPaymentsList([]);
     }
   }, [selectedEmiForView]);
+
+  const [selectedEmiForFollowUp, setSelectedEmiForFollowUp] = useState<EmiRecord | null>(null);
+  const [followUpsList, setFollowUpsList] = useState<any[]>([]);
+  const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [followUpRecentDate, setFollowUpRecentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+  const [followUpNextDate, setFollowUpNextDate] = useState('');
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+
+  useEffect(() => {
+    if (selectedEmiForFollowUp) {
+      const q = query(collection(db, 'emiFollowUps'), where('emiId', '==', selectedEmiForFollowUp.id));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        list.sort((a: any, b: any) => {
+          const tA = a.createdAt?.seconds || 0;
+          const tB = b.createdAt?.seconds || 0;
+          return tB - tA;
+        });
+        setFollowUpsList(list);
+      }, (err) => {
+        console.error('Follow-ups snapshot error:', err);
+      });
+      return () => unsubscribe();
+    } else {
+      setFollowUpsList([]);
+    }
+  }, [selectedEmiForFollowUp]);
+
+  const handleSaveFollowUp = async () => {
+    if (!selectedEmiForFollowUp) return;
+    if (!followUpRemarks.trim()) {
+      toast.error('Please enter remarks');
+      return;
+    }
+    setIsSavingFollowUp(true);
+    try {
+      await addDoc(collection(db, 'emiFollowUps'), {
+        emiId: selectedEmiForFollowUp.id,
+        recentDate: followUpRecentDate,
+        remarks: followUpRemarks.trim(),
+        nextDate: followUpNextDate,
+        createdAt: new Date()
+      });
+      toast.success('Follow up saved successfully');
+      setIsAddFollowUpOpen(false);
+      setFollowUpRemarks('');
+      setFollowUpNextDate('');
+    } catch (error) {
+      console.error('Error saving follow up', error);
+      toast.error('Failed to save follow up');
+    } finally {
+      setIsSavingFollowUp(false);
+    }
+  };
+
+  const handleDeleteFollowUp = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'emiFollowUps', id));
+      toast.success('Follow up deleted');
+    } catch (error) {
+      console.error('Error deleting follow up', error);
+      toast.error('Failed to delete follow up');
+    }
+  };
 
   const handlePrint = () => {
     if (!selectedEmiForView) return;
@@ -315,14 +381,14 @@ export function EmiManagement() {
   const paginatedEmis = filteredEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.16)-5vh)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-2">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1 shrink-0">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">EMI Management</h1>
         </div>
       </div>
 
-      <Card className="flex-1 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl sm:py-0">
+      <Card className="flex-1 min-h-0 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl sm:py-0">
         <div className="p-3 sm:p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col lg:flex-row gap-2 items-stretch lg:items-center justify-between">
           <div className="relative w-full sm:max-w-xs md:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -364,7 +430,7 @@ export function EmiManagement() {
           </div>
         </div>
 
-        <CardContent className="flex-1 p-0 overflow-auto mx-4 md:mx-6 mb-0">
+        <CardContent className="flex-1 min-h-0 p-0 overflow-auto mx-2 md:mx-6 mb-0">
           <Table className="w-full whitespace-nowrap">
             <TableHeader className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
               <TableRow className="border-none">
@@ -408,7 +474,18 @@ export function EmiManagement() {
                   return (
                     <TableRow key={emi.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-slate-100 dark:border-slate-800 transition-colors">
                       <TableCell className="text-center w-px">
-                        <Button variant="outline" size="sm" className="h-8" onClick={() => setSelectedEmiForView(emi)}>View</Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="outline" size="sm" className="h-8 text-xs px-2" onClick={() => setSelectedEmiForView(emi)}>View</Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 shrink-0" 
+                            title="Follow up History"
+                            onClick={() => setSelectedEmiForFollowUp(emi)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="font-bold text-blue-600 dark:text-blue-400 w-px text-center">
                         {emi.fileNumber ? `#${emi.fileNumber}` : '---'}
@@ -509,27 +586,39 @@ export function EmiManagement() {
         <DialogContent className="w-full sm:max-w-3xl lg:max-w-4xl p-0 flex flex-col bg-slate-50 dark:bg-slate-900 max-h-[90vh]">
           {selectedEmiForView && (
             <>
-              <DialogHeader className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm z-10">
-                <div className="flex justify-between items-start w-full pr-8">
-                <DialogTitle className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold">EMI Details</span>
-                    {selectedEmiForView.fileNumber && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800">
-                        #{selectedEmiForView.fileNumber}
-                      </Badge>
-                    )}
+              <DialogHeader className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm z-10">
+                <div className="flex justify-between items-start w-full">
+                  <DialogTitle className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg sm:text-xl font-bold">EMI Details</span>
+                      {selectedEmiForView.fileNumber && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                          #{selectedEmiForView.fileNumber}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-normal text-slate-500 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Sale Date: {selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---')}
+                    </span>
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 h-9 px-3">
+                      <Printer className="w-4 h-4" />
+                      Print
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedEmiForView(null)}
+                      className="h-9 w-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      title="Close"
+                    >
+                      <X className="w-5 h-5" />
+                      <span className="sr-only">Close</span>
+                    </Button>
                   </div>
-                  <span className="text-sm font-normal text-slate-500 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Sale Date: {selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---')}
-                  </span>
-                </DialogTitle>
-                <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 shrink-0">
-                  <Printer className="w-4 h-4" />
-                  Print
-                </Button>
-              </div>
+                </div>
               </DialogHeader>
               <div className="flex-1 p-6 overflow-y-auto">
                 <div className="space-y-6">
@@ -763,6 +852,151 @@ export function EmiManagement() {
             <Button variant="outline" onClick={() => setPaymentEmiDetail(null)}>Cancel</Button>
             <Button onClick={handleSavePayment} disabled={isSavingPayment || !paymentAmount}>
               {isSavingPayment ? 'Saving...' : 'Save Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Follow up History Dialog */}
+      <Dialog open={!!selectedEmiForFollowUp} onOpenChange={(open) => !open && setSelectedEmiForFollowUp(null)}>
+        <DialogContent className="w-full sm:max-w-2xl p-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden max-h-[85vh]">
+          {selectedEmiForFollowUp && (
+            <>
+              <DialogHeader className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                      <span>Follow up History</span>
+                      {selectedEmiForFollowUp.fileNumber && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-xs">
+                          #{selectedEmiForFollowUp.fileNumber}
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customer: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedEmiForFollowUp.customerName}</span> ({selectedEmiForFollowUp.customerContact || '---'})
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs gap-1"
+                      onClick={() => {
+                        setFollowUpRecentDate(new Date().toISOString().split('T')[0]);
+                        setFollowUpRemarks('');
+                        setFollowUpNextDate('');
+                        setIsAddFollowUpOpen(true);
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Follow up
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedEmiForFollowUp(null)}
+                      className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="p-4 overflow-y-auto flex-1 min-h-[220px]">
+                {followUpsList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                    <p className="text-sm font-medium">No follow up history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Click "Add Follow up" to create a new record.</p>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                        <TableRow>
+                          <TableHead className="font-bold text-xs">Recent Date</TableHead>
+                          <TableHead className="font-bold text-xs">Remarks</TableHead>
+                          <TableHead className="font-bold text-xs">Next Date</TableHead>
+                          <TableHead className="font-bold text-xs text-right w-12">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {followUpsList.map((item) => (
+                          <TableRow key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                            <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              {item.recentDate ? new Date(item.recentDate).toLocaleDateString('en-GB') : '---'}
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-w-[250px]">
+                              {item.remarks || '---'}
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                              {item.nextDate ? new Date(item.nextDate).toLocaleDateString('en-GB') : '---'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                onClick={() => handleDeleteFollowUp(item.id)}
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Follow up Dialog */}
+      <Dialog open={isAddFollowUpOpen} onOpenChange={setIsAddFollowUpOpen}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Add New Follow up</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Recent Date</Label>
+              <Input 
+                type="date" 
+                value={followUpRecentDate} 
+                onChange={(e) => setFollowUpRecentDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Remarks</Label>
+              <Textarea 
+                placeholder="Enter remarks or customer conversation details..."
+                value={followUpRemarks}
+                onChange={(e) => setFollowUpRemarks(e.target.value)}
+                rows={3}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Next Date</Label>
+              <Input 
+                type="date" 
+                value={followUpNextDate} 
+                onChange={(e) => setFollowUpNextDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-row justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddFollowUpOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSavingFollowUp} onClick={handleSaveFollowUp}>
+              {isSavingFollowUp ? 'Saving...' : 'Save Follow up'}
             </Button>
           </DialogFooter>
         </DialogContent>
