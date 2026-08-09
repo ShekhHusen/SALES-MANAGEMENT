@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2 } from 'lucide-react';
+import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -49,10 +49,37 @@ export function EmiManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [sortField, setSortField] = useState<'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, emiMonthFilter, statusFilter, pageSize]);
+  }, [searchQuery, emiMonthFilter, statusFilter, pageSize, sortField, sortOrder]);
+
+  const handleSort = (field: 'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status') => {
+    if (sortField === field) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else {
+        setSortField(null);
+        setSortOrder('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (field: 'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60 ml-1 shrink-0 inline-block" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold ml-1 shrink-0 inline-block" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold ml-1 shrink-0 inline-block" />
+    );
+  };
   const handleSavePayment = async () => {
     if (!selectedEmiForView || !paymentEmiDetail) return;
     setIsSavingPayment(true);
@@ -171,6 +198,15 @@ export function EmiManagement() {
     }
   };
 
+  const formatDateYYYYMonDD = (d: Date | null | undefined) => {
+    if (!d || isNaN(d.getTime())) return '---';
+    const year = d.getFullYear();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handlePrint = () => {
     if (!selectedEmiForView) return;
 
@@ -213,15 +249,15 @@ export function EmiManagement() {
       
       const paymentRecord = emiPaymentsList.find(p => p.emiNo === emiNo);
       const paymentDateStr = paymentRecord?.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : '';
-      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
+      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / Rs. ${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
 
       tableRows += `
         <tr>
           <td style="border: 1px solid black; padding: 8px; text-align: center;">${emiNo}</td>
           <td style="border: 1px solid black; padding: 8px;">${emiDate.toLocaleDateString('en-GB')}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(principalForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(interestForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(balance).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(principalForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(interestForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(balance).toLocaleString()}</td>
           <td style="border: 1px solid black; padding: 8px;">${paymentInfo}</td>
         </tr>
       `;
@@ -255,12 +291,12 @@ export function EmiManagement() {
               <div class="details-row"><div class="details-label">Chassis Number:</div><div>${selectedEmiForView.chassisNumber || '---'}</div></div>
             </div>
             <div class="details-col">
-              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>रु${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
-              <div class="details-row"><div class="details-label">Down Payment:</div><div>रु${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>Rs. ${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Down Payment:</div><div>Rs. ${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
               <div class="details-row"><div class="details-label">Interest Rate:</div><div>${selectedEmiForView.interestRate}%</div></div>
               <div class="details-row"><div class="details-label">Period:</div><div>${selectedEmiForView.periodMonths} Months</div></div>
-              <div class="details-row"><div class="details-label">Loan Amount:</div><div>रु${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
-              <div class="details-row"><div class="details-label">Monthly EMI:</div><div>रु${Math.round(monthlyEmi).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Loan Amount:</div><div>Rs. ${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Monthly EMI:</div><div>Rs. ${Math.round(monthlyEmi).toLocaleString()}</div></div>
             </div>
           </div>
           <table>
@@ -377,8 +413,61 @@ export function EmiManagement() {
     return matchesSearch && matchesMonth && matchesStatus;
   });
 
-  const totalPages = Math.ceil(filteredEmis.length / pageSize) || 1;
-  const paginatedEmis = filteredEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const sortedEmis = [...filteredEmis].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let valA: any;
+    let valB: any;
+
+    switch (sortField) {
+      case 'fileNumber': {
+        const numA = parseInt(a.fileNumber || '0', 10);
+        const numB = parseInt(b.fileNumber || '0', 10);
+        valA = isNaN(numA) ? (a.fileNumber || '') : numA;
+        valB = isNaN(numB) ? (b.fileNumber || '') : numB;
+        break;
+      }
+      case 'customerName':
+        valA = (a.customerName || '').toLowerCase();
+        valB = (b.customerName || '').toLowerCase();
+        break;
+      case 'loanAmount':
+        valA = a.loanAmount || 0;
+        valB = b.loanAmount || 0;
+        break;
+      case 'monthlyEmi':
+        valA = a.monthlyEmi || 0;
+        valB = b.monthlyEmi || 0;
+        break;
+      case 'nextEmiDate':
+        valA = a.nextEmiDate ? a.nextEmiDate.getTime() : 0;
+        valB = b.nextEmiDate ? b.nextEmiDate.getTime() : 0;
+        break;
+      case 'pendingEmiSum':
+        valA = a.pendingEmiSum || 0;
+        valB = b.pendingEmiSum || 0;
+        break;
+      case 'status': {
+        const getStatusRank = (rec: typeof a) => {
+          if (rec.isCompleted) return 0;
+          if (rec.overdueEmisCount > 0) return 2;
+          return 1;
+        };
+        valA = getStatusRank(a);
+        valB = getStatusRank(b);
+        break;
+      }
+      default:
+        return 0;
+    }
+
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedEmis.length / pageSize) || 1;
+  const paginatedEmis = sortedEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-1 overflow-hidden">
@@ -435,13 +524,76 @@ export function EmiManagement() {
             <TableHeader className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
               <TableRow className="border-none">
                 <TableHead className="font-bold text-slate-700 dark:text-slate-300 w-px text-center">Action</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 w-px text-center">File No.</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Customer Details</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">Loan Amount</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">EMI</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-center">Coming EMI Date</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">Pending EMI</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-center">Status</TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 w-px text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('fileNumber')}
+                  title="Click to sort by File No."
+                >
+                  <div className="flex items-center justify-center">
+                    <span>File No.</span>
+                    {renderSortIcon('fileNumber')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('customerName')}
+                  title="Click to sort by Customer Details"
+                >
+                  <div className="flex items-center">
+                    <span>Customer Details</span>
+                    {renderSortIcon('customerName')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('loanAmount')}
+                  title="Click to sort by Loan Amount"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>Loan Amount</span>
+                    {renderSortIcon('loanAmount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('monthlyEmi')}
+                  title="Click to sort by EMI"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>EMI</span>
+                    {renderSortIcon('monthlyEmi')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('nextEmiDate')}
+                  title="Click to sort by Coming EMI Date"
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Coming EMI Date</span>
+                    {renderSortIcon('nextEmiDate')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('pendingEmiSum')}
+                  title="Click to sort by Pending EMI"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>Pending EMI</span>
+                    {renderSortIcon('pendingEmiSum')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('status')}
+                  title="Click to sort by Status"
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Status</span>
+                    {renderSortIcon('status')}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -497,16 +649,16 @@ export function EmiManagement() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {emi.loanAmount ? `रु${emi.loanAmount.toLocaleString()}` : '---'}
+                        {emi.loanAmount ? `Rs. ${emi.loanAmount.toLocaleString()}` : '---'}
                       </TableCell>
                       <TableCell className="text-right font-bold text-indigo-600 dark:text-indigo-400">
-                        रु{Math.round(monthlyEmi).toLocaleString()}
+                        Rs. {Math.round(monthlyEmi).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-center font-medium text-slate-700 dark:text-slate-300">
-                        {nextEmiDate.toLocaleDateString('en-GB')}
+                        {formatDateYYYYMonDD(nextEmiDate)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-red-500">
-                        रु{pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        Rs. {pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1.5">
@@ -659,20 +811,20 @@ export function EmiManagement() {
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Vehicle Price</p>
-                        <p className="font-medium font-mono text-emerald-600">रु{(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-emerald-600">Rs. {(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Down Payment</p>
-                        <p className="font-medium font-mono text-blue-600">रु{(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-blue-600">Rs. {(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Loan Amount</p>
-                        <p className="font-medium font-mono text-purple-600">रु{(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-purple-600">Rs. {(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Monthly EMI</p>
                         <p className="font-medium font-mono text-indigo-600">
-                          रु{Math.round(
+                          Rs. {Math.round(
                             selectedEmiForView.periodMonths > 0
                               ? (selectedEmiForView.interestRate === 0
                                   ? (selectedEmiForView.loanAmount || 0) / selectedEmiForView.periodMonths
@@ -776,16 +928,16 @@ export function EmiManagement() {
                                     {emiDate.toLocaleDateString('en-GB')}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-blue-600 dark:text-blue-400">
-                                    रु{Math.round(principalForMonth).toLocaleString()}
+                                    Rs. {Math.round(principalForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-orange-500">
-                                    रु{Math.round(interestForMonth).toLocaleString()}
+                                    Rs. {Math.round(interestForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-slate-700 dark:text-slate-300">
-                                    रु{Math.round(remainingBalance).toLocaleString()}
+                                    Rs. {Math.round(remainingBalance).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-emerald-600 dark:text-emerald-400 text-xs">
-                                    {paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
+                                    {paymentRecord ? `${paymentRecord.receiptNumber} / Rs. ${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -839,11 +991,11 @@ export function EmiManagement() {
               <div className="mt-2 bg-slate-50 dark:bg-slate-900 rounded-lg p-4 grid grid-cols-2 gap-4 text-sm border border-slate-100 dark:border-slate-800">
                 <div>
                   <p className="text-slate-500 mb-1">Pending Principal</p>
-                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">रु{Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">Rs. {Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-slate-500 mb-1">Pending Interest</p>
-                  <p className="font-mono font-medium text-orange-500">रु{Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-orange-500">Rs. {Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
                 </div>
               </div>
             )}
