@@ -315,7 +315,7 @@ export function EmiManagement() {
   const paginatedEmis = filteredEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] lg:h-screen w-full max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-2">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16)-5vh)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">EMI Management</h1>
