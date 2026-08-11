@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer } from 'lucide-react';
+import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { updateDoc, doc, addDoc } from '@/lib/trackedFirestore';
+import { Textarea } from '@/components/ui/textarea';
+import { updateDoc, doc, addDoc, deleteDoc } from '@/lib/trackedFirestore';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useAuth } from '@/hooks/use-auth';
 
 interface EmiRecord {
   id: string;
@@ -22,6 +25,7 @@ interface EmiRecord {
   customerId: string;
   customerName: string;
   customerContact: string;
+  customerAddress?: string;
   loanAmount: number;
   interestRate: number;
   periodMonths: number;
@@ -34,10 +38,51 @@ interface EmiRecord {
 }
 
 export function EmiManagement() {
+  const { user, userProfile } = useAuth();
+  const isViewer = userProfile?.role === 'viewer';
+  const { parties, loadParties } = useGlobalData();
   const [emis, setEmis] = useState<EmiRecord[]>([]);
+
+  useEffect(() => {
+    loadParties();
+  }, [loadParties]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [emiMonthFilter, setEmiMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [sortField, setSortField] = useState<'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, emiMonthFilter, statusFilter, pageSize, sortField, sortOrder]);
+
+  const handleSort = (field: 'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status') => {
+    if (sortField === field) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else {
+        setSortField(null);
+        setSortOrder('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (field: 'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60 ml-1 shrink-0 inline-block" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold ml-1 shrink-0 inline-block" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 font-bold ml-1 shrink-0 inline-block" />
+    );
+  };
   const handleSavePayment = async () => {
     if (!selectedEmiForView || !paymentEmiDetail) return;
     setIsSavingPayment(true);
@@ -91,6 +136,103 @@ export function EmiManagement() {
     }
   }, [selectedEmiForView]);
 
+  const [selectedEmiForFollowUp, setSelectedEmiForFollowUp] = useState<EmiRecord | null>(null);
+  const [followUpsList, setFollowUpsList] = useState<any[]>([]);
+  const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [followUpRecentDate, setFollowUpRecentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+  const [followUpNextDate, setFollowUpNextDate] = useState('');
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+
+  useEffect(() => {
+    if (selectedEmiForFollowUp) {
+      const qEmi = query(collection(db, 'emiFollowUps'), where('emiId', '==', selectedEmiForFollowUp.id));
+      const qSales = query(collection(db, 'salesFollowUps'), where('saleId', '==', selectedEmiForFollowUp.saleId));
+      
+      let emiFollowUps: any[] = [];
+      let salesFollowUps: any[] = [];
+
+      const updateList = () => {
+        const combined = [...emiFollowUps, ...salesFollowUps];
+        combined.sort((a: any, b: any) => {
+          const tA = a.createdAt?.seconds || 0;
+          const tB = b.createdAt?.seconds || 0;
+          return tB - tA;
+        });
+        setFollowUpsList(combined);
+      };
+
+      const unsubEmi = onSnapshot(qEmi, (snapshot) => {
+        emiFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'emi', ...doc.data() }));
+        updateList();
+      }, (err) => {
+        console.error('EMI Follow-ups snapshot error:', err);
+      });
+
+      const unsubSales = onSnapshot(qSales, (snapshot) => {
+        salesFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'sales', ...doc.data() }));
+        updateList();
+      }, (err) => {
+        console.error('Sales Follow-ups snapshot error:', err);
+      });
+
+      return () => {
+        unsubEmi();
+        unsubSales();
+      };
+    } else {
+      setFollowUpsList([]);
+    }
+  }, [selectedEmiForFollowUp]);
+
+  const handleSaveFollowUp = async () => {
+    if (!selectedEmiForFollowUp) return;
+    if (!followUpRemarks.trim()) {
+      toast.error('Please enter remarks');
+      return;
+    }
+    setIsSavingFollowUp(true);
+    try {
+      await addDoc(collection(db, 'emiFollowUps'), {
+        emiId: selectedEmiForFollowUp.id,
+        recentDate: followUpRecentDate,
+        remarks: followUpRemarks.trim(),
+        nextDate: followUpNextDate,
+        userName: userProfile?.displayName || user?.email || 'Unknown User',
+        createdAt: new Date()
+      });
+      toast.success('Follow up saved successfully');
+      setIsAddFollowUpOpen(false);
+      setFollowUpRemarks('');
+      setFollowUpNextDate('');
+    } catch (error) {
+      console.error('Error saving follow up', error);
+      toast.error('Failed to save follow up');
+    } finally {
+      setIsSavingFollowUp(false);
+    }
+  };
+
+  const handleDeleteFollowUp = async (id: string, type: 'emi' | 'sales' = 'emi') => {
+    try {
+      const collectionName = type === 'sales' ? 'salesFollowUps' : 'emiFollowUps';
+      await deleteDoc(doc(db, collectionName, id));
+      toast.success('Follow up deleted');
+    } catch (error) {
+      console.error('Error deleting follow up', error);
+      toast.error('Failed to delete follow up');
+    }
+  };
+
+  const formatDateYYYYMonDD = (d: Date | null | undefined) => {
+    if (!d || isNaN(d.getTime())) return '---';
+    const year = d.getFullYear();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handlePrint = () => {
     if (!selectedEmiForView) return;
 
@@ -133,19 +275,22 @@ export function EmiManagement() {
       
       const paymentRecord = emiPaymentsList.find(p => p.emiNo === emiNo);
       const paymentDateStr = paymentRecord?.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : '';
-      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
+      const paymentInfo = paymentRecord ? `${paymentRecord.receiptNumber} / Rs. ${paymentRecord.amount.toLocaleString()} (${paymentDateStr})` : '';
 
       tableRows += `
         <tr>
           <td style="border: 1px solid black; padding: 8px; text-align: center;">${emiNo}</td>
           <td style="border: 1px solid black; padding: 8px;">${emiDate.toLocaleDateString('en-GB')}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(principalForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(interestForMonth).toLocaleString()}</td>
-          <td style="border: 1px solid black; padding: 8px; text-align: right;">रु${Math.round(balance).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(principalForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(interestForMonth).toLocaleString()}</td>
+          <td style="border: 1px solid black; padding: 8px; text-align: right;">Rs. ${Math.round(balance).toLocaleString()}</td>
           <td style="border: 1px solid black; padding: 8px;">${paymentInfo}</td>
         </tr>
       `;
     }
+
+    const party = parties.find(p => p.id === selectedEmiForView.customerId || p.name === selectedEmiForView.customerName);
+    const customerAddress = selectedEmiForView.customerAddress || party?.address || '---';
 
     const printContent = `
       <html>
@@ -168,14 +313,16 @@ export function EmiManagement() {
             <div class="details-col">
               <div class="details-row"><div class="details-label">Customer Name:</div><div>${selectedEmiForView.customerName || '---'}</div></div>
               <div class="details-row"><div class="details-label">Mobile Number:</div><div>${selectedEmiForView.customerContact || '---'}</div></div>
+              <div class="details-row"><div class="details-label">Address:</div><div>${customerAddress}</div></div>
               <div class="details-row"><div class="details-label">Chassis Number:</div><div>${selectedEmiForView.chassisNumber || '---'}</div></div>
             </div>
             <div class="details-col">
-              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>रु${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
-              <div class="details-row"><div class="details-label">Down Payment:</div><div>रु${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Vehicle Price:</div><div>Rs. ${(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Down Payment:</div><div>Rs. ${(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</div></div>
               <div class="details-row"><div class="details-label">Interest Rate:</div><div>${selectedEmiForView.interestRate}%</div></div>
               <div class="details-row"><div class="details-label">Period:</div><div>${selectedEmiForView.periodMonths} Months</div></div>
-              <div class="details-row"><div class="details-label">Loan Amount:</div><div>रु${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Loan Amount:</div><div>Rs. ${(selectedEmiForView.loanAmount || 0).toLocaleString()}</div></div>
+              <div class="details-row"><div class="details-label">Monthly EMI:</div><div>Rs. ${Math.round(monthlyEmi).toLocaleString()}</div></div>
             </div>
           </div>
           <table>
@@ -292,39 +439,95 @@ export function EmiManagement() {
     return matchesSearch && matchesMonth && matchesStatus;
   });
 
+  const sortedEmis = [...filteredEmis].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let valA: any;
+    let valB: any;
+
+    switch (sortField) {
+      case 'fileNumber': {
+        const numA = parseInt(a.fileNumber || '0', 10);
+        const numB = parseInt(b.fileNumber || '0', 10);
+        valA = isNaN(numA) ? (a.fileNumber || '') : numA;
+        valB = isNaN(numB) ? (b.fileNumber || '') : numB;
+        break;
+      }
+      case 'customerName':
+        valA = (a.customerName || '').toLowerCase();
+        valB = (b.customerName || '').toLowerCase();
+        break;
+      case 'loanAmount':
+        valA = a.loanAmount || 0;
+        valB = b.loanAmount || 0;
+        break;
+      case 'monthlyEmi':
+        valA = a.monthlyEmi || 0;
+        valB = b.monthlyEmi || 0;
+        break;
+      case 'nextEmiDate':
+        valA = a.nextEmiDate ? a.nextEmiDate.getTime() : 0;
+        valB = b.nextEmiDate ? b.nextEmiDate.getTime() : 0;
+        break;
+      case 'pendingEmiSum':
+        valA = a.pendingEmiSum || 0;
+        valB = b.pendingEmiSum || 0;
+        break;
+      case 'status': {
+        const getStatusRank = (rec: typeof a) => {
+          if (rec.isCompleted) return 0;
+          if (rec.overdueEmisCount > 0) return 2;
+          return 1;
+        };
+        valA = getStatusRank(a);
+        valB = getStatusRank(b);
+        break;
+      }
+      default:
+        return 0;
+    }
+
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedEmis.length / pageSize) || 1;
+  const paginatedEmis = sortedEmis.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] lg:h-screen w-full max-w-[1600px] mx-auto animate-in fade-in zoom-in-95 duration-300 px-4 md:px-6 lg:px-8 py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1 shrink-0">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">EMI Management</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and view customer EMI details.</p>
         </div>
       </div>
 
-      <Card className="flex-1 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-wrap gap-4 items-center flex-1">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input 
-                placeholder="Search customer, chassis..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
-              />
-            </div>
-            <div className="w-full max-w-[180px]">
+      <Card className="flex-1 min-h-0 flex flex-col border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl sm:py-0">
+        <div className="p-3 sm:p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col lg:flex-row gap-2 items-stretch lg:items-center justify-between">
+          <div className="relative w-full sm:max-w-xs md:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input 
+              placeholder="Search customer, chassis..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner w-full text-xs sm:text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-3 items-center w-full lg:w-auto">
+            <div className="w-full sm:w-[160px]">
               <Input 
                 type="month"
                 value={emiMonthFilter}
                 onChange={(e) => setEmiMonthFilter(e.target.value)}
-                className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner"
+                className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner w-full text-xs sm:text-sm px-1.5 sm:px-3 h-10"
                 title="Filter by Coming EMI Month"
               />
             </div>
-            <div className="w-full max-w-[160px]">
+            <div className="w-full sm:w-[150px]">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner h-10">
+                <SelectTrigger className="rounded-xl bg-slate-50 dark:bg-slate-800 border-none shadow-inner h-10 w-full text-xs sm:text-sm px-1.5 sm:px-3">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,25 +538,88 @@ export function EmiManagement() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl">
-            <Calculator className="w-4 h-4" />
-            <span>Total EMIs: {filteredEmis.length}</span>
+            <div className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1 sm:px-4 h-10 rounded-xl w-full border border-emerald-100 dark:border-emerald-900/30">
+              <Calculator className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="truncate">Total: {filteredEmis.length}</span>
+            </div>
           </div>
         </div>
 
-        <CardContent className="flex-1 p-0 overflow-auto mx-4 md:mx-6 mb-6">
+        <CardContent className="flex-1 min-h-0 p-0 overflow-auto mx-2 md:mx-6 mb-0">
           <Table className="w-full whitespace-nowrap">
             <TableHeader className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
               <TableRow className="border-none">
                 <TableHead className="font-bold text-slate-700 dark:text-slate-300 w-px text-center">Action</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 w-px text-center">File No.</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300">Customer Details</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">Loan Amount</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">EMI</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-center">Coming EMI Date</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-right">Pending EMI</TableHead>
-                <TableHead className="font-bold text-slate-700 dark:text-slate-300 text-center">Status</TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 w-px text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('fileNumber')}
+                  title="Click to sort by File No."
+                >
+                  <div className="flex items-center justify-center">
+                    <span>File No.</span>
+                    {renderSortIcon('fileNumber')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('customerName')}
+                  title="Click to sort by Customer Details"
+                >
+                  <div className="flex items-center">
+                    <span>Customer Details</span>
+                    {renderSortIcon('customerName')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('loanAmount')}
+                  title="Click to sort by Loan Amount"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>Loan Amount</span>
+                    {renderSortIcon('loanAmount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('monthlyEmi')}
+                  title="Click to sort by EMI"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>EMI</span>
+                    {renderSortIcon('monthlyEmi')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('nextEmiDate')}
+                  title="Click to sort by Coming EMI Date"
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Coming EMI Date</span>
+                    {renderSortIcon('nextEmiDate')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-right cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('pendingEmiSum')}
+                  title="Click to sort by Pending EMI"
+                >
+                  <div className="flex items-center justify-end">
+                    <span>Pending EMI</span>
+                    {renderSortIcon('pendingEmiSum')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-bold text-slate-700 dark:text-slate-300 text-center cursor-pointer select-none hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors"
+                  onClick={() => handleSort('status')}
+                  title="Click to sort by Status"
+                >
+                  <div className="flex items-center justify-center">
+                    <span>Status</span>
+                    {renderSortIcon('status')}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -379,14 +645,25 @@ export function EmiManagement() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEmis.map((emi) => {
+                paginatedEmis.map((emi) => {
                   const { overdueEmisCount, remainingEmisCount, pendingEmiSum, nextEmiDate, monthlyEmi, isCompleted } = emi;
                   const paidEmisCount = emi.paidEmis || 0;
 
                   return (
                     <TableRow key={emi.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-slate-100 dark:border-slate-800 transition-colors">
                       <TableCell className="text-center w-px">
-                        <Button variant="outline" size="sm" className="h-8" onClick={() => setSelectedEmiForView(emi)}>View</Button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="outline" size="sm" className="h-8 text-xs px-2" onClick={() => setSelectedEmiForView(emi)}>View</Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 shrink-0" 
+                            title="Follow up History"
+                            onClick={() => setSelectedEmiForFollowUp(emi)}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="font-bold text-blue-600 dark:text-blue-400 w-px text-center">
                         {emi.fileNumber ? `#${emi.fileNumber}` : '---'}
@@ -398,16 +675,16 @@ export function EmiManagement() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {emi.loanAmount ? `रु${emi.loanAmount.toLocaleString()}` : '---'}
+                        {emi.loanAmount ? `Rs. ${emi.loanAmount.toLocaleString()}` : '---'}
                       </TableCell>
                       <TableCell className="text-right font-bold text-indigo-600 dark:text-indigo-400">
-                        रु{Math.round(monthlyEmi).toLocaleString()}
+                        Rs. {Math.round(monthlyEmi).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-center font-medium text-slate-700 dark:text-slate-300">
-                        {nextEmiDate.toLocaleDateString('en-GB')}
+                        {formatDateYYYYMonDD(nextEmiDate)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-red-500">
-                        रु{pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        Rs. {pendingEmiSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1.5">
@@ -432,33 +709,94 @@ export function EmiManagement() {
             </TableBody>
           </Table>
         </CardContent>
+
+        {/* Pagination Footer */}
+        <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 text-slate-500 font-medium">
+            <span>Rows:</span>
+            <Select value={String(pageSize)} onValueChange={(val) => setPageSize(Number(val))}>
+              <SelectTrigger className="w-16 h-8 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border-none shadow-inner px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-slate-600 dark:text-slate-400 font-semibold ml-1">
+              {filteredEmis.length > 0 
+                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, filteredEmis.length)} / ${filteredEmis.length}`
+                : '0 / 0'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 rounded-lg border-slate-200 dark:border-slate-800 text-xs"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="w-3.5 h-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+            <span className="px-2 font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 rounded-lg border-slate-200 dark:border-slate-800 text-xs"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="w-3.5 h-3.5 sm:ml-1" />
+            </Button>
+          </div>
+        </div>
       </Card>
 
       <Dialog open={!!selectedEmiForView} onOpenChange={(open) => !open && setSelectedEmiForView(null)}>
         <DialogContent className="w-full sm:max-w-3xl lg:max-w-4xl p-0 flex flex-col bg-slate-50 dark:bg-slate-900 max-h-[90vh]">
           {selectedEmiForView && (
             <>
-              <DialogHeader className="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm z-10">
-                <div className="flex justify-between items-start w-full pr-8">
-                <DialogTitle className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold">EMI Details</span>
-                    {selectedEmiForView.fileNumber && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800">
-                        #{selectedEmiForView.fileNumber}
-                      </Badge>
-                    )}
+              <DialogHeader className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm z-10">
+                <div className="flex justify-between items-start w-full">
+                  <DialogTitle className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg sm:text-xl font-bold">EMI Details</span>
+                      {selectedEmiForView.fileNumber && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                          #{selectedEmiForView.fileNumber}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm font-normal text-slate-500 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Sale Date: {selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---')}
+                    </span>
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 h-9 px-3">
+                      <Printer className="w-4 h-4" />
+                      Print
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedEmiForView(null)}
+                      className="h-9 w-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                      title="Close"
+                    >
+                      <X className="w-5 h-5" />
+                      <span className="sr-only">Close</span>
+                    </Button>
                   </div>
-                  <span className="text-sm font-normal text-slate-500 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Sale Date: {selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---')}
-                  </span>
-                </DialogTitle>
-                <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 shrink-0">
-                  <Printer className="w-4 h-4" />
-                  Print
-                </Button>
-              </div>
+                </div>
               </DialogHeader>
               <div className="flex-1 p-6 overflow-y-auto">
                 <div className="space-y-6">
@@ -478,6 +816,10 @@ export function EmiManagement() {
                         <p className="text-slate-500 mb-1">Contact</p>
                         <p className="font-medium">{selectedEmiForView.customerContact || '---'}</p>
                       </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className="text-slate-500 mb-1">Address</p>
+                        <p className="font-medium">{selectedEmiForView.customerAddress || parties.find(p => p.id === selectedEmiForView.customerId || p.name === selectedEmiForView.customerName)?.address || '---'}</p>
+                      </div>
                     </div>
                   </div>
 
@@ -495,15 +837,27 @@ export function EmiManagement() {
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Vehicle Price</p>
-                        <p className="font-medium font-mono text-emerald-600">रु{(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-emerald-600">Rs. {(selectedEmiForView.emiVehiclePrice || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Down Payment</p>
-                        <p className="font-medium font-mono text-blue-600">रु{(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-blue-600">Rs. {(selectedEmiForView.emiDownPayment || 0).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-500 mb-1">Loan Amount</p>
-                        <p className="font-medium font-mono text-purple-600">रु{(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
+                        <p className="font-medium font-mono text-purple-600">Rs. {(selectedEmiForView.loanAmount || 0).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 mb-1">Monthly EMI</p>
+                        <p className="font-medium font-mono text-indigo-600">
+                          Rs. {Math.round(
+                            selectedEmiForView.periodMonths > 0
+                              ? (selectedEmiForView.interestRate === 0
+                                  ? (selectedEmiForView.loanAmount || 0) / selectedEmiForView.periodMonths
+                                  : ((selectedEmiForView.loanAmount || 0) * (selectedEmiForView.interestRate / 12 / 100) * Math.pow(1 + (selectedEmiForView.interestRate / 12 / 100), selectedEmiForView.periodMonths)) / (Math.pow(1 + (selectedEmiForView.interestRate / 12 / 100), selectedEmiForView.periodMonths) - 1))
+                              : 0
+                          ).toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -600,16 +954,16 @@ export function EmiManagement() {
                                     {emiDate.toLocaleDateString('en-GB')}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-blue-600 dark:text-blue-400">
-                                    रु{Math.round(principalForMonth).toLocaleString()}
+                                    Rs. {Math.round(principalForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-orange-500">
-                                    रु{Math.round(interestForMonth).toLocaleString()}
+                                    Rs. {Math.round(interestForMonth).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-slate-700 dark:text-slate-300">
-                                    रु{Math.round(remainingBalance).toLocaleString()}
+                                    Rs. {Math.round(remainingBalance).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-emerald-600 dark:text-emerald-400 text-xs">
-                                    {paymentRecord ? `${paymentRecord.receiptNumber} / रु${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
+                                    {paymentRecord ? `${paymentRecord.receiptNumber} / Rs. ${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -663,19 +1017,176 @@ export function EmiManagement() {
               <div className="mt-2 bg-slate-50 dark:bg-slate-900 rounded-lg p-4 grid grid-cols-2 gap-4 text-sm border border-slate-100 dark:border-slate-800">
                 <div>
                   <p className="text-slate-500 mb-1">Pending Principal</p>
-                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">रु{Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-blue-600 dark:text-blue-400">Rs. {Math.round(paymentEmiDetail.principalForMonth).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-slate-500 mb-1">Pending Interest</p>
-                  <p className="font-mono font-medium text-orange-500">रु{Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
+                  <p className="font-mono font-medium text-orange-500">Rs. {Math.round(paymentEmiDetail.interestForMonth).toLocaleString()}</p>
                 </div>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentEmiDetail(null)}>Cancel</Button>
-            <Button onClick={handleSavePayment} disabled={isSavingPayment || !paymentAmount}>
+            <Button onClick={handleSavePayment} disabled={isSavingPayment || !paymentAmount || isViewer}>
               {isSavingPayment ? 'Saving...' : 'Save Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Follow up History Dialog */}
+      <Dialog open={!!selectedEmiForFollowUp} onOpenChange={(open) => !open && setSelectedEmiForFollowUp(null)}>
+        <DialogContent className="w-full sm:max-w-2xl p-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden max-h-[85vh]">
+          {selectedEmiForFollowUp && (
+            <>
+              <DialogHeader className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                      <span>Follow up History</span>
+                      {selectedEmiForFollowUp.fileNumber && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-xs">
+                          #{selectedEmiForFollowUp.fileNumber}
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customer: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedEmiForFollowUp.customerName}</span> ({selectedEmiForFollowUp.customerContact || '---'})
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs gap-1"
+                      onClick={() => {
+                        setFollowUpRecentDate(new Date().toISOString().split('T')[0]);
+                        setFollowUpRemarks('');
+                        setFollowUpNextDate('');
+                        setIsAddFollowUpOpen(true);
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Follow up
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedEmiForFollowUp(null)}
+                      className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="p-4 overflow-y-auto flex-1 min-h-[220px]">
+                {followUpsList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                    <p className="text-sm font-medium">No follow up history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Click "Add Follow up" to create a new record.</p>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                        <TableRow>
+                          <TableHead className="font-bold text-xs">Recent Date</TableHead>
+                          <TableHead className="font-bold text-xs">Remarks</TableHead>
+                          <TableHead className="font-bold text-xs">Next Date</TableHead>
+                          <TableHead className="font-bold text-xs text-right w-12">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {followUpsList.map((item) => (
+                          <TableRow key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                            <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              <div className="flex flex-col gap-1">
+                                <span>{item.recentDate ? new Date(item.recentDate).toLocaleDateString('en-GB') : '---'}</span>
+                                {item.type === 'sales' && (
+                                  <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">
+                                    Sales Follow-up
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-w-[250px]">
+                              <div className="flex flex-col gap-1">
+                                <span>{item.remarks || '---'}</span>
+                                {item.userName && (
+                                  <span className="text-[10px] text-slate-400 font-medium">Added by: {item.userName}</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                              {item.nextDate ? new Date(item.nextDate).toLocaleDateString('en-GB') : '---'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                onClick={() => handleDeleteFollowUp(item.id, item.type || 'emi')}
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Follow up Dialog */}
+      <Dialog open={isAddFollowUpOpen} onOpenChange={setIsAddFollowUpOpen}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Add New Follow up</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Recent Date</Label>
+              <Input 
+                type="date" 
+                value={followUpRecentDate} 
+                onChange={(e) => setFollowUpRecentDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Remarks</Label>
+              <Textarea 
+                placeholder="Enter remarks or customer conversation details..."
+                value={followUpRemarks}
+                onChange={(e) => setFollowUpRemarks(e.target.value)}
+                rows={3}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Next Date</Label>
+              <Input 
+                type="date" 
+                value={followUpNextDate} 
+                onChange={(e) => setFollowUpNextDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-row justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddFollowUpOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSavingFollowUp || isViewer} onClick={handleSaveFollowUp}>
+              {isSavingFollowUp ? 'Saving...' : 'Save Follow up'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -37,6 +37,7 @@ export function ProcessDocument() {
   const navigate = useNavigate();
   const processedLocationSaleIdRef = useRef<string | null>(null);
   const { user, userProfile } = useAuth();
+  const isViewer = userProfile?.role === 'viewer';
   const { sales, parties, vehicles, companies, models, loadProcessDocumentData, loading: globalLoading } = useGlobalData();
   const isProcessDocumentLoaded = !globalLoading;
   useEffect(() => {
@@ -763,6 +764,7 @@ export function ProcessDocument() {
             customerId: selectedSale.customerId,
             customerName: customers.find(c => c.id === selectedSale.customerId)?.name || '',
             customerContact: customers.find(c => c.id === selectedSale.customerId)?.contactNumber || '',
+            customerAddress: customers.find(c => c.id === selectedSale.customerId)?.address || '',
             fileNumber: selectedSale.fileNumber || '',
             saleDate: selectedSale.date || null,
             loanAmount: loanAmount || 0,
@@ -1632,7 +1634,7 @@ export function ProcessDocument() {
         
         {activeTab !== 'completed' && (
           <Button 
-            disabled={loading || (activeTab === 'sold_vehicle' && !selectedSale)}
+            disabled={loading || (activeTab === 'sold_vehicle' && !selectedSale) || isViewer}
             onClick={handleNext}
             className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl px-6 py-[16px] font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all"
           >

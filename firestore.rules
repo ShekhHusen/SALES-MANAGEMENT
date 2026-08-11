@@ -94,6 +94,14 @@ service cloud.firestore {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }
+    match /emiFollowUps/{followUpId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+    match /salesFollowUps/{followUpId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
     // Users
     match /users/{userId} {
       allow read: if isSignedIn();
