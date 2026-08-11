@@ -28,11 +28,14 @@ const partySchema = z.object({
 
 type PartyFormValues = z.infer<typeof partySchema>;
 
+import { useAuth } from '@/hooks/use-auth';
 import { Pagination } from '@/components/Pagination';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 
 export function Parties() {
+  const { userProfile } = useAuth();
+  const isViewer = userProfile?.role === 'viewer';
 
 
   
@@ -224,13 +227,11 @@ export function Parties() {
           setIsDialogOpen(open);
           if (!open) setEditingParty(null);
         }}>
-          <DialogTrigger
-            render={
-              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]">
-                <Plus className="h-4.5 w-4.5" /> Initialize New Party
-              </Button>
-            }
-          />
+          <DialogTrigger asChild>
+            <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]" disabled={isViewer}>
+              <Plus className="h-4.5 w-4.5" /> Initialize New Party
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-md rounded-2xl border-none shadow-2xl p-0">
             <div className="p-8 bg-[#0F172A] text-white">
               <DialogHeader>
@@ -448,6 +449,7 @@ export function Parties() {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          disabled={isViewer}
                           onClick={() => {
                             setEditingParty(party);
                             setIsDialogOpen(true);
@@ -461,6 +463,7 @@ export function Parties() {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={isViewer}
                           onClick={() => deleteParty(party)}
                         >
                           <Trash2 className="h-4 w-4" />

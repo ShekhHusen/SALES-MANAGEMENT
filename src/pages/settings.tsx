@@ -20,7 +20,8 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Settings() {
   const { companies, models, colors } = useGlobalData();
-  const { hasSetPassword, setUserPassword, user, resetPassword } = useAuth();
+  const { hasSetPassword, setUserPassword, user, resetPassword, userProfile } = useAuth();
+  const isViewer = userProfile?.role === 'viewer';
   
   const [newCompany, setNewCompany] = useState('');
   const [newModel, setNewModel] = useState({ name: '', companyId: '' });
@@ -221,7 +222,7 @@ export function Settings() {
                 onChange={(e) => setNewCompany(e.target.value)}
                 className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
               />
-              <Button onClick={addCompany} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
+              <Button onClick={addCompany} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6" disabled={isViewer}>
                 <Plus className="h-4 w-4 mr-2" /> Register Brand
               </Button>
             </div>
@@ -240,7 +241,7 @@ export function Settings() {
                       <TableRow key={company.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                         <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{company.name}</TableCell>
                         <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('companies', company.id, company.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors" disabled={isViewer}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -292,7 +293,7 @@ export function Settings() {
                   onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
                   className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
                 />
-                <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
+                <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6" disabled={isViewer}>
                   <Plus className="h-4 w-4 mr-2" /> Add Variant
                 </Button>
               </div>
@@ -318,7 +319,7 @@ export function Settings() {
                           </span>
                         </TableCell>
                         <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors" disabled={isViewer}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -356,7 +357,7 @@ export function Settings() {
                 onChange={(e) => setNewColor(e.target.value)}
                 className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
               />
-              <Button onClick={addColor} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6">
+              <Button onClick={addColor} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6" disabled={isViewer}>
                 <Plus className="h-4 w-4 mr-2" /> Add Color
               </Button>
             </div>
@@ -375,7 +376,7 @@ export function Settings() {
                       <TableRow key={color.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-transparent">
                         <TableCell className="px-6 py-4 font-extrabold text-slate-900 dark:text-slate-100">{color.name}</TableCell>
                         <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('colors', color.id, color.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('colors', color.id, color.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors" disabled={isViewer}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -464,12 +465,17 @@ export function Settings() {
         </DialogContent>
       </Dialog>
 
-      <ImportData />
-      <ExportData />
-      <BackupRestore />
+      {!isViewer && (
+        <>
+          <ImportData />
+          <ExportData />
+          <BackupRestore />
+        </>
+      )}
 
       {/* Danger Zone */}
-      <Card className="shadow-sm border-red-200 dark:border-red-900 rounded-xl overflow-hidden mt-8">
+      {!isViewer && (
+        <Card className="shadow-sm border-red-200 dark:border-red-900 rounded-xl overflow-hidden mt-8">
         <div className="bg-red-50 dark:bg-red-900/10 px-6 py-4 border-b border-red-200 dark:border-red-900">
           <h3 className="text-sm font-black uppercase tracking-widest text-red-600 dark:text-red-500">Danger Zone</h3>
         </div>
@@ -795,6 +801,7 @@ export function Settings() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

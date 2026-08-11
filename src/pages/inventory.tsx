@@ -31,7 +31,8 @@ export function Inventory() {
   
   
 
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const isViewer = userProfile?.role === 'viewer';
   const { vehicles, companies, models, colors, parties, purchases, sales, loadVehicles, loadPurchases, loadSales, loadParties, isVehiclesLoaded } = useGlobalData();
   useEffect(() => {
     loadVehicles();
@@ -392,9 +393,11 @@ export function Inventory() {
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger render={<Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm">
+            <DialogTrigger asChild>
+              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm" disabled={isViewer}>
                 <Plus className="h-4 w-4 mr-2" /> Add Vehicle
-              </Button>} />
+              </Button>
+            </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black">Add New Vehicle</DialogTitle>
@@ -859,7 +862,7 @@ export function Inventory() {
                                 </Select>
                               </div>
                             </div>
-                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" onClick={() => selectedVehicle && updateDocStatus(vehicle.chassisNumber, selectedVehicle.chassisNumber, selectedVehicle.companyId, selectedVehicle.modelId, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '', selectedVehicle.color || '')}>
+                            <Button className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" disabled={isViewer} onClick={() => selectedVehicle && updateDocStatus(vehicle.chassisNumber, selectedVehicle.chassisNumber, selectedVehicle.companyId, selectedVehicle.modelId, selectedVehicle.bluebookStatus, selectedVehicle.naamsariStatus, selectedVehicle.registrationNumber || '', selectedVehicle.color || '')}>
                               Commit Status Changes
                             </Button>
                           </div>
@@ -942,6 +945,7 @@ export function Inventory() {
                       variant="ghost" 
                       size="sm" 
                       className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      disabled={isViewer}
                       onClick={() => deleteVehicle(vehicle)}
                     >
                       <Trash2 className="h-4 w-4" />

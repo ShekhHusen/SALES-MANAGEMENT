@@ -76,6 +76,10 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn();
     }
 
+    match /emiPayments/{paymentId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
     match /emis/{emiId} { // Trigger reload
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
@@ -87,6 +91,10 @@ service cloud.firestore {
     }
 
     match /document_uploads/{docId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+    match /emiFollowUps/{followUpId} {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }

@@ -31,18 +31,17 @@ import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
-const navItems = [
-  { label: 'Dashboard', icon: BarChart3,
-  Calculator, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
-  { label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
-  { label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager'] },
-  { label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager'] },
-  { label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager'] },
-  { label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin'] },
-  { label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
-  { label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin'] },
+export const navItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk', 'viewer'] },
+  { id: 'inventory', label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk', 'viewer'] },
+  { id: 'parties', label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'purchases', label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager', 'viewer'] },
+  { id: 'sales', label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'process_document', label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'emi_management', label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'quotation', label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'users', label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin', 'viewer'] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -100,7 +99,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const currentRole = userProfile?.role || 'user';
-  const visibleNavItems = navItems.filter(item => item.roles.includes(currentRole));
+  const visibleNavItems = navItems.filter(item => {
+    if (userProfile?.allowedTabs && Array.isArray(userProfile.allowedTabs)) {
+      if (currentRole === 'admin' && (item.path === '/users' || item.path === '/')) {
+        return true;
+      }
+      return userProfile.allowedTabs.includes(item.path) || userProfile.allowedTabs.includes(item.id);
+    }
+    return item.roles.includes(currentRole);
+  });
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] dark:bg-background text-foreground transition-colors duration-300 overflow-hidden">
