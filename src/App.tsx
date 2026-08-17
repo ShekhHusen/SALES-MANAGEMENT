@@ -14,6 +14,7 @@ import { Purchases } from '@/pages/purchases';
 import { Sales } from '@/pages/sales';
 import { ProcessDocument } from '@/pages/process-document';
 import { EmiManagement } from '@/pages/emi-management';
+import { FollowUps } from '@/pages/follow-ups';
 import { Quotation } from '@/pages/quotation';
 import { Settings } from '@/pages/settings';
 import { UserManagement } from '@/pages/users';
@@ -101,6 +102,7 @@ function AppRoutes() {
           <Route path="/purchases" element={<TabGuard path="/purchases"><Purchases /></TabGuard>} />
           <Route path="/sales" element={<TabGuard path="/sales"><Sales /></TabGuard>} />
           <Route path="/process-document" element={<TabGuard path="/process-document"><ProcessDocument /></TabGuard>} />
+          <Route path="/follow-ups" element={<TabGuard path="/follow-ups"><FollowUps /></TabGuard>} />
           <Route path="/emi-management" element={<TabGuard path="/emi-management"><EmiManagement /></TabGuard>} />
           <Route path="/quotation" element={<TabGuard path="/quotation"><Quotation /></TabGuard>} />
           <Route path="/users" element={<TabGuard path="/users"><UserManagement /></TabGuard>} />

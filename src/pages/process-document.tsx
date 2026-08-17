@@ -46,6 +46,7 @@ export function ProcessDocument() {
   const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
   const [searchQuery, setSearchQuery] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
@@ -78,6 +79,7 @@ export function ProcessDocument() {
   const [emiDownPayment, setEmiDownPayment] = useState<number | ''>('');
   const [emiPeriod, setEmiPeriod] = useState<number | ''>(''); // in months
   const [emiInterest, setEmiInterest] = useState<number | ''>(''); // in annum percentage
+  const [emiStartDate, setEmiStartDate] = useState(''); // manually start date
 
   const [batteryType, setBatteryType] = useState('');
   const [batteryBrand, setBatteryBrand] = useState('');
@@ -94,16 +96,20 @@ export function ProcessDocument() {
   // Sorting State for Sold Vehicles
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
-  // Server-side Pending Sales State
+  // Pending Sales State
   const pendingSalesData = useMemo(() => sales.filter(s => s.documentationCompleted !== true && s.status !== 'returned'), [sales]);
-  const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
+  // Client-side Completed Sales State
+  const completedSalesData = useMemo(() => sales.filter(s => s.documentationCompleted === true), [sales]);
+  
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
-  const [completedLoading, setCompletedLoading] = useState(false);
-  const [completedTotalPages, setCompletedTotalPages] = useState(1);
-  const [completedTotalItems, setCompletedTotalItems] = useState<number>(0);
-  const [completedCursors, setCompletedCursors] = useState<any[]>([null]); // index 0 is page 1 start cursor
-  const [completedError, setCompletedError] = useState<string | null>(null);
+  const completedLoading = false;
+  const completedError = null;
+
+  useEffect(() => {
+    setSoldCurrentPage(1);
+    setCompletedCurrentPage(1);
+  }, [searchQuery]);
 
   // Google Auth & Picker
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -170,7 +176,7 @@ export function ProcessDocument() {
       if (viewSale?.id === driveModalSale.id) setViewSale(updatedSale);
       if (selectedSale?.id === driveModalSale.id) setSelectedSale(updatedSale);
       
-      setCompletedSalesData(prev => prev.map(s => s.id === driveModalSale.id ? updatedSale : s));
+// Local mutation handled by global context listener
       setDriveModalSale(null);
     } catch (error) {
       console.error("Error saving Drive link:", error);
@@ -181,83 +187,7 @@ export function ProcessDocument() {
     }
   };
 
-  // Added getCountFromServer to track total items
-  const fetchCompletedSales = async (pageIndex: number, itemsPerPage: number | 'all') => {
-    setCompletedLoading(true);
-    setCompletedError(null);
-    try {
-      // Get total count (runs once or when needed)
-      if (pageIndex === 1) {
-        try {
-          const { getCountFromServer } = await import('firebase/firestore');
-          const countSnap = await getCountFromServer(query(collection(db, 'sales'), where('documentationCompleted', '==', true)));
-          setCompletedTotalItems(countSnap.data().count);
-        } catch (e) {
-          console.warn("Could not get count", e);
-        }
-      }
 
-      let q = query(
-        collection(db, 'sales'),
-        where('documentationCompleted', '==', true),
-        orderBy('createdAt', 'desc')
-      );
-      
-      if (itemsPerPage !== 'all') {
-         q = query(q, limit(itemsPerPage));
-      }
-
-      // If we have a cursor for this page, use startAfter
-      const cursor = completedCursors[pageIndex - 1];
-      if (cursor && itemsPerPage !== 'all') {
-        q = query(
-          collection(db, 'sales'),
-          where('documentationCompleted', '==', true),
-          orderBy('createdAt', 'desc'),
-          startAfter(cursor),
-          limit(itemsPerPage)
-        );
-      }
-
-      const snapshot = await getDocs(q);
-      const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-      
-      setCompletedSalesData(fetchedSales);
-      
-      if (itemsPerPage === 'all') {
-        setCompletedTotalPages(1);
-      } else {
-        // Setup cursor for next page if we got a full page
-        if (snapshot.docs.length === itemsPerPage) {
-          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-          setCompletedCursors(prev => {
-            const newCursors = [...prev];
-            newCursors[pageIndex] = lastVisible;
-            return newCursors;
-          });
-          setCompletedTotalPages(Math.max(completedTotalPages, pageIndex + 1));
-        } else {
-          setCompletedTotalPages(pageIndex);
-        }
-      }
-    } catch (err: any) {
-      console.error("Error fetching completed sales:", err);
-      if (err.message?.includes('index')) {
-        setCompletedError("An index is building or required in Firestore. Please wait or check Firestore console.");
-        toast.error("Firestore index required. Check console for URL.");
-      } else {
-        setCompletedError(err.message || "Failed to load completed sales");
-      }
-    } finally {
-      setCompletedLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'completed') {
-      fetchCompletedSales(completedCurrentPage, completedItemsPerPage);
-    }
-  }, [activeTab, completedCurrentPage, completedItemsPerPage]);
 
   // Keep old sort config state just in case, but disable sorting for completed since it's server-paginated
   const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
@@ -582,6 +512,8 @@ export function ProcessDocument() {
       setEmiVehiclePrice(selectedSale.otherDetails?.emiVehiclePrice ?? '');
       setEmiDownPayment(selectedSale.otherDetails?.emiDownPayment ?? '');
       setEmiPeriod(selectedSale.otherDetails?.emiPeriod ?? '');
+      setEmiStartDate(selectedSale.otherDetails?.emiStartDate ?? '');
+      setEmiStartDate(selectedSale.otherDetails?.emiStartDate ?? '');
       setEmiInterest(selectedSale.otherDetails?.emiInterest ?? '');
 
       setBatteryType(selectedSale.otherDetails?.batteryType ?? '');
@@ -772,6 +704,7 @@ export function ProcessDocument() {
             periodMonths: Number(emiPeriod) || 0,
             emiVehiclePrice: Number(emiVehiclePrice) || 0,
             emiDownPayment: Number(emiDownPayment) || 0,
+            startDate: emiStartDate ? new Date(emiStartDate).toISOString() : new Date().toISOString(),
             createdAt: serverTimestamp(),
           });
         } catch (e: any) {
@@ -880,7 +813,12 @@ export function ProcessDocument() {
            (((customer || {}).contactNumber || "").toLowerCase()).includes(searchLow);
   });
   
-  const currentCompletedSales = filteredCompletedSales;
+  const completedTotalItems = filteredCompletedSales.length;
+  const completedTotalPages = completedItemsPerPage === 'all' ? 1 : Math.ceil(completedTotalItems / (completedItemsPerPage as number));
+  
+  const currentCompletedSales = completedItemsPerPage === 'all'
+    ? filteredCompletedSales
+    : filteredCompletedSales.slice((completedCurrentPage - 1) * (completedItemsPerPage as number), completedCurrentPage * (completedItemsPerPage as number));
 
   return (
     <div className="flex flex-col h-[599px] overflow-hidden md:p-2 pt-[8px] pb-0 md:pb-0 lg:pt-[10px]">
@@ -1069,6 +1007,15 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiInterest} 
                       onChange={(e) => setEmiInterest(e.target.value ? Number(e.target.value) : '')}
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">EMI Start Date</label>
+                    <Input 
+                      type="date" 
+                      value={emiStartDate} 
+                      onChange={(e) => setEmiStartDate(e.target.value)}
                       className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>

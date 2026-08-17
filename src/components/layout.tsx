@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
+  CalendarClock,
   BarChart3,
   Calculator, 
   Car, 
@@ -38,6 +39,7 @@ export const navItems = [
   { id: 'purchases', label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager', 'viewer'] },
   { id: 'sales', label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'process_document', label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'follow_ups', label: 'Follow Ups', icon: CalendarClock, path: '/follow-ups', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'emi_management', label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'quotation', label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'users', label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },

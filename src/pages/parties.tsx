@@ -227,11 +227,9 @@ export function Parties() {
           setIsDialogOpen(open);
           if (!open) setEditingParty(null);
         }}>
-          <DialogTrigger asChild>
-            <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]" disabled={isViewer}>
+          <DialogTrigger render={<Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]" disabled={isViewer}>
               <Plus className="h-4.5 w-4.5" /> Initialize New Party
-            </Button>
-          </DialogTrigger>
+            </Button>} />
           <DialogContent className="max-w-md rounded-2xl border-none shadow-2xl p-0">
             <div className="p-8 bg-[#0F172A] text-white">
               <DialogHeader>
