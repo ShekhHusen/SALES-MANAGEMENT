@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
+  CalendarClock,
   BarChart3,
   Calculator, 
   Car, 
@@ -32,16 +33,17 @@ import { cn } from '@/lib/utils';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { id: 'inventory', label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk'] },
-  { id: 'parties', label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager'] },
-  { id: 'purchases', label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager'] },
-  { id: 'sales', label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager'] },
-  { id: 'process_document', label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager'] },
-  { id: 'emi_management', label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager'] },
-  { id: 'quotation', label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin'] },
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/', roles: ['admin', 'sales_manager', 'inventory_clerk', 'viewer'] },
+  { id: 'inventory', label: 'Inventory', icon: Car, path: '/inventory', roles: ['admin', 'sales_manager', 'inventory_clerk', 'viewer'] },
+  { id: 'parties', label: 'Parties', icon: Users, path: '/parties', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'purchases', label: 'Purchases', icon: ShoppingCart, path: '/purchases', roles: ['admin', 'inventory_clerk', 'sales_manager', 'viewer'] },
+  { id: 'sales', label: 'Sales', icon: BadgeDollarSign, path: '/sales', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'process_document', label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'follow_ups', label: 'Follow Ups', icon: CalendarClock, path: '/follow-ups', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'emi_management', label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'quotation', label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'users', label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin'] },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin', 'viewer'] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

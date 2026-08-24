@@ -126,4 +126,8 @@ export interface Emi {
   emiVehiclePrice: number;
   emiDownPayment: number;
   createdAt: Timestamp;
+  startDate?: string;
+  isClosed?: boolean;
+  closedAt?: Timestamp;
+  closedReason?: string;
 }

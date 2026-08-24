@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField, runTransaction } from '@/lib/trackedFirestore';
+import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField, runTransaction, addDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Sale } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
@@ -22,13 +24,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogFooter 
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { BadgeDollarSign, Car, User, FileText, Search, Check, ArrowUp, ArrowDown, FilterIcon, FilterX, Database } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Download, CornerUpLeft } from 'lucide-react';
+import { Trash2, Download, CornerUpLeft, Plus, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
@@ -83,6 +86,107 @@ export function Sales() {
 
   // Edit Sale State
   const [editingSale, setEditingSale] = useState<(Sale & { id: string }) | null>(null);
+  const [selectedSaleForFollowUp, setSelectedSaleForFollowUp] = useState<(Sale & { id: string }) | null>(null);
+  const [followUpsList, setFollowUpsList] = useState<any[]>([]);
+  const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [followUpRecentDate, setFollowUpRecentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [followUpRemarks, setFollowUpRemarks] = useState('');
+  const [followUpNextDate, setFollowUpNextDate] = useState('');
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+
+  useEffect(() => {
+    if (selectedSaleForFollowUp) {
+      let salesFollowUps: any[] = [];
+      let emiFollowUps: any[] = [];
+      
+      const updateList = () => {
+        const combined = [...salesFollowUps, ...emiFollowUps];
+        combined.sort((a: any, b: any) => {
+          const tA = a.createdAt?.seconds || 0;
+          const tB = b.createdAt?.seconds || 0;
+          return tB - tA;
+        });
+        setFollowUpsList(combined);
+      };
+
+      const qSales = query(collection(db, 'salesFollowUps'), where('saleId', '==', selectedSaleForFollowUp.id));
+      const unsubSales = onSnapshot(qSales, (snapshot) => {
+        salesFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'sales', ...doc.data() }));
+        updateList();
+      }, (err) => {
+        console.error('Sales Follow-ups snapshot error:', err);
+      });
+
+      let unsubEmi: (() => void) | null = null;
+      let isUnmounted = false;
+
+      // Find the corresponding EMI record
+      const emiQuery = query(collection(db, 'emis'), where('saleId', '==', selectedSaleForFollowUp.id));
+      getDocs(emiQuery).then(emiSnapshot => {
+        if (isUnmounted) return;
+        if (!emiSnapshot.empty) {
+           const emiId = emiSnapshot.docs[0].id;
+           const qEmi = query(collection(db, 'emiFollowUps'), where('emiId', '==', emiId));
+           unsubEmi = onSnapshot(qEmi, (snapshot) => {
+             emiFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'emi', ...doc.data() }));
+             updateList();
+           }, (err) => {
+             console.error('EMI Follow-ups snapshot error:', err);
+           });
+        }
+      }).catch(err => {
+         console.error('Error fetching EMI for followups:', err);
+      });
+
+      return () => {
+        isUnmounted = true;
+        unsubSales();
+        if (unsubEmi) unsubEmi();
+      };
+    } else {
+      setFollowUpsList([]);
+    }
+  }, [selectedSaleForFollowUp]);
+
+  const handleSaveFollowUp = async () => {
+    if (!selectedSaleForFollowUp) return;
+    if (!followUpRemarks.trim()) {
+      toast.error('Please enter remarks');
+      return;
+    }
+    setIsSavingFollowUp(true);
+    try {
+      await addDoc(collection(db, 'salesFollowUps'), {
+        saleId: selectedSaleForFollowUp.id,
+        recentDate: followUpRecentDate,
+        remarks: followUpRemarks.trim(),
+        nextDate: followUpNextDate,
+        userName: userProfile?.displayName || user?.email || 'Unknown User',
+        createdAt: new Date()
+      });
+      toast.success('Follow up saved successfully');
+      setIsAddFollowUpOpen(false);
+      setFollowUpRemarks('');
+      setFollowUpNextDate('');
+    } catch (error) {
+      console.error('Error saving follow up', error);
+      toast.error('Failed to save follow up');
+    } finally {
+      setIsSavingFollowUp(false);
+    }
+  };
+
+  const handleDeleteFollowUp = async (id: string, type: 'emi' | 'sales' = 'sales') => {
+    try {
+      const collectionName = type === 'sales' ? 'salesFollowUps' : 'emiFollowUps';
+      await deleteDoc(doc(db, collectionName, id));
+      toast.success('Follow up deleted');
+    } catch (error) {
+      console.error('Error deleting follow up', error);
+      toast.error('Failed to delete follow up');
+    }
+  };
+
   const [editSaleDate, setEditSaleDate] = useState('');
   const [editFileNumber, setEditFileNumber] = useState<number | string>('');
   const [editChassisNumber, setEditChassisNumber] = useState<string>('');
@@ -827,14 +931,16 @@ export function Sales() {
                         )}
                         {canEdit && (
                           <Button 
-                            variant="default" 
+                            variant="outline" 
                             size="sm" 
-                            className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm"
-                            onClick={() => openEditSale(sale)}
+                            className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 shrink-0 mr-1" 
+                            title="Follow up History"
+                            onClick={() => setSelectedSaleForFollowUp(sale)}
                           >
-                            EDIT
+                            <Plus className="w-4 h-4" />
                           </Button>
                         )}
+                        {canEdit && (<Button variant="default" size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg shadow-sm" onClick={() => openEditSale(sale)}>EDIT</Button>)}
                         {canDelete && (
                           <Button 
                             variant="ghost" 
@@ -1097,6 +1203,171 @@ export function Sales() {
         onOpenChange={setViewSheetOpen} 
         viewSale={viewSale} 
       />
+
+      {/* Follow up History Dialog */}
+      <Dialog open={!!selectedSaleForFollowUp} onOpenChange={(open) => !open && setSelectedSaleForFollowUp(null)}>
+        <DialogContent className="w-full sm:max-w-2xl p-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden max-h-[85vh]">
+          {selectedSaleForFollowUp && (() => {
+            const customer = customers.find(c => c.id === selectedSaleForFollowUp.customerId);
+            return (
+            <>
+              <DialogHeader className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                      <span>Follow up History</span>
+                      {selectedSaleForFollowUp.fileNumber && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-xs">
+                          #{selectedSaleForFollowUp.fileNumber}
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customer: <span className="font-semibold text-slate-700 dark:text-slate-300">{customer?.name || '---'}</span> ({customer?.contactNumber || '---'})
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm"
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 shadow-sm font-bold text-xs"
+                      onClick={() => {
+                        setFollowUpRecentDate(new Date().toISOString().split('T')[0]);
+                        setFollowUpRemarks('');
+                        setFollowUpNextDate('');
+                        setIsAddFollowUpOpen(true);
+                      }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Follow up
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSelectedSaleForFollowUp(null)}
+                      className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="p-4 overflow-y-auto flex-1 min-h-[220px]">
+                {followUpsList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                    <p className="text-sm font-medium">No follow up history found.</p>
+                    <p className="text-xs text-slate-400 mt-1">Click "Add Follow up" to create a new record.</p>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
+                        <TableRow>
+                          <TableHead className="font-bold text-xs">Recent Date</TableHead>
+                          <TableHead className="font-bold text-xs">Remarks</TableHead>
+                          <TableHead className="font-bold text-xs">Next Date</TableHead>
+                          <TableHead className="w-px"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {followUpsList.map((item) => (
+                          <TableRow key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                            <TableCell className="font-medium text-xs whitespace-nowrap">
+                              <div className="flex flex-col gap-1">
+                                <span>{item.recentDate}</span>
+                                {item.type === 'emi' && (
+                                  <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-purple-50 text-purple-700 border-purple-200">
+                                    EMI Follow-up
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-700 dark:text-slate-300">
+                              <div className="flex flex-col gap-1">
+                                <span>{item.remarks}</span>
+                                {item.userName && (
+                                  <span className="text-[10px] text-slate-400 font-medium">Added by: {item.userName}</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium text-xs whitespace-nowrap text-blue-600 dark:text-blue-400">
+                              {item.nextDate || '---'}
+                            </TableCell>
+                            <TableCell className="text-right py-2">
+                              {canDelete && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  onClick={() => {
+                                    if(confirm('Are you sure you want to delete this follow up?')) {
+                                      handleDeleteFollowUp(item.id, item.type || 'sales');
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </>
+          );})()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Follow up Dialog */}
+      <Dialog open={isAddFollowUpOpen} onOpenChange={setIsAddFollowUpOpen}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Add New Follow up</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Recent Date</Label>
+              <Input 
+                type="date" 
+                value={followUpRecentDate} 
+                onChange={(e) => setFollowUpRecentDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Remarks</Label>
+              <Textarea 
+                placeholder="Enter remarks or customer conversation details..."
+                value={followUpRemarks}
+                onChange={(e) => setFollowUpRemarks(e.target.value)}
+                rows={3}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Next Date</Label>
+              <Input 
+                type="date" 
+                value={followUpNextDate} 
+                onChange={(e) => setFollowUpNextDate(e.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-row justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsAddFollowUpOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSavingFollowUp} onClick={handleSaveFollowUp}>
+              {isSavingFollowUp ? 'Saving...' : 'Save Follow up'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

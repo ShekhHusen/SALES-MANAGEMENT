@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import * as XLSX from 'xlsx';
+// @ts-ignore
+import ExcelJS from '@protobi/exceljs/dist/exceljs.min.js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Database } from 'lucide-react';
 import { toast } from 'sonner';
-import { collection, getDocs, getDoc, doc } from '@/lib/trackedFirestore';
+import { collection, getDocs } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
 import { Company, Model, Party, Vehicle, Purchase, Sale } from '@/types';
 
@@ -33,10 +34,29 @@ export function ExportData() {
       const salesSnap = await getDocs(collection(db, 'sales'));
       const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Sale));
 
-      const wb = XLSX.utils.book_new();
+      const wb = new ExcelJS.Workbook();
+      
+      const wsAllData = wb.addWorksheet('All Data');
+      
+      const allDataColumns = [
+        { header: 'Vendor', key: 'Vendor' },
+        { header: 'Invoice No.', key: 'Invoice No.' },
+        { header: 'Chassis Number', key: 'Chassis Number' },
+        { header: 'Company', key: 'Company' },
+        { header: 'Model', key: 'Model' },
+        { header: 'Color', key: 'Color' },
+        { header: 'Registration Number', key: 'Registration Number' },
+        { header: 'Bluebook Status', key: 'Bluebook Status' },
+        { header: 'Naamsari Status', key: 'Naamsari Status' },
+        { header: 'Status', key: 'Status' },
+        { header: 'File No.', key: 'File No.' },
+        { header: 'Customer Name', key: 'Customer Name' },
+        { header: 'Address', key: 'Address' },
+        { header: 'Contact Number', key: 'Contact Number' }
+      ];
+      wsAllData.columns = allDataColumns;
 
-      // 0. All Data
-      const allDataRows: any[] = vehicles.map(v => {
+      const allDataRows = vehicles.map(v => {
         const purchase = purchases.find(p => p.id === v.purchaseId);
         const vendor = purchase ? parties.find(p => p.id === purchase.vendorId) : null;
         const sale = sales.find(s => s.id === v.saleId);
@@ -59,12 +79,29 @@ export function ExportData() {
           'Contact Number': customer?.contactNumber || ''
         };
       });
-      if(allDataRows.length===0) allDataRows.push({'Message': 'No Data'});
-      const wsAllData = XLSX.utils.json_to_sheet(allDataRows);
-      XLSX.utils.book_append_sheet(wb, wsAllData, 'All Data');
 
-      // 1. Inventory
-      const inventoryData: any[] = vehicles.map(v => ({
+      if(allDataRows.length === 0) {
+        wsAllData.addRow({'Vendor': 'No Data'});
+      } else {
+        wsAllData.addRows(allDataRows);
+      }
+
+      const wsInventory = wb.addWorksheet('Inventory');
+      wsInventory.columns = [
+        { header: 'Chassis Number', key: 'Chassis Number' },
+        { header: 'Company', key: 'Company' },
+        { header: 'Model', key: 'Model' },
+        { header: 'Color', key: 'Color' },
+        { header: 'Registration Number', key: 'Registration Number' },
+        { header: 'Bluebook Status', key: 'Bluebook Status' },
+        { header: 'Naamsari Status', key: 'Naamsari Status' },
+        { header: 'Status', key: 'Status' },
+        { header: 'Purchase ID', key: 'Purchase ID' },
+        { header: 'Sale ID', key: 'Sale ID' },
+        { header: 'Current Owner', key: 'Current Owner' }
+      ];
+      
+      const inventoryData = vehicles.map(v => ({
         'Chassis Number': v.chassisNumber,
         'Company': companies.find(c => c.id === v.companyId)?.name || 'Unknown',
         'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
@@ -77,45 +114,68 @@ export function ExportData() {
         'Sale ID': v.saleId || '',
         'Current Owner': parties.find(p => p.id === v.currentOwnerId)?.name || ''
       }));
-      if(inventoryData.length===0) inventoryData.push({'Message': 'No Data'});
-      const wsInventory = XLSX.utils.json_to_sheet(inventoryData);
-      XLSX.utils.book_append_sheet(wb, wsInventory, 'Inventory');
+      if(inventoryData.length===0) wsInventory.addRow({'Chassis Number': 'No Data'});
+      else wsInventory.addRows(inventoryData);
 
-      // 2. Parties
-      const partiesData: any[] = parties.map(p => ({
+      const wsParties = wb.addWorksheet('Parties');
+      wsParties.columns = [
+        { header: 'Name', key: 'Name' },
+        { header: 'Type', key: 'Type' },
+        { header: 'Address', key: 'Address' },
+        { header: 'Contact Number', key: 'Contact Number' }
+      ];
+      const partiesData = parties.map(p => ({
         'Name': p.name,
         'Type': p.type,
         'Address': p.address,
         'Contact Number': p.contactNumber
       }));
-      if(partiesData.length===0) partiesData.push({'Message': 'No Data'});
-      const wsParties = XLSX.utils.json_to_sheet(partiesData);
-      XLSX.utils.book_append_sheet(wb, wsParties, 'Parties');
+      if(partiesData.length===0) wsParties.addRow({'Name': 'No Data'});
+      else wsParties.addRows(partiesData);
 
-      // 3. Purchases
-      const purchasesData: any[] = purchases.map(p => ({
+      const wsPurchases = wb.addWorksheet('Purchases');
+      wsPurchases.columns = [
+        { header: 'Invoice Number', key: 'Invoice Number' },
+        { header: 'Date', key: 'Date' },
+        { header: 'Vendor Name', key: 'Vendor Name' },
+        { header: 'Chassis Numbers', key: 'Chassis Numbers' }
+      ];
+      const purchasesData = purchases.map(p => ({
         'Invoice Number': p.invoiceNumber,
         'Date': p.date?.toDate ? p.date.toDate().toLocaleDateString() : '',
         'Vendor Name': parties.find(party => party.id === p.vendorId)?.name || 'Unknown',
         'Chassis Numbers': p.chassisNumbers.join(', ')
       }));
-      if(purchasesData.length===0) purchasesData.push({'Message': 'No Data'});
-      const wsPurchases = XLSX.utils.json_to_sheet(purchasesData);
-      XLSX.utils.book_append_sheet(wb, wsPurchases, 'Purchases');
+      if(purchasesData.length===0) wsPurchases.addRow({'Invoice Number': 'No Data'});
+      else wsPurchases.addRows(purchasesData);
 
-      // 4. Sales
-      const salesData: any[] = sales.map(s => ({
+      const wsSales = wb.addWorksheet('Sales');
+      wsSales.columns = [
+        { header: 'File Number', key: 'File Number' },
+        { header: 'Date', key: 'Date' },
+        { header: 'Customer Name', key: 'Customer Name' },
+        { header: 'Chassis Number', key: 'Chassis Number' },
+        { header: 'Company', key: 'Company' }
+      ];
+      const salesData = sales.map(s => ({
         'File Number': s.fileNumber,
         'Date': s.date?.toDate ? s.date.toDate().toLocaleDateString() : '',
         'Customer Name': parties.find(party => party.id === s.customerId)?.name || 'Unknown',
         'Chassis Number': s.chassisNumber,
         'Company': companies.find(c => c.id === s.companyId)?.name || 'Unknown'
       }));
-      if(salesData.length===0) salesData.push({'Message': 'No Data'});
-      const wsSales = XLSX.utils.json_to_sheet(salesData);
-      XLSX.utils.book_append_sheet(wb, wsSales, 'Sales');
+      if(salesData.length===0) wsSales.addRow({'File Number': 'No Data'});
+      else wsSales.addRows(salesData);
 
-      XLSX.writeFile(wb, 'Complete_Data_Export.xlsx');
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Complete_Data_Export.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+
       toast.success('Data exported successfully!');
     } catch (error) {
       console.error('Export error', error);

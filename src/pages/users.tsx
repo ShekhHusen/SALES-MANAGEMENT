@@ -249,6 +249,7 @@ export function UserManagement() {
                               u.role === 'admin' ? 'bg-red-100 text-red-700' :
                               u.role === 'sales_manager' ? 'bg-blue-100 text-blue-700' :
                               u.role === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              u.role === 'viewer' ? 'bg-purple-100 text-purple-700' :
                               'bg-emerald-100 text-emerald-700'
                            }`}>
                              {u.role.replace('_', ' ')}
@@ -279,6 +280,7 @@ export function UserManagement() {
                                 {u.role === 'pending' && <SelectItem value="pending">Pending</SelectItem>}
                                 <SelectItem value="inventory_clerk">Inventory Clerk</SelectItem>
                                 <SelectItem value="sales_manager">Sales Manager</SelectItem>
+                                <SelectItem value="viewer">Viewer</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
                             </Select>

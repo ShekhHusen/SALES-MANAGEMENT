@@ -18,7 +18,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from '@/lib/trackedFirestore';
 import { auth, db } from '@/lib/firebase';
 import { toast } from 'sonner';
 
-export type UserRole = 'admin' | 'sales_manager' | 'inventory_clerk' | 'pending';
+export type UserRole = 'admin' | 'sales_manager' | 'inventory_clerk' | 'viewer' | 'pending';
 
 export interface UserProfile {
   uid: string;
