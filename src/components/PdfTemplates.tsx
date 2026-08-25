@@ -117,43 +117,53 @@ export const PdfTemplates = React.forwardRef(({ sale, vehicle, customer, company
                 <div>No. of Battery: <span className="text-[#e11d48] font-bold">{details.noOfBattery || ''}</span></div>
               </div>
 
-              <div className="bg-red-50 p-[10px] border-l-4 border-[#e11d48] mt-[10px]">
-                <h4 className="font-bold underline mb-[5px]">BATTERY SERIAL NUMBER DETAIL:</h4>
-                <div className="flex flex-col gap-[5px] font-medium">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>CATEGORY : <span className="text-[#e11d48] font-bold uppercase">{details.batteryType || ''}</span></div>
-                    <div>COMPANY : <span className="text-[#e11d48] font-bold uppercase">{details.batteryBrand || ''}</span></div>
-                  </div>
-                  <div className="flex justify-between gap-[5px] whitespace-nowrap">
-                    <div>MODEL : <span className="text-[#e11d48] font-bold uppercase">{details.batteryBrand || ''}</span></div>
-                    <div>PRODUCT ID : <span className="text-[#e11d48] font-bold uppercase">{details.productId || ''}</span></div>
-                    <div>BLUETOOTH ID : <span className="text-[#e11d48] font-bold uppercase">{details.bluetoothId || ''}</span></div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-y-[5px] mt-[5px] font-medium">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i}>
-                      SN{i+1} : <span className="text-[#e11d48] font-bold uppercase">{serials[i] || ''}</span>
+              {model?.showBatteryDetails && (
+                <div className="bg-red-50 p-[10px] border-l-4 border-[#e11d48] mt-[10px]">
+                  <h4 className="font-bold underline mb-[5px]">BATTERY SERIAL NUMBER DETAIL:</h4>
+                  <div className="flex flex-col gap-[5px] font-medium">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>CATEGORY : <span className="text-[#e11d48] font-bold uppercase">{details.batteryType || ''}</span></div>
+                      <div>COMPANY : <span className="text-[#e11d48] font-bold uppercase">{details.batteryBrand || ''}</span></div>
                     </div>
-                  ))}
+                    <div className="flex justify-between gap-[5px] whitespace-nowrap">
+                      <div>MODEL : <span className="text-[#e11d48] font-bold uppercase">{details.batteryBrand || ''}</span></div>
+                      <div>PRODUCT ID : <span className="text-[#e11d48] font-bold uppercase">{details.productId || ''}</span></div>
+                      <div>BLUETOOTH ID : <span className="text-[#e11d48] font-bold uppercase">{details.bluetoothId || ''}</span></div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-y-[5px] mt-[5px] font-medium">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i}>
+                        SN{i+1} : <span className="text-[#e11d48] font-bold uppercase">{serials[i] || ''}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="font-medium mt-[20px]">
                 <h4 className="font-bold underline mb-2 text-base">Warranty:</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Motor: 6 Months Warranty against manufacturing defects.</li>
-                  <li>Battery: Lead-Acid-6 Months, Lithium-ion or Lithium Iron Phosphate 2.5-Years Warranty against manufacturing defects. And other parts of Lithium Battery like BMS and Charger have 1-Year Warranty.</li>
-                  <li>Warranty will not cover physical damage, water damage, or misuse.</li>
-                </ul>
+                {model?.warrantyInfo ? (
+                  <div className="whitespace-pre-line leading-relaxed">{model.warrantyInfo}</div>
+                ) : (
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Motor: 6 Months Warranty against manufacturing defects.</li>
+                    <li>Battery: Lead-Acid-6 Months, Lithium-ion or Lithium Iron Phosphate 2.5-Years Warranty against manufacturing defects. And other parts of Lithium Battery like BMS and Charger have 1-Year Warranty.</li>
+                    <li>Warranty will not cover physical damage, water damage, or misuse.</li>
+                  </ul>
+                )}
               </div>
 
               <div className="mt-[10px] font-medium">
                 <h4 className="font-bold underline mb-2 text-base">Terms and Conditions:</h4>
-                <ul className="list-disc pl-5">
-                  <li>Insurance: On account of purchaser.</li>
-                </ul>
+                {model?.termsAndConditions ? (
+                  <div className="whitespace-pre-line leading-relaxed">{model.termsAndConditions}</div>
+                ) : (
+                  <ul className="list-disc pl-5">
+                    <li>Insurance: On account of purchaser.</li>
+                  </ul>
+                )}
               </div>
               
               <div className="mt-[20px] relative w-full flex justify-between gap-4">
@@ -163,7 +173,7 @@ export const PdfTemplates = React.forwardRef(({ sale, vehicle, customer, company
                     <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Customer Name</span><span>: <span className="text-[#e11d48] font-bold uppercase">{customer?.name || ''}</span></span></div>
                     <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Address</span><span>: <span className="text-[#e11d48] font-bold uppercase">{customer?.address || ''}</span></span></div>
                     <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Current Address</span><span>: <span className="text-[#e11d48] font-bold uppercase">{customer?.address || ''}</span></span></div>
-                    <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Contact No</span><span>: <span className="text-[#e11d48] font-bold uppercase">{customer?.contactNumber || ''}</span></span></div>
+                    <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Contact No</span><span>: <span className="text-[#e11d48] font-bold uppercase">{customer?.contactNumber || ''}{customer?.alternateNumber ? '/' + customer.alternateNumber : ''}</span></span></div>
                     <div className="grid grid-cols-[140px_1fr] whitespace-nowrap"><span>Date</span><span>: <span className="text-[#e11d48] font-bold uppercase">{sale.date ? format(sale.date.toDate(), 'dd/MM/yyyy') : ''}</span></span></div>
                   </div>
                   <div className="inline-block mt-4">

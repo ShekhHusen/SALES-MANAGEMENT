@@ -15,6 +15,7 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
+  const [alternateNumber, setAlternateNumber] = useState('');
   const [address, setAddress] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -27,6 +28,7 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
       const docRef = await addDoc(collection(db, 'parties'), {
         name,
         contactNumber,
+        alternateNumber,
         address,
         type,
         createdAt: Timestamp.now(),
@@ -36,6 +38,7 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
       setIsOpen(false);
       setName('');
       setContactNumber('');
+      setAlternateNumber('');
       setAddress('');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'parties');
@@ -59,9 +62,15 @@ export function QuickAddParty({ type, onAdded }: { type: 'vendor' | 'customer', 
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Name*</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" required className="h-10 rounded-lg" />
           </div>
-          <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contact Number*</Label>
-            <Input value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="Contact" required className="h-10 rounded-lg" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact*</Label>
+              <Input value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="Contact" required className="h-10 rounded-lg" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Alt Contact</Label>
+              <Input value={alternateNumber} onChange={(e) => setAlternateNumber(e.target.value)} placeholder="Optional" className="h-10 rounded-lg" />
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Address*</Label>

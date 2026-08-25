@@ -1,20 +1,13 @@
 import re
 
-# Fix inventory.tsx
-with open('src/pages/inventory.tsx', 'r') as f:
-    c = f.read()
+with open('src/components/QuickAdd.tsx', 'r') as f:
+    content = f.read()
 
-c = c.replace("const { vehicles, companies, models, colors, parties, purchases, sales } = useGlobalData();", "const { vehicles, companies, models, colors, parties, purchases, sales, refreshVehicles } = useGlobalData();")
-with open('src/pages/inventory.tsx', 'w') as f:
-    f.write(c)
+# Fix the duplicate definition
+bad_str = "  const [contactNumber,\n        alternateNumber, setContactNumber] = useState('');\n  const [alternateNumber, setAlternateNumber] = useState('');"
+good_str = "  const [contactNumber, setContactNumber] = useState('');\n  const [alternateNumber, setAlternateNumber] = useState('');"
 
-# Fix sales.tsx
-with open('src/pages/sales.tsx', 'r') as f:
-    c = f.read()
+content = content.replace(bad_str, good_str)
 
-if 'runTransaction' not in c.split('\n')[2]:
-    c = c.replace("import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField } from '@/lib/trackedFirestore';", "import { collection, onSnapshot, query, where, Timestamp, writeBatch, doc, getDocs, orderBy, limit, deleteDoc, updateDoc, deleteField, runTransaction } from '@/lib/trackedFirestore';")
-
-with open('src/pages/sales.tsx', 'w') as f:
-    f.write(c)
-
+with open('src/components/QuickAdd.tsx', 'w') as f:
+    f.write(content)
