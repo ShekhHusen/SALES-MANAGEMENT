@@ -5,132 +5,328 @@
       "description": "Vehicle manufacturing company",
       "type": "object",
       "properties": {
-        "name": { "type": "string" }
+        "name": {
+          "type": "string"
+        }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "Model": {
       "title": "Model",
       "description": "Vehicle model linked to a company",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "companyId": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "companyId": {
+          "type": "string"
+        }
       },
-      "required": ["name", "companyId"]
+      "required": [
+        "name",
+        "companyId"
+      ]
     },
     "Party": {
       "title": "Party",
       "description": "Vendor or Customer records",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "address": { "type": "string" },
-        "contactNumber": { "type": "string" },
-        "type": { "type": "string", "enum": ["vendor", "customer"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "contactNumber": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vendor",
+            "customer"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["name", "type"]
+      "required": [
+        "name",
+        "type"
+      ]
     },
     "Vehicle": {
       "title": "Vehicle Chassis",
       "description": "Storage for vehicle chassis details",
       "type": "object",
       "properties": {
-        "chassisNumber": { "type": "string" },
-        "companyId": { "type": "string" },
-        "modelId": { "type": "string" },
-        "color": { "type": "string" },
-        "registrationNumber": { "type": "string" },
-        "bluebookStatus": { "type": "string", "enum": ["Not Received", "Received"] },
-        "naamsariStatus": { "type": "string", "enum": ["Pending", "Names of JBMT", "Customer Done"] },
-        "status": { "type": "string", "enum": ["in-stock", "sold"] },
-        "currentOwnerId": { "type": "string" },
-        "purchaseId": { "type": "string" },
-        "saleId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "chassisNumber": {
+          "type": "string"
+        },
+        "companyId": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "registrationNumber": {
+          "type": "string"
+        },
+        "bluebookStatus": {
+          "type": "string",
+          "enum": [
+            "Not Received",
+            "Received"
+          ]
+        },
+        "naamsariStatus": {
+          "type": "string",
+          "enum": [
+            "Pending",
+            "Names of JBMT",
+            "Customer Done"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "in-stock",
+            "sold"
+          ]
+        },
+        "currentOwnerId": {
+          "type": "string"
+        },
+        "purchaseId": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["chassisNumber", "companyId", "modelId", "status"]
+      "required": [
+        "chassisNumber",
+        "companyId",
+        "modelId",
+        "status"
+      ]
     },
     "Purchase": {
       "title": "Purchase Record",
       "description": "Purchases from vendors",
       "type": "object",
       "properties": {
-        "date": { "type": "string", "format": "date-time" },
-        "invoiceNumber": { "type": "string" },
-        "vendorId": { "type": "string" },
-        "chassisNumbers": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "vendorId": {
+          "type": "string"
+        },
+        "chassisNumbers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["date", "vendorId", "chassisNumbers"]
+      "required": [
+        "date",
+        "vendorId",
+        "chassisNumbers"
+      ]
     },
     "Sale": {
       "title": "Sales Record",
       "description": "Sales to customers",
       "type": "object",
       "properties": {
-        "date": { "type": "string", "format": "date-time" },
-        "customerId": { "type": "string" },
-        "chassisNumber": { "type": "string" },
-        "fileNumber": { "type": "number" },
-        "companyId": { "type": "string" },
-        "documentationCompleted": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "customerId": {
+          "type": "string"
+        },
+        "chassisNumber": {
+          "type": "string"
+        },
+        "fileNumber": {
+          "type": "number"
+        },
+        "companyId": {
+          "type": "string"
+        },
+        "documentationCompleted": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["date", "customerId", "chassisNumber", "fileNumber", "companyId"]
+      "required": [
+        "date",
+        "customerId",
+        "chassisNumber",
+        "fileNumber",
+        "companyId"
+      ]
     },
     "OtherDetail": {
       "title": "Other Details",
       "description": "Additional details like battery info and price for a chassis",
       "type": "object",
       "properties": {
-        "chassisNumber": { "type": "string" },
-        "saleId": { "type": "string" },
-        "price": { "type": "number" },
+        "chassisNumber": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
         "batteryDetails": {
           "type": "object",
           "properties": {
-            "numberOfBattery": { "type": "number" },
-            "category": { "type": "string" },
-            "model": { "type": "string" },
-            "productId": { "type": "string" },
-            "bluetoothId": { "type": "string" },
-            "serialNumbers": { "type": "array", "items": { "type": "string" } }
+            "numberOfBattery": {
+              "type": "number"
+            },
+            "category": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "productId": {
+              "type": "string"
+            },
+            "bluetoothId": {
+              "type": "string"
+            },
+            "serialNumbers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
-          "required": ["numberOfBattery"]
+          "required": [
+            "numberOfBattery"
+          ]
         },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["chassisNumber", "saleId", "price"]
+      "required": [
+        "chassisNumber",
+        "saleId",
+        "price"
+      ]
     },
     "DocumentUpload": {
       "title": "Document Upload Details",
       "description": "Upload URLs for multiple documents linked to a chassis",
       "type": "object",
       "properties": {
-        "chassisNumber": { "type": "string" },
-        "saleId": { "type": "string" },
-        "selfieUrl": { "type": "string" },
-        "citizenshipFrontUrl": { "type": "string" },
-        "citizenshipBackUrl": { "type": "string" },
-        "passportSizePhotoUrl": { "type": "string" },
-        "chequeUrl": { "type": "string" },
-        "bikrinamaUrl": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "chassisNumber": {
+          "type": "string"
+        },
+        "saleId": {
+          "type": "string"
+        },
+        "selfieUrl": {
+          "type": "string"
+        },
+        "citizenshipFrontUrl": {
+          "type": "string"
+        },
+        "citizenshipBackUrl": {
+          "type": "string"
+        },
+        "passportSizePhotoUrl": {
+          "type": "string"
+        },
+        "chequeUrl": {
+          "type": "string"
+        },
+        "bikrinamaUrl": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["chassisNumber", "saleId"]
+      "required": [
+        "chassisNumber",
+        "saleId"
+      ]
     }
   },
   "firestore": {
-    "companies": { "schema": "Company", "description": "Vehicle manufacturers" },
-    "models": { "schema": "Model", "description": "Models linked to companies" },
-    "parties": { "schema": "Party", "description": "Vendors and customers" },
-    "vehicles": { "schema": "Vehicle", "description": "Inventory of vehicle chassis" },
-    "purchases": { "schema": "Purchase", "description": "Purchase transaction history" },
-    "sales": { "schema": "Sale", "description": "Sales transaction history" },
-    "other_details": { "schema": "OtherDetail", "description": "Additional details like battery and price" },
-    "document_uploads": { "schema": "DocumentUpload", "description": "Documentation URLs" }
+    "companies": {
+      "schema": "Company",
+      "description": "Vehicle manufacturers"
+    },
+    "models": {
+      "schema": "Model",
+      "description": "Models linked to companies"
+    },
+    "parties": {
+      "schema": "Party",
+      "description": "Vendors and customers"
+    },
+    "vehicles": {
+      "schema": "Vehicle",
+      "description": "Inventory of vehicle chassis"
+    },
+    "purchases": {
+      "schema": "Purchase",
+      "description": "Purchase transaction history"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Sales transaction history"
+    },
+    "other_details": {
+      "schema": "OtherDetail",
+      "description": "Additional details like battery and price"
+    },
+    "document_uploads": {
+      "schema": "DocumentUpload",
+      "description": "Documentation URLs"
+    },
+    "sale_other_details": {
+      "schema": "OtherDetail",
+      "description": "Additional details like battery and price"
+    }
   }
 }

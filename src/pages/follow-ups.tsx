@@ -256,11 +256,11 @@ export function FollowUps() {
                              <Eye className="h-4 w-4" />
                            </Button>
                            <Dialog>
-                             <DialogTrigger asChild>
+                             <DialogTrigger render={
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30" onClick={() => setSelectedEntityForHistory({ id: item.entityId, type: item.entityType, saleId: item.saleId })}>
                                  <Plus className="h-4 w-4" />
                                </Button>
-                             </DialogTrigger>
+                             } />
                              <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
                                <DialogHeader>
                                  <DialogTitle>Follow-up History - {item.customerName}</DialogTitle>

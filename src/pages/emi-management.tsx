@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Lock, Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,10 @@ interface EmiRecord {
   paidEmis?: number;
   fileNumber?: string;
   saleDate?: Timestamp;
+  startDate?: string;
+  isClosed?: boolean;
+  closedAt?: Timestamp;
+  closedReason?: string;
 }
 
 export function EmiManagement() {
@@ -50,6 +54,7 @@ export function EmiManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [emiMonthFilter, setEmiMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'active' | 'closed'>('active');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [sortField, setSortField] = useState<'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status' | null>(null);
@@ -57,7 +62,7 @@ export function EmiManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, emiMonthFilter, statusFilter, pageSize, sortField, sortOrder]);
+  }, [searchQuery, emiMonthFilter, statusFilter, pageSize, sortField, sortOrder, viewMode]);
 
   const handleSort = (field: 'fileNumber' | 'customerName' | 'loanAmount' | 'monthlyEmi' | 'nextEmiDate' | 'pendingEmiSum' | 'status') => {
     if (sortField === field) {
@@ -118,6 +123,7 @@ export function EmiManagement() {
   };
   const [loading, setLoading] = useState(true);
   const [selectedEmiForView, setSelectedEmiForView] = useState<EmiRecord | null>(null);
+  const [isCloseFileConfirmOpen, setIsCloseFileConfirmOpen] = useState(false);
   const [paymentEmiDetail, setPaymentEmiDetail] = useState<{emiNo: number, principalForMonth: number, interestForMonth: number, monthlyEmi: number} | null>(null);
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -233,6 +239,24 @@ export function EmiManagement() {
     return `${year}-${month}-${day}`;
   };
 
+
+  const handleCloseFile = async () => {
+    if (!selectedEmiForView) return;
+    try {
+      await updateDoc(doc(db, 'emis', selectedEmiForView.id), {
+        isClosed: true,
+        closedAt: Timestamp.now(),
+        closedReason: 'Manually closed'
+      });
+      toast.success('File closed successfully');
+      setSelectedEmiForView({ ...selectedEmiForView, isClosed: true });
+      setIsCloseFileConfirmOpen(false);
+    } catch (error) {
+      console.error('Error closing file:', error);
+      toast.error('Failed to close file');
+    }
+  };
+
   const handlePrint = () => {
     if (!selectedEmiForView) return;
 
@@ -248,7 +272,7 @@ export function EmiManagement() {
       ? (principal * monthlyRate) / (Math.pow(1 + monthlyRate, months) - 1)
       : (months > 0 ? principal / months : 0);
     
-    const startDate = selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000) : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000) : new Date());
+    const startDate = selectedEmiForView.startDate ? new Date(selectedEmiForView.startDate) : (selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000) : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000) : new Date()));
 
     let balance = principal;
     
@@ -257,7 +281,8 @@ export function EmiManagement() {
     for (let i = 0; i < months; i++) {
       const emiNo = i + 1;
       const emiDate = new Date(startDate);
-      emiDate.setMonth(emiDate.getMonth() + emiNo);
+                              const offset = selectedEmiForView.startDate ? 0 : 1;
+                              emiDate.setMonth(emiDate.getMonth() + emiNo - 1 + offset);
       
       let principalForMonth = 0;
       let interestForMonth = 0;
@@ -371,17 +396,27 @@ export function EmiManagement() {
   }, []);
 
   const enhancedEmis = emis.map(emi => {
-    const createdAtDate = emi.saleDate ? new Date(emi.saleDate.seconds * 1000) : (emi.createdAt ? new Date(emi.createdAt.seconds * 1000) : new Date());
+    const baseDate = emi.startDate ? new Date(emi.startDate) : (emi.saleDate ? new Date(emi.saleDate.seconds * 1000) : (emi.createdAt ? new Date(emi.createdAt.seconds * 1000) : new Date()));
     const now = new Date();
     
-    let monthsPassed = (now.getFullYear() - createdAtDate.getFullYear()) * 12 + now.getMonth() - createdAtDate.getMonth();
-    if (now.getDate() < createdAtDate.getDate()) {
+    let monthsPassed = (now.getFullYear() - baseDate.getFullYear()) * 12 + now.getMonth() - baseDate.getMonth();
+    if (now.getDate() < baseDate.getDate()) {
       monthsPassed--;
     }
-    if (monthsPassed < 0) monthsPassed = 0;
+    
+    let totalDueEmis = monthsPassed;
+    if (totalDueEmis < 0) totalDueEmis = 0;
+    
+    if (emi.startDate) {
+      if (now < baseDate) {
+        totalDueEmis = 0;
+      } else {
+        totalDueEmis = monthsPassed + 1;
+      }
+    }
 
     const paidEmisCount = emi.paidEmis || 0;
-    let overdueEmisCount = monthsPassed - paidEmisCount;
+    let overdueEmisCount = totalDueEmis - paidEmisCount;
     if (overdueEmisCount < 0) overdueEmisCount = 0;
     
     let remainingEmisCount = emi.periodMonths - paidEmisCount - overdueEmisCount;
@@ -397,8 +432,9 @@ export function EmiManagement() {
 
     const pendingEmiSum = overdueEmisCount * monthlyEmi;
 
-    const nextEmiDate = new Date(createdAtDate);
-    nextEmiDate.setMonth(nextEmiDate.getMonth() + paidEmisCount + overdueEmisCount + 1);
+    const nextEmiDate = new Date(baseDate);
+    const offset = emi.startDate ? 0 : 1;
+    nextEmiDate.setMonth(nextEmiDate.getMonth() + paidEmisCount + overdueEmisCount + offset);
 
     const isCompleted = paidEmisCount >= months;
 
@@ -414,6 +450,9 @@ export function EmiManagement() {
   });
 
   const filteredEmis = enhancedEmis.filter(emi => {
+    if (viewMode === 'active' && emi.isClosed) return false;
+    if (viewMode === 'closed' && !emi.isClosed) return false;
+
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = (
       (emi.customerName || '').toLowerCase().includes(searchLower) ||
@@ -497,9 +536,20 @@ export function EmiManagement() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-screen w-full max-w-[1600px] mx-0 animate-in fade-in zoom-in-95 duration-300 px-2 md:px-2 lg:px-2 py-1 overflow-hidden">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1 mb-1 shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2 shrink-0 w-full">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">EMI Management</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white lg:mt-[24px]">
+            {viewMode === 'active' ? 'EMI Management' : 'Closed EMI Files'}
+          </h1>
+        </div>
+        <div className="flex items-center lg:mt-[24px]">
+          <Button 
+            variant={viewMode === 'closed' ? 'default' : 'outline'}
+            onClick={() => setViewMode(viewMode === 'active' ? 'closed' : 'active')}
+            className={`rounded-xl h-10 ${viewMode === 'closed' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-slate-200 dark:border-slate-800'}`}
+          >
+            {viewMode === 'active' ? 'View Closed Files' : 'View Active Files'}
+          </Button>
         </div>
       </div>
 
@@ -670,7 +720,12 @@ export function EmiManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">{emi.customerName || '---'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-slate-100">{emi.customerName || '---'}</span>
+                            {emi.isClosed && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50 uppercase tracking-wider">Closed</Badge>
+                            )}
+                          </div>
                           <span className="text-sm text-slate-500">{emi.customerContact || '---'}</span>
                         </div>
                       </TableCell>
@@ -785,6 +840,18 @@ export function EmiManagement() {
                       <Printer className="w-4 h-4" />
                       Print
                     </Button>
+                    {!selectedEmiForView.isClosed && (
+                      <Button variant="outline" size="sm" onClick={() => setIsCloseFileConfirmOpen(true)} className="gap-2 h-9 px-3 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900/50 dark:hover:bg-red-900/30">
+                        <Lock className="w-4 h-4" />
+                        Close File
+                      </Button>
+                    )}
+                    {selectedEmiForView.isClosed && (
+                      <Badge variant="outline" className="h-9 px-3 gap-1 bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50">
+                        <Lock className="w-3.5 h-3.5" />
+                        Closed
+                      </Badge>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -901,14 +968,15 @@ export function EmiManagement() {
                               ? (principal * monthlyRate) / (Math.pow(1 + monthlyRate, months) - 1)
                               : (months > 0 ? principal / months : 0);
                             
-                            const startDate = selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000) : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000) : new Date());
+                            const startDate = selectedEmiForView.startDate ? new Date(selectedEmiForView.startDate) : (selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000) : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000) : new Date()));
 
                             let remainingBalance = principal;
 
                             return Array.from({ length: months }).map((_, i) => {
                               const emiNo = i + 1;
                               const emiDate = new Date(startDate);
-                              emiDate.setMonth(emiDate.getMonth() + emiNo);
+                              const offset = selectedEmiForView.startDate ? 0 : 1;
+                              emiDate.setMonth(emiDate.getMonth() + emiNo - 1 + offset);
                               
                               let principalForMonth = 0;
                               let interestForMonth = 0;
@@ -932,7 +1000,7 @@ export function EmiManagement() {
                                   <TableCell className="text-center p-2">
                                     <Checkbox 
                                       checked={isPaid} 
-                                      disabled={isPaid} 
+                                      disabled={isPaid || selectedEmiForView.isClosed} 
                                       onCheckedChange={() => {
                                         if (!isPaid) {
                                           setPaymentEmiDetail({
@@ -986,6 +1054,9 @@ export function EmiManagement() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Receive EMI Payment - #{paymentEmiDetail?.emiNo}</DialogTitle>
+            {selectedEmiForView?.isClosed && (
+              <p className="text-sm text-red-500 mt-2 font-medium">This file is closed. You cannot add new payments.</p>
+            )}
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -1145,6 +1216,24 @@ export function EmiManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Close File Confirmation Dialog */}
+      <Dialog open={isCloseFileConfirmOpen} onOpenChange={setIsCloseFileConfirmOpen}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-600">Close EMI File</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600 dark:text-slate-300">
+              Are you sure you want to close this file? No further EMIs can be received. This action cannot be undone easily.
+            </p>
+          </div>
+          <DialogFooter className="flex gap-2 justify-end sm:justify-end">
+            <Button variant="outline" onClick={() => setIsCloseFileConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleCloseFile}>Yes, Close File</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Add Follow up Dialog */}
       <Dialog open={isAddFollowUpOpen} onOpenChange={setIsAddFollowUpOpen}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">

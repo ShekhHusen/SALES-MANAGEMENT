@@ -6,11 +6,12 @@ import { Filter, Search, FileText, CheckCircle, Info, CreditCard, Battery, Hash,
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, addDoc } from '@/lib/trackedFirestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, addDoc, setDoc, getDoc } from '@/lib/trackedFirestore';
 import { deleteField, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Sale, Party, Vehicle, Company, Model } from '@/types';
 import { useAuth } from '@/hooks/use-auth';
+import { CustomDrivePicker } from '@/components/CustomDrivePicker';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,6 +47,7 @@ export function ProcessDocument() {
   const customers = parties.filter(p => p.type === 'customer');
   const [activeTab, setActiveTab] = useState<TabType>('sold_vehicle');
   const [searchQuery, setSearchQuery] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
@@ -78,6 +80,7 @@ export function ProcessDocument() {
   const [emiDownPayment, setEmiDownPayment] = useState<number | ''>('');
   const [emiPeriod, setEmiPeriod] = useState<number | ''>(''); // in months
   const [emiInterest, setEmiInterest] = useState<number | ''>(''); // in annum percentage
+  const [emiStartDate, setEmiStartDate] = useState(''); // manually start date
 
   const [batteryType, setBatteryType] = useState('');
   const [batteryBrand, setBatteryBrand] = useState('');
@@ -94,16 +97,20 @@ export function ProcessDocument() {
   // Sorting State for Sold Vehicles
   const [soldSortConfig, setSoldSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
 
-  // Server-side Pending Sales State
+  // Pending Sales State
   const pendingSalesData = useMemo(() => sales.filter(s => s.documentationCompleted !== true && s.status !== 'returned'), [sales]);
-  const [completedSalesData, setCompletedSalesData] = useState<Sale[]>([]);
+  // Client-side Completed Sales State
+  const completedSalesData = useMemo(() => sales.filter(s => s.documentationCompleted === true), [sales]);
+  
   const [completedCurrentPage, setCompletedCurrentPage] = useState(1);
   const [completedItemsPerPage, setCompletedItemsPerPage] = useState<number | 'all'>(5);
-  const [completedLoading, setCompletedLoading] = useState(false);
-  const [completedTotalPages, setCompletedTotalPages] = useState(1);
-  const [completedTotalItems, setCompletedTotalItems] = useState<number>(0);
-  const [completedCursors, setCompletedCursors] = useState<any[]>([null]); // index 0 is page 1 start cursor
-  const [completedError, setCompletedError] = useState<string | null>(null);
+  const completedLoading = false;
+  const completedError = null;
+
+  useEffect(() => {
+    setSoldCurrentPage(1);
+    setCompletedCurrentPage(1);
+  }, [searchQuery]);
 
   // Google Auth & Picker
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -141,14 +148,13 @@ export function ProcessDocument() {
   };
 
   const handlePickFolder = () => {
-    showPicker((folderUrl) => {
-      setDriveFolderInput(folderUrl);
-    });
+    setShowCustomPicker(true);
   };
 
   // Google Drive folder link state
   const [driveModalSale, setDriveModalSale] = useState<Sale | null>(null);
   const [driveFolderInput, setDriveFolderInput] = useState<string>('');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [savingDriveLink, setSavingDriveLink] = useState(false);
 
   const handleOpenDriveModal = (sale: Sale) => {
@@ -156,21 +162,120 @@ export function ProcessDocument() {
     setDriveFolderInput(sale.driveFolderUrl || '');
   };
 
+  const handleSelectSale = async (sale: Sale) => {
+    setSelectedSale(sale); setImages({});
+    try {
+      const docRef = doc(db, 'otherDetails', sale.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setVehiclePrice(data.vehiclePrice ?? '');
+        setPaidAmount(data.paidAmount ?? '');
+        setDuesAmount(data.duesAmount ?? '');
+        setFathersName(data.fathersName ?? '');
+        setGrandFathersName(data.grandFathersName ?? '');
+        setCustomerAltNumber(data.customerAltNumber ?? '');
+        setEngineNumber(data.engineNumber ?? '');
+        setVehicleNumber(data.vehicleNumber ?? '');
+        setCitizenshipNumber(data.citizenshipNumber ?? '');
+        setOnEmi(data.onEmi ?? false);
+        setEmiVehiclePrice(data.emiVehiclePrice ?? '');
+        setEmiDownPayment(data.emiDownPayment ?? '');
+        setEmiPeriod(data.emiPeriod ?? '');
+        setEmiInterest(data.emiInterest ?? '');
+        setEmiStartDate(data.emiStartDate ?? '');
+        setBatteryType(data.batteryType ?? '');
+        setBatteryBrand(data.batteryBrand ?? '');
+        setBluetoothId(data.bluetoothId ?? '');
+        setProductId(data.productId ?? '');
+        setNotes(data.notes ?? '');
+        setNoOfBattery(data.noOfBattery ?? '');
+        setSerialNumbers(data.serialNumbers ?? []);
+      } else {
+        setVehiclePrice('');
+        setPaidAmount('');
+        setDuesAmount('');
+        setFathersName('');
+        setGrandFathersName('');
+        setCustomerAltNumber('');
+        setEngineNumber('');
+        setVehicleNumber('');
+        setCitizenshipNumber('');
+        setOnEmi(false);
+        setEmiVehiclePrice('');
+        setEmiDownPayment('');
+        setEmiPeriod('');
+        setEmiInterest('');
+        setEmiStartDate('');
+        setBatteryType('');
+        setBatteryBrand('');
+        setBluetoothId('');
+        setProductId('');
+        setNotes('');
+        setNoOfBattery('');
+        setSerialNumbers([]);
+      }
+    } catch (error) {
+      console.error("Failed to load other details:", error);
+    }
+  };
+
+  const handleViewSale = async (sale: Sale) => {
+    try {
+      const docRef = doc(db, 'otherDetails', sale.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setViewSale({ ...sale, otherDetails: docSnap.data() as any });
+      } else {
+        setViewSale(sale);
+      }
+    } catch (error) {
+      console.error("Failed to fetch other details:", error);
+      setViewSale(sale);
+    }
+    setViewSheetOpen(true);
+  };
+
   const handleSaveDriveLink = async () => {
     if (!driveModalSale?.id) return;
     setSavingDriveLink(true);
     try {
       const formattedUrl = driveFolderInput.trim();
+      
+      // Extract Google Drive ID and set permissions to "anyone with link can view"
+      const match = formattedUrl.match(/[-\w]{25,}/);
+      const driveId = match ? match[0] : null;
+      
+      if (driveId && accessToken) {
+        try {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${driveId}/permissions`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              role: 'reader',
+              type: 'anyone'
+            })
+          });
+          console.log("Successfully updated drive folder permissions");
+        } catch (permError) {
+          console.error("Failed to update Google Drive folder permissions:", permError);
+          // We don't block saving the URL if permission update fails
+        }
+      }
+
       await updateDoc(doc(db, 'sales', driveModalSale.id), {
         driveFolderUrl: formattedUrl
       });
-      toast.success('Google Drive folder link saved successfully!');
+      toast.success('Google Drive folder link saved and made accessible!');
       
       const updatedSale = { ...driveModalSale, driveFolderUrl: formattedUrl };
       if (viewSale?.id === driveModalSale.id) setViewSale(updatedSale);
       if (selectedSale?.id === driveModalSale.id) setSelectedSale(updatedSale);
       
-      setCompletedSalesData(prev => prev.map(s => s.id === driveModalSale.id ? updatedSale : s));
+// Local mutation handled by global context listener
       setDriveModalSale(null);
     } catch (error) {
       console.error("Error saving Drive link:", error);
@@ -181,83 +286,7 @@ export function ProcessDocument() {
     }
   };
 
-  // Added getCountFromServer to track total items
-  const fetchCompletedSales = async (pageIndex: number, itemsPerPage: number | 'all') => {
-    setCompletedLoading(true);
-    setCompletedError(null);
-    try {
-      // Get total count (runs once or when needed)
-      if (pageIndex === 1) {
-        try {
-          const { getCountFromServer } = await import('firebase/firestore');
-          const countSnap = await getCountFromServer(query(collection(db, 'sales'), where('documentationCompleted', '==', true)));
-          setCompletedTotalItems(countSnap.data().count);
-        } catch (e) {
-          console.warn("Could not get count", e);
-        }
-      }
 
-      let q = query(
-        collection(db, 'sales'),
-        where('documentationCompleted', '==', true),
-        orderBy('createdAt', 'desc')
-      );
-      
-      if (itemsPerPage !== 'all') {
-         q = query(q, limit(itemsPerPage));
-      }
-
-      // If we have a cursor for this page, use startAfter
-      const cursor = completedCursors[pageIndex - 1];
-      if (cursor && itemsPerPage !== 'all') {
-        q = query(
-          collection(db, 'sales'),
-          where('documentationCompleted', '==', true),
-          orderBy('createdAt', 'desc'),
-          startAfter(cursor),
-          limit(itemsPerPage)
-        );
-      }
-
-      const snapshot = await getDocs(q);
-      const fetchedSales = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
-      
-      setCompletedSalesData(fetchedSales);
-      
-      if (itemsPerPage === 'all') {
-        setCompletedTotalPages(1);
-      } else {
-        // Setup cursor for next page if we got a full page
-        if (snapshot.docs.length === itemsPerPage) {
-          const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-          setCompletedCursors(prev => {
-            const newCursors = [...prev];
-            newCursors[pageIndex] = lastVisible;
-            return newCursors;
-          });
-          setCompletedTotalPages(Math.max(completedTotalPages, pageIndex + 1));
-        } else {
-          setCompletedTotalPages(pageIndex);
-        }
-      }
-    } catch (err: any) {
-      console.error("Error fetching completed sales:", err);
-      if (err.message?.includes('index')) {
-        setCompletedError("An index is building or required in Firestore. Please wait or check Firestore console.");
-        toast.error("Firestore index required. Check console for URL.");
-      } else {
-        setCompletedError(err.message || "Failed to load completed sales");
-      }
-    } finally {
-      setCompletedLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'completed') {
-      fetchCompletedSales(completedCurrentPage, completedItemsPerPage);
-    }
-  }, [activeTab, completedCurrentPage, completedItemsPerPage]);
 
   // Keep old sort config state just in case, but disable sorting for completed since it's server-paginated
   const [completedSortConfig, setCompletedSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
@@ -276,12 +305,15 @@ export function ProcessDocument() {
 
   // PDF generation state
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const quotationTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
   const trafficTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
-  const handleDownloadPDF = async (docType: 'quotation' | 'traffic', sale: Sale, action: 'download' | 'print' = 'download') => {
+  const bikrinamaTemplateRef = useRef<{ printRef1: React.RefObject<HTMLDivElement>, printRef2: React.RefObject<HTMLDivElement> }>(null);
+  const handleDownloadPDF = async (docType: 'quotation' | 'traffic' | 'bikrinama', sale: Sale, action: 'download' | 'print' | 'preview' = 'download') => {
     let templateRef;
     if (docType === 'quotation') templateRef = quotationTemplateRef;
     else if (docType === 'traffic') templateRef = trafficTemplateRef;
+    else if (docType === 'bikrinama') templateRef = bikrinamaTemplateRef;
 
     if (!templateRef?.current || !templateRef.current.printRef1.current) return;
     setIsGeneratingPdf(true);
@@ -308,11 +340,13 @@ export function ProcessDocument() {
         pdf.addImage(imgData2, 'PNG', 0, 0, pdfWidth, pdfHeight2);
       }
 
-      if (action === 'print') {
+      if (action === 'preview') {
+        setPdfPreviewUrl(pdf.output('bloburl'));
+      } else if (action === 'print') {
         pdf.autoPrint();
         window.open(pdf.output('bloburl'), '_blank');
       } else {
-        pdf.save(`${docType === 'quotation' ? 'Quotation' : 'Traffic-Letter'}-${sale.chassisNumber || 'Report'}.pdf`);
+        pdf.save(`${docType === 'quotation' ? 'Quotation' : docType === 'traffic' ? 'Traffic-Letter' : 'Bikrinama'}-${sale.chassisNumber || 'Report'}.pdf`);
       }
     } catch (e: any) {
       console.error(e);
@@ -566,57 +600,6 @@ export function ProcessDocument() {
     }
   };
 
-  useEffect(() => {
-    if (selectedSale) {
-      setVehiclePrice(selectedSale.otherDetails?.vehiclePrice ?? '');
-      setPaidAmount(selectedSale.otherDetails?.paidAmount ?? '');
-      setDuesAmount(selectedSale.otherDetails?.duesAmount ?? '');
-      setFathersName(selectedSale.otherDetails?.fathersName ?? '');
-      setGrandFathersName(selectedSale.otherDetails?.grandFathersName ?? '');
-      setCustomerAltNumber(selectedSale.otherDetails?.customerAltNumber ?? '');
-      setEngineNumber(selectedSale.otherDetails?.engineNumber ?? '');
-      setVehicleNumber(selectedSale.otherDetails?.vehicleNumber ?? '');
-      setCitizenshipNumber(selectedSale.otherDetails?.citizenshipNumber ?? '');
-      
-      setOnEmi(selectedSale.otherDetails?.onEmi ?? false);
-      setEmiVehiclePrice(selectedSale.otherDetails?.emiVehiclePrice ?? '');
-      setEmiDownPayment(selectedSale.otherDetails?.emiDownPayment ?? '');
-      setEmiPeriod(selectedSale.otherDetails?.emiPeriod ?? '');
-      setEmiInterest(selectedSale.otherDetails?.emiInterest ?? '');
-
-      setBatteryType(selectedSale.otherDetails?.batteryType ?? '');
-      setBatteryBrand(selectedSale.otherDetails?.batteryBrand ?? '');
-      setBluetoothId(selectedSale.otherDetails?.bluetoothId ?? '');
-      setProductId(selectedSale.otherDetails?.productId ?? '');
-      setNotes(selectedSale.otherDetails?.notes ?? '');
-      setNoOfBattery(selectedSale.otherDetails?.noOfBattery ?? '');
-      setSerialNumbers(selectedSale.otherDetails?.serialNumbers ?? []);
-      setImages(selectedSale.otherDetails?.images ?? {});
-    } else {
-      setVehiclePrice('');
-      setPaidAmount('');
-      setDuesAmount('');
-      setFathersName('');
-      setGrandFathersName('');
-      setCustomerAltNumber('');
-      setEngineNumber('');
-      setVehicleNumber('');
-      setCitizenshipNumber('');
-      setOnEmi(false);
-      setEmiVehiclePrice('');
-      setEmiDownPayment('');
-      setEmiPeriod('');
-      setEmiInterest('');
-      setBatteryType('');
-      setBatteryBrand('');
-      setBluetoothId('');
-      setProductId('');
-      setNotes('');
-      setNoOfBattery('');
-      setSerialNumbers([]);
-      setImages({});
-    }
-  }, [selectedSale]);
 
   useEffect(() => {
     if (location.state && location.state.saleId) {
@@ -636,7 +619,7 @@ export function ProcessDocument() {
            }
         }
         if (tSale) {
-          setSelectedSale(tSale);
+          handleSelectSale(tSale);
           if (targetTab === 'others_details') {
             setActiveTab('others_details');
             setUnlockedTabs(prev => ({ ...prev, others_details: true }));
@@ -671,6 +654,19 @@ export function ProcessDocument() {
   }, [noOfBattery]);
   
   const [showCrossCheckModal, setShowCrossCheckModal] = useState(false);
+  const [showBikrinamaModal, setShowBikrinamaModal] = useState(false);
+  const [bikrinamaForm, setBikrinamaForm] = useState({
+    customerDistrict: '',
+    customerMunicipality: '',
+    customerWard: '',
+    grandFathersName: '',
+    fathersName: '',
+    customerAge: '',
+    nepaliYear: '',
+    nepaliMonth: '',
+    nepaliDay: '',
+    nepaliDayOfWeek: ''
+  });
 
   // Form State for Documents (Mocked since Firebase Storage is skipped)
   const [images, setImages] = useState<Record<string, string>>({});
@@ -745,8 +741,46 @@ export function ProcessDocument() {
     }
   };
 
-  const handleConfirmCrossCheck = () => {
+  const handleConfirmCrossCheck = async () => {
     setShowCrossCheckModal(false);
+    
+    if (selectedSale) {
+      setLoading(true);
+      try {
+        await setDoc(doc(db, 'otherDetails', selectedSale.id), {
+          saleId: selectedSale.id,
+          vehiclePrice,
+          paidAmount,
+          duesAmount,
+          fathersName,
+          grandFathersName,
+          customerAltNumber,
+          engineNumber,
+          vehicleNumber,
+          citizenshipNumber,
+          onEmi,
+          emiVehiclePrice,
+          emiDownPayment,
+          emiPeriod,
+          emiInterest,
+          emiStartDate,
+          batteryType,
+          batteryBrand,
+          bluetoothId,
+          productId,
+          notes,
+          noOfBattery,
+          serialNumbers,
+          updatedAt: serverTimestamp()
+        });
+      } catch (error) {
+        console.error("Failed to save other details:", error);
+        toast.error("Failed to save details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    
     setUnlockedTabs(prev => ({ ...prev, documents: true }));
     setActiveTab('documents');
   };
@@ -772,6 +806,7 @@ export function ProcessDocument() {
             periodMonths: Number(emiPeriod) || 0,
             emiVehiclePrice: Number(emiVehiclePrice) || 0,
             emiDownPayment: Number(emiDownPayment) || 0,
+            startDate: emiStartDate ? new Date(emiStartDate).toISOString() : new Date().toISOString(),
             createdAt: serverTimestamp(),
           });
         } catch (e: any) {
@@ -880,7 +915,33 @@ export function ProcessDocument() {
            (((customer || {}).contactNumber || "").toLowerCase()).includes(searchLow);
   });
   
-  const currentCompletedSales = filteredCompletedSales;
+  // Sort Completed Vehicles
+  const sortedCompletedSales = [...filteredCompletedSales].sort((a, b) => {
+    let aVal: any = a[completedSortConfig.key as keyof typeof a];
+    let bVal: any = b[completedSortConfig.key as keyof typeof b];
+    
+    if (completedSortConfig.key === 'customerName') {
+      aVal = customers.find(c => c.id === a.customerId)?.name || '';
+      bVal = customers.find(c => c.id === b.customerId)?.name || '';
+    } else if (completedSortConfig.key === 'date' || completedSortConfig.key === 'createdAt') {
+      aVal = a.date?.toMillis ? a.date.toMillis() : (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0);
+      bVal = b.date?.toMillis ? b.date.toMillis() : (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0);
+    } else if (completedSortConfig.key === 'fileNumber') {
+      aVal = Number(a.fileNumber) || 0;
+      bVal = Number(b.fileNumber) || 0;
+    }
+
+    if (aVal < bVal) return completedSortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return completedSortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const completedTotalItems = sortedCompletedSales.length;
+  const completedTotalPages = completedItemsPerPage === 'all' ? 1 : Math.ceil(completedTotalItems / (completedItemsPerPage as number));
+  
+  const currentCompletedSales = completedItemsPerPage === 'all'
+    ? sortedCompletedSales
+    : sortedCompletedSales.slice((completedCurrentPage - 1) * (completedItemsPerPage as number), completedCurrentPage * (completedItemsPerPage as number));
 
   return (
     <div className="flex flex-col h-[599px] overflow-hidden md:p-2 pt-[8px] pb-0 md:pb-0 lg:pt-[10px]">
@@ -984,7 +1045,7 @@ export function ProcessDocument() {
                       return (
                         <tr 
                           key={sale.id}
-                          onClick={() => setSelectedSale(sale)}
+                          onClick={() => handleSelectSale(sale)}
                           className={`cursor-pointer transition-all ${isSelected ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
                         >
                           <td className="px-4 py-3 font-medium text-slate-600 dark:text-slate-400 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{(sale.date as any)?.toDate?.()?.toLocaleDateString('en-GB') || (sale.date ? new Date(sale.date as string).toLocaleDateString('en-GB') : '---')}</td>
@@ -1069,6 +1130,15 @@ export function ProcessDocument() {
                       type="number" 
                       value={emiInterest} 
                       onChange={(e) => setEmiInterest(e.target.value ? Number(e.target.value) : '')}
+                      className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">EMI Start Date</label>
+                    <Input 
+                      type="date" 
+                      value={emiStartDate} 
+                      onChange={(e) => setEmiStartDate(e.target.value)}
                       className="h-[40px] rounded-xl bg-white dark:bg-slate-900"
                     />
                   </div>
@@ -1269,7 +1339,7 @@ export function ProcessDocument() {
                        Download
                      </Button>
                      <Button 
-                       onClick={() => handleDownloadPDF('quotation', selectedSale!, 'print')}
+                       onClick={() => handleDownloadPDF('quotation', selectedSale!, 'preview')}
                        disabled={isGeneratingPdf}
                        variant="outline"
                        className="shrink-0 w-12 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm h-10 transition-all"
@@ -1319,7 +1389,7 @@ export function ProcessDocument() {
                        Download
                      </Button>
                      <Button 
-                       onClick={() => handleDownloadPDF('traffic', selectedSale!, 'print')}
+                       onClick={() => handleDownloadPDF('traffic', selectedSale!, 'preview')}
                        disabled={isGeneratingPdf}
                        variant="outline"
                        className="shrink-0 w-12 rounded-xl border-emerald-200/60 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm h-10 transition-all"
@@ -1356,30 +1426,26 @@ export function ProcessDocument() {
 
                  <div className="space-y-2 block">
                    <div className="w-full h-[1px] bg-slate-200 dark:bg-slate-800 my-2"></div>
-                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-2">Bikrinama (EV)</p>
+                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-2">Bikrinama (Document)</p>
                    <Button 
-                     onClick={() => handleDownloadUploadedImagePDF('bikrinama_ev', 'Bikrinama EV', 'print')}
+                     onClick={() => {
+                        // Pre-fill fathers/grandfathers name if they exist in otherDetails
+                        if (selectedSale?.otherDetails) {
+                            setBikrinamaForm(prev => ({
+                                ...prev,
+                                fathersName: selectedSale.otherDetails.fathersName || prev.fathersName,
+                                grandFathersName: selectedSale.otherDetails.grandFathersName || prev.grandFathersName
+                            }));
+                        }
+                        setShowBikrinamaModal(true);
+                     }}
                      disabled={isGeneratingPdf}
                      variant="outline"
                      className="w-full justify-center rounded-xl border-orange-200/60 text-orange-700 bg-orange-50/50 hover:bg-orange-100 hover:border-orange-300 shadow-sm font-bold h-10 transition-all"
-                     title="Print Bikrinama (EV)"
+                     title="Print Bikrinama"
                    >
                      <Printer className="w-4 h-4 mr-2" />
-                     Print View
-                   </Button>
-                 </div>
-
-                 <div className="space-y-2">
-                   <p className="text-[11px] font-bold uppercase text-slate-500 tracking-wider mb-2">Bikrinama (Petrol)</p>
-                   <Button 
-                     onClick={() => handleDownloadUploadedImagePDF('bikrinama_petrol', 'Bikrinama Petrol', 'print')}
-                     disabled={isGeneratingPdf}
-                     variant="outline"
-                     className="w-full justify-center rounded-xl border-rose-200/60 text-rose-700 bg-rose-50/50 hover:bg-rose-100 hover:border-rose-300 shadow-sm font-bold h-10 transition-all"
-                     title="Print Bikrinama (Petrol)"
-                   >
-                     <Printer className="w-4 h-4 mr-2" />
-                     Print View
+                     Print Bikrinama
                    </Button>
                  </div>
 
@@ -1529,7 +1595,7 @@ export function ProcessDocument() {
                       return (
                         <tr 
                           key={sale.id}
-                          onClick={() => setSelectedSale(sale)}
+                          onClick={() => handleSelectSale(sale)}
                           className={`cursor-pointer transition-all ${selectedSale?.id === sale.id ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
                         >
                           <td className="px-4 py-3"><div className="font-bold text-slate-400 text-sm w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">{displayIdx}</div></td>
@@ -1546,8 +1612,7 @@ export function ProcessDocument() {
                                  className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
                                  onClick={(e) => {
                                   e.stopPropagation();
-                                  setViewSale(sale);
-                                  setViewSheetOpen(true);
+                                  handleViewSale(sale);
                                 }}
                               >
                                 View
@@ -1650,6 +1715,14 @@ export function ProcessDocument() {
         onEditDriveLink={handleOpenDriveModal}
       />
 
+      {/* Custom Google Drive Picker */}
+      <CustomDrivePicker 
+        isOpen={showCustomPicker} 
+        onClose={() => setShowCustomPicker(false)} 
+        onSelect={(url) => setDriveFolderInput(url)} 
+        accessToken={accessToken} 
+      />
+      
       {/* Google Drive Folder Modal */}
       <Dialog open={!!driveModalSale} onOpenChange={(open) => !open && setDriveModalSale(null)}>
         <DialogContent className="sm:max-w-md rounded-2xl">
@@ -1711,6 +1784,137 @@ export function ProcessDocument() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Bikrinama Dialog */}
+      <Dialog open={showBikrinamaModal} onOpenChange={setShowBikrinamaModal}>
+        <DialogContent className="sm:max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900 border-b pb-2">Bikrinama Details</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">District</label>
+              <Input 
+                value={bikrinamaForm.customerDistrict} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, customerDistrict: e.target.value})} 
+                placeholder="Rautahat" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Municipality / VDC</label>
+              <Input 
+                value={bikrinamaForm.customerMunicipality} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, customerMunicipality: e.target.value})} 
+                placeholder="Garuda" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ward No</label>
+              <Input 
+                value={bikrinamaForm.customerWard} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, customerWard: e.target.value})} 
+                placeholder="4" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Age</label>
+              <Input 
+                value={bikrinamaForm.customerAge} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, customerAge: e.target.value})} 
+                placeholder="30" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grand Father's Name</label>
+              <Input 
+                value={bikrinamaForm.grandFathersName} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, grandFathersName: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Father's Name</label>
+              <Input 
+                value={bikrinamaForm.fathersName} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, fathersName: e.target.value})} 
+              />
+            </div>
+            
+            <div className="col-span-2 pt-2 border-t mt-2">
+                <h4 className="text-sm font-bold mb-2">Nepali Date</h4>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Year (e.g. 2081)</label>
+              <Input 
+                value={bikrinamaForm.nepaliYear} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, nepaliYear: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Month (e.g. Baishakh)</label>
+              <Input 
+                value={bikrinamaForm.nepaliMonth} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, nepaliMonth: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Day (e.g. 15)</label>
+              <Input 
+                value={bikrinamaForm.nepaliDay} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, nepaliDay: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Day of Week (e.g. Sunday)</label>
+              <Input 
+                value={bikrinamaForm.nepaliDayOfWeek} 
+                onChange={(e) => setBikrinamaForm({...bikrinamaForm, nepaliDayOfWeek: e.target.value})} 
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowBikrinamaModal(false)}>Cancel</Button>
+            <Button onClick={() => {
+                setShowBikrinamaModal(false);
+                if (selectedSale) {
+                    const tempSale = {
+                        ...selectedSale,
+                        otherDetails: {
+                            ...(selectedSale.otherDetails || {}),
+                            ...bikrinamaForm
+                        }
+                    };
+                    handleDownloadPDF('bikrinama', tempSale, 'preview');
+                }
+            }}>Preview Document</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!pdfPreviewUrl} onOpenChange={(open) => !open && setPdfPreviewUrl(null)}>
+        <DialogContent className="sm:max-w-5xl rounded-2xl h-[90vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0 flex flex-row items-center justify-between">
+            <DialogTitle className="text-xl font-black text-slate-900">Document Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 bg-slate-100 overflow-hidden relative">
+            {pdfPreviewUrl && (
+              <iframe 
+                src={pdfPreviewUrl} 
+                className="w-full h-full border-0" 
+                title="PDF Preview"
+              />
+            )}
+          </div>
+          <div className="p-4 border-t flex justify-end gap-3 shrink-0 bg-white">
+            <Button variant="outline" onClick={() => setPdfPreviewUrl(null)}>Close</Button>
+            <Button variant="secondary" onClick={() => window.open(pdfPreviewUrl!, '_blank')}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       {/* Cross Check Dialog */}
       <Dialog open={showCrossCheckModal} onOpenChange={setShowCrossCheckModal}>
         <DialogContent className="sm:max-w-lg rounded-2xl">
@@ -1812,6 +2016,21 @@ export function ProcessDocument() {
               model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
               docType="traffic"
               tempDetails={{
+                vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
+                engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
+                productId, notes, noOfBattery, serialNumbers
+              }}
+            />
+            <PdfTemplates
+              ref={bikrinamaTemplateRef}
+              sale={selectedSale}
+              vehicle={vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)}
+              customer={customers.find(c => c.id === selectedSale.customerId)}
+              company={companies.find(c => c.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.companyId)}
+              model={models.find(m => m.id === vehicles.find(v => v.chassisNumber === selectedSale.chassisNumber)?.modelId)}
+              docType="bikrinama"
+              tempDetails={{
+                ...bikrinamaForm,
                 vehiclePrice, paidAmount, duesAmount, fathersName, grandFathersName, customerAltNumber,
                 engineNumber, vehicleNumber, citizenshipNumber, batteryType, batteryBrand, bluetoothId,
                 productId, notes, noOfBattery, serialNumbers

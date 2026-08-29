@@ -393,11 +393,9 @@ export function Inventory() {
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm" disabled={isViewer}>
+            <DialogTrigger render={<Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-sm" disabled={isViewer}>
                 <Plus className="h-4 w-4 mr-2" /> Add Vehicle
-              </Button>
-            </DialogTrigger>
+              </Button>} />
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black">Add New Vehicle</DialogTitle>

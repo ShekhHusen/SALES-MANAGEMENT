@@ -23,6 +23,7 @@ const partySchema = z.object({
   name: z.string().min(2, 'Name is required'),
   address: z.string().min(2, 'Address is required'),
   contactNumber: z.string().min(7, 'Invalid contact number'),
+  alternateNumber: z.string().optional(),
   type: z.enum(['vendor', 'customer']),
 });
 
@@ -80,6 +81,7 @@ export function Parties() {
       name: '',
       address: '',
       contactNumber: '',
+      alternateNumber: '',
       type: 'customer',
     },
   });
@@ -90,6 +92,7 @@ export function Parties() {
         name: editingParty.name,
         address: editingParty.address,
         contactNumber: editingParty.contactNumber,
+        alternateNumber: editingParty.alternateNumber || '',
         type: editingParty.type,
       });
     } else {
@@ -97,6 +100,7 @@ export function Parties() {
         name: '',
         address: '',
         contactNumber: '',
+      alternateNumber: '',
         type: 'customer',
       });
     }
@@ -227,11 +231,9 @@ export function Parties() {
           setIsDialogOpen(open);
           if (!open) setEditingParty(null);
         }}>
-          <DialogTrigger asChild>
-            <Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]" disabled={isViewer}>
+          <DialogTrigger render={<Button className="h-10 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm font-bold gap-2 px-6 lg:mr-[250px]" disabled={isViewer}>
               <Plus className="h-4.5 w-4.5" /> Initialize New Party
-            </Button>
-          </DialogTrigger>
+            </Button>} />
           <DialogContent className="max-w-md rounded-2xl border-none shadow-2xl p-0">
             <div className="p-8 bg-[#0F172A] text-white">
               <DialogHeader>
@@ -277,10 +279,17 @@ export function Parties() {
                     {form.formState.errors.name && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.name.message}</p>}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact Line</label>
-                    <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
-                    {form.formState.errors.contactNumber && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.contactNumber.message}</p>}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary Contact</label>
+                      <Input {...form.register('contactNumber')} placeholder="+977- ..." className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
+                      {form.formState.errors.contactNumber && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.contactNumber.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Alternative Contact</label>
+                      <Input {...form.register('alternateNumber')} placeholder="Optional..." className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900" />
+                      {form.formState.errors.alternateNumber && <p className="text-[10px] font-bold text-red-500">{form.formState.errors.alternateNumber.message}</p>}
+                    </div>
                   </div>
 
                   <div className="space-y-2">

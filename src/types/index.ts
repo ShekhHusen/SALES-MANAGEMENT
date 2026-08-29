@@ -19,6 +19,9 @@ export interface Model {
   id: string;
   name: string;
   companyId: string;
+  termsAndConditions?: string;
+  warrantyInfo?: string;
+  showBatteryDetails?: boolean;
 }
 
 export interface Party {
@@ -26,6 +29,7 @@ export interface Party {
   name: string;
   address: string;
   contactNumber: string;
+  alternateNumber?: string;
   type: PartyType;
   createdAt: Timestamp;
 }
@@ -126,4 +130,8 @@ export interface Emi {
   emiVehiclePrice: number;
   emiDownPayment: number;
   createdAt: Timestamp;
+  startDate?: string;
+  isClosed?: boolean;
+  closedAt?: Timestamp;
+  closedReason?: string;
 }
