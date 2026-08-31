@@ -648,6 +648,9 @@ export function Inventory() {
                             <DropdownMenuCheckboxItem checked={filterNaamsari.includes('Customer Done')} onCheckedChange={(checked) => setFilterNaamsari(prev => checked ? [...prev, 'Customer Done'] : prev.filter(x => x !== 'Customer Done'))}>
                               Customer Done
                             </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={filterNaamsari.includes('VAT Bill Issued')} onCheckedChange={(checked) => setFilterNaamsari(prev => checked ? [...prev, 'VAT Bill Issued'] : prev.filter(x => x !== 'VAT Bill Issued'))}>
+                              VAT Bill Issued
+                            </DropdownMenuCheckboxItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                       </DropdownMenuSub>
@@ -707,9 +710,11 @@ export function Inventory() {
                             ? "bg-indigo-50 text-indigo-700 border-indigo-200" 
                             : vehicle.naamsariStatus === 'Names of JBMT'
                               ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-800"
+                              : vehicle.naamsariStatus === 'VAT Bill Issued'
+                                ? "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-800"
                         )}>
-                          NS: {vehicle.naamsariStatus === 'Names of JBMT' ? 'JBMT' : vehicle.naamsariStatus === 'Customer Done' ? 'Customer' : 'Pending'}
+                          NS: {vehicle.naamsariStatus === 'Names of JBMT' ? 'JBMT' : vehicle.naamsariStatus === 'Customer Done' ? 'Customer' : vehicle.naamsariStatus === 'VAT Bill Issued' ? 'VAT Bill' : 'Pending'}
                         </span>
                       </div>
                     </div>
@@ -856,6 +861,7 @@ export function Inventory() {
                                     <SelectItem value="Pending">Pending</SelectItem>
                                     <SelectItem value="Names of JBMT" disabled={selectedVehicle?.bluebookStatus !== 'Received'}>Names of JBMT</SelectItem>
                                     <SelectItem value="Customer Done" disabled={selectedVehicle ? (sales.some(s => s.chassisNumber === selectedVehicle.chassisNumber) ? false : selectedVehicle.status !== 'sold') : true}>Customer Done</SelectItem>
+                                    <SelectItem value="VAT Bill Issued">VAT Bill Issued</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>

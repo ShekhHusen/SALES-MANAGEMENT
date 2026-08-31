@@ -93,7 +93,8 @@
           "enum": [
             "Pending",
             "Names of JBMT",
-            "Customer Done"
+            "Customer Done",
+            "VAT Bill Issued"
           ]
         },
         "status": {

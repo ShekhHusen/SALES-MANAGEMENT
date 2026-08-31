@@ -1,13 +1,12 @@
-import json
+import re
 
 with open('firebase-blueprint.json', 'r') as f:
-    data = json.load(f)
+    content = f.read()
 
-data['firestore']['sale_other_details'] = {
-    "schema": "OtherDetail",
-    "description": "Additional details like battery and price"
-}
+content = content.replace(
+    '"Pending",\n            "Names of JBMT",\n            "Customer Done"',
+    '"Pending",\n            "Names of JBMT",\n            "Customer Done",\n            "VAT Bill Issued"'
+)
 
 with open('firebase-blueprint.json', 'w') as f:
-    json.dump(data, f, indent=2)
-
+    f.write(content)

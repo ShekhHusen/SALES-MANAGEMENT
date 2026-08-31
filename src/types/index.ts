@@ -1,7 +1,7 @@
 import { Timestamp } from '@/lib/trackedFirestore';
 
 export type BluebookStatus = 'Not Received' | 'Received';
-export type NaamsariStatus = 'Pending' | 'Names of JBMT' | 'Customer Done';
+export type NaamsariStatus = 'Pending' | 'Names of JBMT' | 'Customer Done' | 'VAT Bill Issued';
 export type VehicleStatus = 'ready-to-purchase' | 'in-stock' | 'sold';
 export type PartyType = 'vendor' | 'customer';
 
