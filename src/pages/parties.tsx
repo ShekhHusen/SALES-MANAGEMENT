@@ -387,7 +387,7 @@ export function Parties() {
                         else { setSortField('name'); setSortOrder('asc'); }
                       }}
                     >
-                      Principal Identity
+                      Party Name
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'name' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -399,7 +399,7 @@ export function Parties() {
                         else { setSortField('type'); setSortOrder('asc'); }
                       }}
                     >
-                      Classification
+                      Type
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'type' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -411,7 +411,7 @@ export function Parties() {
                         else { setSortField('contactNumber'); setSortOrder('asc'); }
                       }}
                     >
-                      Contact Line
+                      Contact Number
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'contactNumber' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -423,7 +423,7 @@ export function Parties() {
                         else { setSortField('address'); setSortOrder('asc'); }
                       }}
                     >
-                      Registry Address
+                      Address
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'address' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -435,7 +435,7 @@ export function Parties() {
                         else { setSortField('createdAt'); setSortOrder('asc'); }
                       }}
                     >
-                      Onboarding Date
+                      Register Date
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'createdAt' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
