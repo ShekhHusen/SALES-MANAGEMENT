@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { collection, query, orderBy, getDocs, onSnapshot } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
-import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
+import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor, BusinessProfile } from '../types';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 
 interface GlobalDataState {
@@ -9,6 +10,8 @@ interface GlobalDataState {
   companies: Company[];
   models: Model[];
   colors: VehicleColor[];
+  businessProfile: BusinessProfile | null;
+  updateBusinessProfile: (profile: BusinessProfile) => Promise<void>;
   parties: Party[];
   purchases: Purchase[];
   sales: Sale[];
@@ -33,6 +36,8 @@ const initialState: GlobalDataState = {
   companies: [],
   models: [],
   colors: [],
+  businessProfile: null,
+  updateBusinessProfile: async () => {},
   parties: [],
   purchases: [],
   sales: [],
@@ -66,7 +71,20 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
+  
+  const updateBusinessProfile = async (profile: BusinessProfile) => {
+    try {
+      const docRef = doc(db, 'settings', 'businessProfile');
+      await setDoc(docRef, profile, { merge: true });
+      setData(prev => ({ ...prev, businessProfile: profile }));
+    } catch (err) {
+      console.error('Failed to update business profile:', err);
+      throw err;
+    }
+  };
+
+  return (
+) => {
       unsubsRef.current.forEach(unsub => unsub());
       unsubsRef.current.clear();
       activeListeners.current.clear();
@@ -104,7 +122,20 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error(`Failed to setup subscription for ${name}:`, err);
       addError(name.toUpperCase(), err);
       setData(prev => ({ ...prev, [`is${name.charAt(0).toUpperCase() + name.slice(1)}Loaded`]: true }));
-      return () => {};
+    
+  const updateBusinessProfile = async (profile: BusinessProfile) => {
+    try {
+      const docRef = doc(db, 'settings', 'businessProfile');
+      await setDoc(docRef, profile, { merge: true });
+      setData(prev => ({ ...prev, businessProfile: profile }));
+    } catch (err) {
+      console.error('Failed to update business profile:', err);
+      throw err;
+    }
+  };
+
+  return (
+) => {};
     }
   }, [addError]);
 
@@ -112,7 +143,23 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     let unsubs: (() => void)[] = [];
     
+
+    // Load Business Profile
+    const loadBusinessProfile = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'businessProfile');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setData(prev => ({ ...prev, businessProfile: docSnap.data() as BusinessProfile }));
+        }
+      } catch (err) {
+        console.error('Failed to load business profile:', err);
+      }
+    };
+    loadBusinessProfile();
+
     const smallCollections = [
+
       { name: 'companies', path: 'companies' },
       { name: 'models', path: 'models' },
       { name: 'colors', path: 'colors' }
@@ -127,7 +174,20 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // In a real app we might wait for these small collections to load
     setData(prev => ({ ...prev, loading: false }));
 
-    return () => {
+  
+  const updateBusinessProfile = async (profile: BusinessProfile) => {
+    try {
+      const docRef = doc(db, 'settings', 'businessProfile');
+      await setDoc(docRef, profile, { merge: true });
+      setData(prev => ({ ...prev, businessProfile: profile }));
+    } catch (err) {
+      console.error('Failed to update business profile:', err);
+      throw err;
+    }
+  };
+
+  return (
+) => {
       unsubs.forEach(u => u());
     };
   }, [setupListener]);
@@ -163,8 +223,23 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     loadVehicles();
   }, [loadSales, loadParties, loadVehicles]);
 
+
+  const updateBusinessProfile = async (profile: BusinessProfile) => {
+    try {
+      const docRef = doc(db, 'settings', 'businessProfile');
+      await setDoc(docRef, profile, { merge: true });
+      setData(prev => ({ ...prev, businessProfile: profile }));
+    } catch (err) {
+      console.error('Failed to update business profile:', err);
+      throw err;
+    }
+  };
+
   return (
+
     <GlobalDataContext.Provider value={{
+      ...data,
+      updateBusinessProfile,
       ...data,
       loadVehicles,
       loadPurchases,

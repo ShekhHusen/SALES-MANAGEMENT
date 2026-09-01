@@ -113,5 +113,10 @@ service cloud.firestore {
       // (in production, we should securely verify admin claim)
       allow write: if isSignedIn();
     }
+
+    // Settings
+    match /settings/{settingId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }

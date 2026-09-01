@@ -31,6 +31,7 @@ export interface Party {
   contactNumber: string;
   alternateNumber?: string;
   type: PartyType;
+  tallyAccountId?: string;
   createdAt: Timestamp;
 }
 
@@ -134,4 +135,10 @@ export interface Emi {
   isClosed?: boolean;
   closedAt?: Timestamp;
   closedReason?: string;
+}
+
+export interface BusinessProfile {
+  name: string;
+  address: string;
+  contactNumber: string;
 }

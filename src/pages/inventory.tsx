@@ -832,7 +832,7 @@ export function Inventory() {
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Update Bluebook</label>
                                 <Select 
-                                  value={selectedVehicle?.bluebookStatus} 
+                                  value={selectedVehicle?.bluebookStatus || "Not Received"} 
                                   onValueChange={(val: BluebookStatus) => {
                                     if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, bluebookStatus: val });
                                   }}
@@ -849,7 +849,7 @@ export function Inventory() {
                               <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Update Naamsari</label>
                                 <Select 
-                                  value={selectedVehicle?.naamsariStatus}
+                                  value={selectedVehicle?.naamsariStatus || "Pending"}
                                   onValueChange={(val: NaamsariStatus) => {
                                     if (selectedVehicle) setSelectedVehicle({ ...selectedVehicle, naamsariStatus: val });
                                   }}
