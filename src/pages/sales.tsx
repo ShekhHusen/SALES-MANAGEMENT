@@ -37,6 +37,8 @@ import * as XLSX from 'xlsx';
 import { QuickAddParty, QuickAddVehicle } from '@/components/QuickAdd';
 import { Pagination } from '@/components/Pagination';
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
+import { TallyLinkModal } from '@/components/TallyLinkModal';
+import { TallyStatementModal } from '@/components/TallyStatementModal';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 
 export function Sales() {
@@ -358,6 +360,36 @@ export function Sales() {
   // View Sheet state
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [viewSale, setViewSale] = useState<any>(null);
+
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [selectedPartyForTally, setSelectedPartyForTally] = useState<Party | null>(null);
+
+  const handleLinkTallyAccount = async (tallyAccountId: string) => {
+    if (!selectedPartyForTally) return;
+    try {
+      await updateDoc(doc(db, 'parties', selectedPartyForTally.id), {
+        tallyAccountId
+      });
+      toast.success('Tally Account linked successfully!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to link account.');
+    }
+  };
+
+  const handleUnlinkTallyAccount = async (partyId: string) => {
+    try {
+      await updateDoc(doc(db, 'parties', partyId), {
+        tallyAccountId: null
+      });
+      toast.success('Tally Account unlinked.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to unlink account.');
+    }
+  };
+
 
   const [saleToDelete, setSaleToDelete] = useState<(Sale & { id: string }) | null>(null);
   const [returnSale, setReturnSale] = useState<(Sale & { id: string }) | null>(null);
@@ -918,6 +950,45 @@ export function Sales() {
                         >
                           VIEW
                         </Button>
+                        {customer && customer.tallyAccountId ? (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 text-indigo-600 hover:text-white border-indigo-200 hover:bg-indigo-600 font-bold text-[10px] rounded-lg shadow-sm px-2"
+                              onClick={() => {
+                                setSelectedPartyForTally(customer);
+                                setStatementModalOpen(true);
+                              }}
+                            >
+                              STATEMENT
+                            </Button>
+                            {canDelete && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 text-slate-400 hover:text-rose-500 font-bold text-[10px] rounded-lg px-2"
+                                onClick={() => handleUnlinkTallyAccount(customer.id)}
+                              >
+                                UNLINK
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          customer && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 text-slate-500 hover:text-slate-700 border-slate-200 font-bold text-[10px] rounded-lg px-2"
+                              onClick={() => {
+                                setSelectedPartyForTally(customer);
+                                setLinkModalOpen(true);
+                              }}
+                            >
+                              LINK TALLY
+                            </Button>
+                          )
+                        )}
                         {canEdit && sale.status !== 'returned' && (
                           <Button 
                             variant="outline" 
@@ -1202,6 +1273,19 @@ export function Sales() {
         open={viewSheetOpen} 
         onOpenChange={setViewSheetOpen} 
         viewSale={viewSale} 
+      />
+
+      <TallyLinkModal 
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        onLink={handleLinkTallyAccount}
+        partyName={selectedPartyForTally?.name || ''}
+      />
+      <TallyStatementModal 
+        open={statementModalOpen}
+        onOpenChange={setStatementModalOpen}
+        tallyAccountId={selectedPartyForTally?.tallyAccountId || null}
+        partyName={selectedPartyForTally?.name || ''}
       />
 
       {/* Follow up History Dialog */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc } from '@/lib/trackedFirestore';
+import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc, getDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Party } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +90,23 @@ export function Parties() {
   const [statementModalOpen, setStatementModalOpen] = useState(false);
   const [selectedPartyForTally, setSelectedPartyForTally] = useState<Party | null>(null);
   const [viewSale, setViewSale] = useState<any>(null);
+
+  const handleViewSale = async (sale: any) => {
+    try {
+      const docRef = doc(db, 'otherDetails', sale.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setViewSale({ ...sale, otherDetails: docSnap.data() as any });
+      } else {
+        setViewSale(sale);
+      }
+    } catch (error) {
+      console.error("Failed to fetch other details:", error);
+      setViewSale(sale);
+    }
+    setViewSheetOpen(true);
+  };
+
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -483,8 +500,7 @@ export function Parties() {
                                 className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
                                 onClick={() => {
                                   const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
-                                  setViewSale(latestSale);
-                                  setViewSheetOpen(true);
+                                  handleViewSale(latestSale);
                                 }}
                               >
                                 VIEW

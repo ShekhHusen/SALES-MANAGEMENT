@@ -3,152 +3,49 @@ import re
 with open('src/pages/parties.tsx', 'r') as f:
     content = f.read()
 
-# Add imports for our new components
-imports_target = "import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';"
-new_imports = """import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TallyLinkModal } from '@/components/TallyLinkModal';
-import { TallyStatementModal } from '@/components/TallyStatementModal';"""
-content = content.replace(imports_target, new_imports)
+# Fix imports
+if 'getDoc' not in content:
+    content = re.sub(
+        r'import \{ collection, addDoc, Timestamp, updateDoc, doc, deleteDoc \} from \'@/lib/trackedFirestore\';',
+        r"import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc, getDoc } from '@/lib/trackedFirestore';",
+        content
+    )
 
-# Add state variables
-state_target = "  const [saleDetails, setSaleDetails] = useState<any | null>(null);"
-if state_target not in content:
-    state_target = "  const [viewSheetOpen, setViewSheetOpen] = useState(false);"
-new_state = """  const [viewSheetOpen, setViewSheetOpen] = useState(false);
-  const [linkModalOpen, setLinkModalOpen] = useState(false);
-  const [statementModalOpen, setStatementModalOpen] = useState(false);
-  const [selectedPartyForTally, setSelectedPartyForTally] = useState<Party | null>(null);"""
-content = content.replace("  const [viewSheetOpen, setViewSheetOpen] = useState(false);", new_state)
+# Insert handleViewSale
+handle_view_sale_code = r'''  const [viewSale, setViewSale] = useState<any>(null);
 
-# Add linking logic
-link_logic = """  const handleLinkTallyAccount = async (tallyAccountId: string) => {
-    if (!selectedPartyForTally) return;
+  const handleViewSale = async (sale: any) => {
     try {
-      await updateDoc(doc(db, 'parties', selectedPartyForTally.id), {
-        tallyAccountId
-      });
-      toast.success('Tally Account linked successfully!');
-    } catch (e) {
-      console.error(e);
-      toast.error('Failed to link account.');
+      const docRef = doc(db, 'otherDetails', sale.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setViewSale({ ...sale, otherDetails: docSnap.data() as any });
+      } else {
+        setViewSale(sale);
+      }
+    } catch (error) {
+      console.error("Failed to fetch other details:", error);
+      setViewSale(sale);
     }
+    setViewSheetOpen(true);
   };
+'''
 
-  const handleUnlinkTallyAccount = async (partyId: string) => {
-    try {
-      await updateDoc(doc(db, 'parties', partyId), {
-        tallyAccountId: null
-      });
-      toast.success('Tally Account unlinked.');
-    } catch (e) {
-      console.error(e);
-      toast.error('Failed to unlink account.');
-    }
-  };"""
+content = content.replace('  const [viewSale, setViewSale] = useState<any>(null);', handle_view_sale_code)
 
-effect_target = "  useEffect(() => {"
-content = content.replace(effect_target, link_logic + "\n\n" + effect_target)
-
-# Add the UI buttons in the row
-row_buttons_old = """                        {party.type === 'customer' && (() => {
-                          const customerSales = sales.filter(s => s.customerId === party.id);
-                          if (customerSales.length > 0) {
-                            return (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
-                                onClick={() => {
-                                  // Show the most recent sale for this customer
+# Replace the onClick logic
+target_click = r'''                                onClick={() => {
                                   const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
                                   setViewSale(latestSale);
                                   setViewSheetOpen(true);
-                                }}
-                              >
-                                VIEW
-                              </Button>
-                            );
-                          }
-                          return null;
-                        })()}"""
+                                }}'''
 
-row_buttons_new = """                        {party.tallyAccountId ? (
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 text-indigo-600 hover:text-white border-indigo-200 hover:bg-indigo-600 font-bold text-[10px] rounded-lg shadow-sm px-2"
-                              onClick={() => {
-                                setSelectedPartyForTally(party);
-                                setStatementModalOpen(true);
-                              }}
-                            >
-                              STATEMENT
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 text-slate-400 hover:text-rose-500 font-bold text-[10px] rounded-lg px-2"
-                              onClick={() => handleUnlinkTallyAccount(party.id)}
-                            >
-                              UNLINK
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 text-slate-500 hover:text-slate-700 border-slate-200 font-bold text-[10px] rounded-lg px-2"
-                            onClick={() => {
-                              setSelectedPartyForTally(party);
-                              setLinkModalOpen(true);
-                            }}
-                          >
-                            LINK TALLY
-                          </Button>
-                        )}
-                        {party.type === 'customer' && (() => {
-                          const customerSales = sales.filter(s => s.customerId === party.id);
-                          if (customerSales.length > 0) {
-                            return (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
-                                onClick={() => {
+replacement_click = r'''                                onClick={() => {
                                   const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
-                                  setViewSale(latestSale);
-                                  setViewSheetOpen(true);
-                                }}
-                              >
-                                VIEW
-                              </Button>
-                            );
-                          }
-                          return null;
-                        })()}"""
+                                  handleViewSale(latestSale);
+                                }}'''
 
-content = content.replace(row_buttons_old, row_buttons_new)
-
-# Append Modals at the bottom
-modals = """
-      <TallyLinkModal 
-        open={linkModalOpen}
-        onOpenChange={setLinkModalOpen}
-        onLink={handleLinkTallyAccount}
-        partyName={selectedPartyForTally?.name || ''}
-      />
-      <TallyStatementModal 
-        open={statementModalOpen}
-        onOpenChange={setStatementModalOpen}
-        tallyAccountId={selectedPartyForTally?.tallyAccountId || null}
-        partyName={selectedPartyForTally?.name || ''}
-      />
-    </div>
-  );
-}
-"""
-content = content.replace("    </div>\n  );\n}", modals)
+content = content.replace(target_click, replacement_click)
 
 with open('src/pages/parties.tsx', 'w') as f:
     f.write(content)

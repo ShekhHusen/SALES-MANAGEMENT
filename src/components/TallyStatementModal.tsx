@@ -9,6 +9,7 @@ import { Loader2, FileText, ArrowLeft, Calendar, Eye, EyeOff, Printer, ChevronDo
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 
 interface TallyStatementModalProps {
   tallyAccountId: string | null;
@@ -36,15 +37,49 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
   const [accountInfo, setAccountInfo] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fiscalYears, setFiscalYears] = useState<any[]>([]);
+  const [selectedFyId, setSelectedFyId] = useState<string>('');
+  const [fyAccountData, setFyAccountData] = useState<any>(null);
   const [showFullDetails, setShowFullDetails] = useState(false);
-  const { businessProfile, parties } = useGlobalData();
+  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<any>(null);
+  const { businessProfile, parties, sales } = useGlobalData();
   const vmsParty = parties.find(p => p.tallyAccountId === tallyAccountId || p.name.toLowerCase() === partyName.toLowerCase());
 
   useEffect(() => {
-    if (open && tallyAccountId) {
+    if (open) {
+      fetchFiscalYears();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && tallyAccountId && selectedFyId) {
       fetchData();
     }
-  }, [open, tallyAccountId]);
+  }, [open, tallyAccountId, selectedFyId]);
+
+  const fetchFiscalYears = async () => {
+    try {
+      const snap = await getDocs(collection(tallyDb, 'fiscalYears'));
+      const fys: any[] = [];
+      snap.forEach(doc => {
+        fys.push({ id: doc.id, ...doc.data() });
+      });
+      fys.sort((a, b) => {
+        const dateA = new Date(a.startDate || 0).getTime();
+        const dateB = new Date(b.startDate || 0).getTime();
+        return dateB - dateA;
+      });
+      setFiscalYears(fys);
+      if (fys.length > 0 && !selectedFyId) {
+        const today = new Date().toISOString().split('T')[0];
+        const currentFy = fys.find(fy => fy.startDate <= today && fy.endDate >= today);
+        setSelectedFyId(currentFy ? currentFy.id : fys[0].id);
+      }
+    } catch (e) {
+      console.error("Error fetching fiscal years:", e);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -55,6 +90,16 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
         const data = accDoc.data();
         accName = data.name;
         setAccountInfo({ id: accDoc.id, ...data });
+      }
+
+      // Fetch FY specific account data
+      if (selectedFyId) {
+        const fyAccDoc = await getDoc(doc(tallyDb, `accounts/${tallyAccountId}/fiscalYears`, selectedFyId));
+        if (fyAccDoc.exists()) {
+          setFyAccountData(fyAccDoc.data());
+        } else {
+          setFyAccountData(null);
+        }
       }
 
       if (accName) {
@@ -75,8 +120,18 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
           snapCredit.forEach(doc => txMap.set(doc.id, { id: doc.id, ...doc.data() }));
         }
 
+        // Filter by FY dates
+        let filteredTxs = Array.from(txMap.values());
+        const selectedFy = fiscalYears.find(f => f.id === selectedFyId);
+        if (selectedFy) {
+          filteredTxs = filteredTxs.filter((tx: any) => {
+            const txDate = tx.date || '';
+            return txDate >= (selectedFy.startDate || '') && txDate <= (selectedFy.endDate || '9999-99-99');
+          });
+        }
+
         // Sort by date ASCENDING for correct running balance calculation
-        const sortedTxs = Array.from(txMap.values()).sort((a, b) => {
+        const sortedTxs = filteredTxs.sort((a: any, b: any) => {
           const dateA = new Date(a.date || 0).getTime();
           const dateB = new Date(b.date || 0).getTime();
           return dateA - dateB;
@@ -91,12 +146,15 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
     }
   };
 
-  // Initialize running balance
+  // Initialize running balance based on FY selection
   let currentBalance = 0;
-  if (accountInfo?.openingBalance) {
-     currentBalance = accountInfo.openingBalanceType === 'Cr' 
-        ? -parseAmt(accountInfo.openingBalance) 
-        : parseAmt(accountInfo.openingBalance);
+  let activeOpBal = selectedFyId ? (fyAccountData?.openingBalance || 0) : (accountInfo?.openingBalance || 0);
+  let activeOpBalType = selectedFyId ? (fyAccountData?.openingBalanceType || '') : (accountInfo?.openingBalanceType || '');
+  
+  if (activeOpBal) {
+     currentBalance = activeOpBalType === 'Cr' 
+        ? -parseAmt(activeOpBal) 
+        : parseAmt(activeOpBal);
   }
 
   // Robust Custom PDF Generator
@@ -269,11 +327,55 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 font-bold ml-2">
                     Tally Connected
                   </Badge>
+                  {fiscalYears.length > 0 && (
+                    <div className="relative ml-3">
+                      <select
+                        value={selectedFyId}
+                        onChange={(e) => setSelectedFyId(e.target.value)}
+                        className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                      >
+                        {fiscalYears.map(fy => (
+                          <option key={fy.id} value={fy.id}>{fy.name || fy.id}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  )}
                 {(vmsParty?.contactNumber || vmsParty?.address) && (<span className="text-[13px] font-semibold text-slate-500 normal-case ml-3 flex items-center gap-2 border-l pl-3 border-slate-200 dark:border-slate-700">{vmsParty?.contactNumber} {vmsParty?.contactNumber && vmsParty?.address ? "•" : ""} {vmsParty?.address}</span>)}</DialogTitle>
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Comprehensive Account Statement</p>
               </div>
+              
+              {/* Add View button if vmsParty is a customer and has sales */}
+              {vmsParty?.type === 'customer' && (() => {
+                const customerSales = sales.filter(s => s.customerId === vmsParty.id);
+                if (customerSales.length > 0) {
+                  return (
+                    <div className="ml-auto flex items-center pr-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-9 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-xs rounded-xl shadow-sm px-4 flex items-center gap-2"
+                        onClick={() => {
+                          const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
+                          setViewSale(latestSale);
+                          setViewSheetOpen(true);
+                        }}
+                      >
+                        <FileText className="h-4 w-4" />
+                        VIEW DOCUMENT
+                      </Button>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
             
+            <ProcessDocumentSheet 
+              open={viewSheetOpen}
+              onOpenChange={setViewSheetOpen}
+              viewSale={viewSale}
+            />
                         
 
             
@@ -384,7 +486,7 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                             <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right font-black text-blue-600 dark:text-blue-400 font-mono">
-                              {formatAmt(accountInfo?.openingBalance)} {accountInfo?.openingBalanceType || ''}
+                              {formatAmt(activeOpBal)} {activeOpBalType}
                             </TableCell>
                           </TableRow>
 
@@ -491,13 +593,13 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                               Totals & Closing Balance
                             </TableCell>
                             <TableCell className="text-right font-black text-emerald-600 font-mono py-4 text-xs">
-                              {formatAmt(accountInfo?.totalDebit)}
+                              {formatAmt(selectedFyId ? (fyAccountData?.totalDebit || 0) : accountInfo?.totalDebit)}
                             </TableCell>
                             <TableCell className="text-right font-black text-rose-600 font-mono py-4 text-xs">
-                              {formatAmt(accountInfo?.totalCredit)}
+                              {formatAmt(selectedFyId ? (fyAccountData?.totalCredit || 0) : accountInfo?.totalCredit)}
                             </TableCell>
                             <TableCell className="text-right font-black text-blue-600 dark:text-blue-400 font-mono py-4 text-sm">
-                              {formatAmt(accountInfo?.closingBalance)} {accountInfo?.closingBalanceType || ''}
+                              {formatAmt(selectedFyId ? (fyAccountData?.closingBalance || 0) : accountInfo?.closingBalance)} {selectedFyId ? (fyAccountData?.closingBalanceType || '') : (accountInfo?.closingBalanceType || '')}
                             </TableCell>
                           </TableRow>
                         </TableBody>
