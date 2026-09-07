@@ -173,6 +173,7 @@ export function Purchases() {
   const openEditPurchase = (purchase: Purchase & { id: string }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setEditingPurchase(purchase);
+    setIsFormOpen(true);
     
     setPurchaseDate(purchase.date instanceof Timestamp ? purchase.date.toDate().toISOString().split('T')[0] : String(purchase.date));
     setInvoiceNumber(purchase.invoiceNumber || '');
