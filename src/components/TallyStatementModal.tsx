@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';
 import { History } from 'lucide-react';
 
+
 interface TallyStatementModalProps {
   tallyAccountId: string | null;
   open: boolean;
@@ -44,7 +45,6 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
   const [viewSale, setViewSale] = useState<any>(null);
-  
   // Followups
   const [followUpData, setFollowUpData] = useState<any>(null);
   const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
@@ -362,8 +362,8 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Comprehensive Account Statement</p>
               </div>
               
-            {/* Add View button if vmsParty is a customer and has sales */}
             <div className="ml-auto flex items-center pr-4 gap-2">
+
               {vmsParty?.type === 'customer' && (() => {
                 const customerSales = sales.filter(s => s.customerId === vmsParty.id);
                 if (customerSales.length > 0) {
@@ -385,7 +385,6 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                 }
                 return null;
               })()}
-              
               {followUpData && (
                 <Button 
                   variant="outline" 
@@ -398,6 +397,7 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                 </Button>
               )}
             </div>
+
             </div>
             
             <ProcessDocumentSheet 
@@ -449,6 +449,7 @@ export function TallyStatementModal({ tallyAccountId, open, onOpenChange, partyN
                  </Table>
               </DialogContent>
             </Dialog>
+
                         
 
             
