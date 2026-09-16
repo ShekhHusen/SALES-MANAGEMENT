@@ -2,7 +2,7 @@ import { Timestamp } from '@/lib/trackedFirestore';
 
 export type BluebookStatus = 'Not Received' | 'Received';
 export type NaamsariStatus = 'Pending' | 'Names of JBMT' | 'Customer Done' | 'VAT Bill Issued';
-export type VehicleStatus = 'ready-to-purchase' | 'in-stock' | 'sold';
+export type VehicleStatus = 'ready-to-purchase' | 'in-stock' | 'sold' | 'hold';
 export type PartyType = 'vendor' | 'customer';
 
 export interface Company {
@@ -31,6 +31,7 @@ export interface Party {
   contactNumber: string;
   alternateNumber?: string;
   type: PartyType;
+  tallyAccountId?: string;
   createdAt: Timestamp;
 }
 
@@ -134,4 +135,35 @@ export interface Emi {
   isClosed?: boolean;
   closedAt?: Timestamp;
   closedReason?: string;
+}
+
+
+export type QuotationStatus = 'active' | 'converted_to_sale' | 'cancelled';
+
+export interface Quotation {
+  id: string;
+  quotationNumber: number;
+  date: Timestamp;
+  customerId: string;
+  chassisNumber: string;
+  batteryDetails: {
+    numberOfBattery: number;
+    category: string;
+    model: string;
+    productId: string;
+    bluetoothId: string;
+    serialNumbers: string[];
+  };
+  bookingAmount?: number;
+  status: QuotationStatus;
+  createdAt: Timestamp;
+  saleId?: string;
+  cancelledAt?: Timestamp;
+}
+
+export interface BusinessProfile {
+
+  name: string;
+  address: string;
+  contactNumber: string;
 }

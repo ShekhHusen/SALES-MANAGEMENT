@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { collection, query, orderBy, getDocs, onSnapshot } from '@/lib/trackedFirestore';
+import { collection, onSnapshot } from '@/lib/trackedFirestore';
 import { db } from '../lib/firebase';
-import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor } from '../types';
+import type { Vehicle, Company, Model, Party, Purchase, Sale, VehicleColor, BusinessProfile, Quotation } from '../types';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 
 interface GlobalDataState {
@@ -9,9 +10,12 @@ interface GlobalDataState {
   companies: Company[];
   models: Model[];
   colors: VehicleColor[];
+  businessProfile: BusinessProfile | null;
+  updateBusinessProfile: (profile: BusinessProfile) => Promise<void>;
   parties: Party[];
   purchases: Purchase[];
   sales: Sale[];
+  quotations: Quotation[];
   loading: boolean;
   debugStates?: any;
   subscriptionErrors?: string[];
@@ -20,11 +24,13 @@ interface GlobalDataState {
   isPurchasesLoaded: boolean;
   isSalesLoaded: boolean;
   isPartiesLoaded: boolean;
+  isQuotationsLoaded: boolean;
   
   loadVehicles: () => void;
   loadPurchases: () => void;
   loadSales: () => void;
   loadParties: () => void;
+  loadQuotations: () => void;
   loadProcessDocumentData: () => void;
 }
 
@@ -33,9 +39,12 @@ const initialState: GlobalDataState = {
   companies: [],
   models: [],
   colors: [],
+  businessProfile: null,
+  updateBusinessProfile: async () => {},
   parties: [],
   purchases: [],
   sales: [],
+  quotations: [],
   loading: true,
   debugStates: {},
   subscriptionErrors: [],
@@ -43,10 +52,12 @@ const initialState: GlobalDataState = {
   isPurchasesLoaded: false,
   isSalesLoaded: false,
   isPartiesLoaded: false,
+  isQuotationsLoaded: false,
   loadVehicles: () => {},
   loadPurchases: () => {},
   loadSales: () => {},
   loadParties: () => {},
+  loadQuotations: () => {},
   loadProcessDocumentData: () => {},
 };
 
@@ -54,6 +65,7 @@ const GlobalDataContext = createContext<GlobalDataState>(initialState);
 
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [data, setData] = useState<GlobalDataState>(initialState);
+
   const addError = useCallback((name: string, err: any) => {
     setData(prev => ({
       ...prev,
@@ -77,17 +89,12 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (activeListeners.current.has(name)) return;
     activeListeners.current.add(name);
     
-    let isInitialSnapshot = true;
-
     try {
       const q = collection(db, path);
       const unsub = onSnapshot(q, (snapshot) => {
         let docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
         if (mapFunc) docs = docs.map(mapFunc);
         if (sortFunc) docs = docs.sort(sortFunc);
-
-        isInitialSnapshot = false;
-
         setData(prev => ({
           ...prev,
           [name]: docs,
@@ -112,6 +119,19 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     let unsubs: (() => void)[] = [];
     
+    const loadBusinessProfile = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'businessProfile');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setData(prev => ({ ...prev, businessProfile: docSnap.data() as BusinessProfile }));
+        }
+      } catch (err) {
+        console.error('Failed to load business profile:', err);
+      }
+    };
+    loadBusinessProfile();
+
     const smallCollections = [
       { name: 'companies', path: 'companies' },
       { name: 'models', path: 'models' },
@@ -123,8 +143,6 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (unsub) unsubs.push(unsub);
     });
 
-    // Mark global loading as false once initial setup is done
-    // In a real app we might wait for these small collections to load
     setData(prev => ({ ...prev, loading: false }));
 
     return () => {
@@ -153,6 +171,13 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     );
   }, [setupListener]);
 
+  const loadQuotations = useCallback(() => {
+    setupListener('quotations', 'quotations', 
+      d => d as Quotation,
+      (a, b) => ((b.createdAt as any)?.toMillis?.() || 0) - ((a.createdAt as any)?.toMillis?.() || 0)
+    );
+  }, [setupListener]);
+
   const loadParties = useCallback(() => {
     setupListener('parties', 'parties', d => d as Party);
   }, [setupListener]);
@@ -163,12 +188,25 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     loadVehicles();
   }, [loadSales, loadParties, loadVehicles]);
 
+  const updateBusinessProfile = async (profile: BusinessProfile) => {
+    try {
+      const docRef = doc(db, 'settings', 'businessProfile');
+      await setDoc(docRef, profile, { merge: true });
+      setData(prev => ({ ...prev, businessProfile: profile }));
+    } catch (err) {
+      console.error('Failed to update business profile:', err);
+      throw err;
+    }
+  };
+
   return (
     <GlobalDataContext.Provider value={{
       ...data,
+      updateBusinessProfile,
       loadVehicles,
       loadPurchases,
       loadSales,
+      loadQuotations,
       loadParties,
       loadProcessDocumentData
     }}>

@@ -1,377 +1,830 @@
-import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, getDocs, where } from '@/lib/trackedFirestore';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { db } from '@/lib/firebase';
+import { tallyDb } from '@/lib/tallyFirebase';
+import { collection, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  Search, X, Check, Clock, AlertCircle, AlertTriangle, 
+  FileText, PhoneCall, History, Calendar, CheckCircle2, User,
+  Filter, ChevronDown, ChevronUp, MoreVertical, Eye
+} from 'lucide-react';
+import { TallyStatementModal } from '@/components/TallyStatementModal';
+import UpdateFollowUpModal from '@/components/UpdateFollowUpModal';
+
+const getTodayStr = () => new Date().toISOString().split('T')[0];
+const getOneWeekAgoStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().split('T')[0];
+};
+
+import { useAuth } from '@/hooks/use-auth';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CalendarClock, Eye, Plus } from 'lucide-react';
-import { Sale } from '@/types';
 
 export function FollowUps() {
-  const { sales, loadSales, isSalesLoaded, vehicles, loadVehicles, isVehiclesLoaded, parties, loadParties, isPartiesLoaded } = useGlobalData();
-  const [salesFollowUps, setSalesFollowUps] = useState<any[]>([]);
-  const [emiFollowUps, setEmiFollowUps] = useState<any[]>([]);
-  const [emis, setEmis] = useState<any[]>([]);
-  const [selectedEntityForHistory, setSelectedEntityForHistory] = useState<{ id: string, type: 'sales' | 'emi', saleId?: string } | null>(null);
-  const [historyList, setHistoryList] = useState<any[]>([]);
-  const [selectedViewDetails, setSelectedViewDetails] = useState<any>(null);
+  const { user: currentUser } = useAuth();
+  const { parties, loadParties, isPartiesLoaded } = useGlobalData();
+  const [followUps, setFollowUps] = useState([]);
+  const [filteredFollowUps, setFilteredFollowUps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+
+  // Statement modal state
+  const [statementAccountName, setStatementAccountName] = useState('');
+  const [isStatementOpen, setIsStatementOpen] = useState(false);
+
+  // Update / Reschedule modal state
+  const [selectedFollowUp, setSelectedFollowUp] = useState(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateModalTab, setUpdateModalTab] = useState('update');
+
+  // Dropdown state
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   useEffect(() => {
-    if (!isSalesLoaded) loadSales();
-    if (!isVehiclesLoaded) loadVehicles();
-    if (!isPartiesLoaded) loadParties();
-  }, [isSalesLoaded, loadSales, isVehiclesLoaded, loadVehicles, isPartiesLoaded, loadParties]);
-
-  useEffect(() => {
-    const qSalesFollowUps = query(collection(db, 'salesFollowUps'));
-    const unsubSalesFollowUps = onSnapshot(qSalesFollowUps, (snapshot) => {
-      setSalesFollowUps(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    const qEmiFollowUps = query(collection(db, 'emiFollowUps'));
-    const unsubEmiFollowUps = onSnapshot(qEmiFollowUps, (snapshot) => {
-      setEmiFollowUps(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    const qEmis = query(collection(db, 'emis'));
-    const unsubEmis = onSnapshot(qEmis, (snapshot) => {
-      setEmis(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    return () => {
-      unsubSalesFollowUps();
-      unsubEmiFollowUps();
-      unsubEmis();
-    };
+    const handleClickOutside = () => setActiveDropdown(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Process followups to get the latest one per sale / emi
-  // Actually, we want to show follow-ups where nextDate <= today + 3 days
-  // But only the latest follow-up for that entity, or rather we check if the LATEST follow-up has a nextDate <= today + 3 days.
-
-  const getProcessedList = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const threeDaysFromNow = new Date(today);
-    threeDaysFromNow.setDate(today.getDate() + 3);
-
-    const latestFollowUps = new Map<string, any>();
-
-    const getTime = (d: any) => {
-      if (!d) return 0;
-      if (d.seconds) return d.seconds * 1000;
-      if (typeof d.toMillis === 'function') return d.toMillis();
-      if (d instanceof Date) return d.getTime();
-      return new Date(d).getTime() || 0;
-    };
-
-    // Process sales follow-ups
-    salesFollowUps.forEach(fu => {
-      if (!latestFollowUps.has(fu.saleId) || getTime(latestFollowUps.get(fu.saleId).createdAt) < getTime(fu.createdAt)) {
-        latestFollowUps.set(fu.saleId, { ...fu, entityType: 'sales', entityId: fu.saleId });
-      }
-    });
-
-    // Process EMI follow-ups
-    emiFollowUps.forEach(fu => {
-      if (!latestFollowUps.has(fu.emiId) || getTime(latestFollowUps.get(fu.emiId).createdAt) < getTime(fu.createdAt)) {
-        latestFollowUps.set(fu.emiId, { ...fu, entityType: 'emi', entityId: fu.emiId });
-      }
-    });
-
-    const pendingFollowUps: any[] = [];
-
-    latestFollowUps.forEach((fu, key) => {
-      if (!fu.nextDate) return;
-      
-      const nextDateStr = fu.nextDate; // assuming YYYY-MM-DD
-      const nextDate = new Date(nextDateStr);
-      
-      if (true) { // Show all follow ups for now
-        // Find customer info
-        let customerName = 'Unknown';
-        let address = '---';
-        let contact = '---';
-        let fileNumber = '---';
-        let saleId = '';
-
-        if (fu.entityType === 'sales') {
-          const sale = sales.find(s => s.id === fu.saleId);
-          if (sale) {
-            const customer = parties.find(p => p.id === sale.customerId);
-            if (customer) {
-              customerName = customer.name || 'Unknown';
-              address = customer.address || '---';
-              contact = customer.contactNumber || '---';
-            }
-            fileNumber = sale.fileNumber || '---';
-            saleId = sale.id;
-          }
-        } else if (fu.entityType === 'emi') {
-          const emi = emis.find(e => e.id === fu.emiId);
-          if (emi) {
-            const customer = parties.find(p => p.id === emi.customerId);
-            if (customer) {
-              customerName = customer.name || 'Unknown';
-              address = customer.address || '---';
-              contact = customer.contactNumber || '---';
-            }
-            const sale = sales.find(s => s.id === emi.saleId);
-            fileNumber = sale?.fileNumber || '---';
-            saleId = emi.saleId;
-          }
-        }
-
-        pendingFollowUps.push({
-          ...fu,
-          customerName,
-          address,
-          contact,
-          fileNumber,
-          saleId
-        });
-      }
-    });
-
-    // Sort by nextDate asc
-    pendingFollowUps.sort((a, b) => {
-      return new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime();
-    });
-
-    return pendingFollowUps;
+  const handleOpenStatement = (accName) => {
+    setStatementAccountName(accName);
+    setIsStatementOpen(true);
   };
 
-  const processedList = getProcessedList();
+  const handleOpenUpdate = (fu, tab = 'update') => {
+    setSelectedFollowUp(fu);
+    setUpdateModalTab(tab);
+    setIsUpdateModalOpen(true);
+  };
+  
+  // Filters - Default to 'Today' so today's follow-ups are displayed
+  const [searchAccount, setSearchAccount] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Active'); // Active, Today, Upcoming, Overdue, Pending, Completed, All
+  const [assignedFilter, setAssignedFilter] = useState('All');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
-    if (selectedEntityForHistory) {
-      const qSales = query(collection(db, 'salesFollowUps'), where('saleId', '==', selectedEntityForHistory.saleId || selectedEntityForHistory.id));
-      const unsubSales = onSnapshot(qSales, (snapshot) => {
-        const s = snapshot.docs.map(doc => ({ id: doc.id, type: 'sales', ...doc.data() }));
-        
-        let emiId = '';
-        if (selectedEntityForHistory.type === 'emi') {
-          emiId = selectedEntityForHistory.id;
-        } else {
-          const emi = emis.find(e => e.saleId === selectedEntityForHistory.id);
-          if (emi) emiId = emi.id;
-        }
-
-        if (emiId) {
-           const qEmi = query(collection(db, 'emiFollowUps'), where('emiId', '==', emiId));
-           const unsubEmi = onSnapshot(qEmi, (emiSnap) => {
-             const e = emiSnap.docs.map(doc => ({ id: doc.id, type: 'emi', ...doc.data() }));
-             const combined = [...s, ...e].sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-             setHistoryList(combined);
-           });
-           return () => unsubEmi();
-        } else {
-           setHistoryList(s.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-        }
-      });
-      return () => unsubSales();
-    } else {
-      setHistoryList([]);
+    if (!isPartiesLoaded) {
+      loadParties();
     }
-  }, [selectedEntityForHistory, emis]);
+  }, [isPartiesLoaded, loadParties]);
+
+  useEffect(() => {
+    if (isPartiesLoaded) {
+      fetchFollowUps();
+    }
+    fetchUsers();
+  }, [currentUser, isPartiesLoaded, parties]);
+
+  const fetchUsers = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const usersList: any[] = snapshot.docs.map(doc => ({
+        uid: doc.id,
+        ...doc.data()
+      }));
+      usersList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchFollowUps = async () => {
+    setLoading(true);
+    try {
+      const snapshot = await getDocs(collection(tallyDb, 'followUps'));
+      let data: any[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Filter logic:
+      // Show follow-up if its accountId matches a linked Tally Account ID
+      // OR if its accountId matches an existing Party ID in the system.
+      const linkedTallyIds = new Set(parties.map((p: any) => p.tallyAccountId).filter(Boolean));
+      const partyIds = new Set(parties.map((p: any) => p.id));
+      
+      data = data.filter(fu => {
+        if (!fu.accountId) return false;
+        return linkedTallyIds.has(fu.accountId) || partyIds.has(fu.accountId);
+      });
+
+      // Role-based filtering:
+      // Admin sees ALL follow-ups.
+      // Normal user sees ONLY follow-ups assigned to them (by UID or by Name).
+      // Removed role-based filtering temporarily to show all data
+
+      // Sort client-side descending by createdAt or date
+      data.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.date ? new Date(a.date).getTime() : 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.date ? new Date(b.date).getTime() : 0);
+        return timeB - timeA;
+      });
+
+      setFollowUps(data);
+      applyFilters(data, searchAccount, statusFilter, assignedFilter, dateFrom, dateTo);
+    } catch (error) {
+      console.error('Error fetching follow-ups:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatus = (fu) => {
+    if (fu.completed) return 'Completed';
+    if (!fu.nextFollowUpDate) return 'Pending';
+    const today = getTodayStr();
+    if (fu.nextFollowUpDate === today) return 'Today';
+    if (fu.nextFollowUpDate > today) return 'Upcoming';
+    return 'Overdue';
+  };
+
+  const applyFilters = (data, account, status, assigned, from, to) => {
+    let filtered = [...data];
+    const today = getTodayStr();
+
+    if (account) {
+      const lowerSearch = account.toLowerCase();
+      filtered = filtered.filter(fu => fu.accountName?.toLowerCase().includes(lowerSearch));
+    }
+
+    if (status === 'Active') {
+      filtered = filtered.filter(fu => !fu.completed);
+    } else if (status === 'Today') {
+      filtered = filtered.filter(fu => !fu.completed && fu.nextFollowUpDate === today);
+    } else if (status === 'Upcoming') {
+      filtered = filtered.filter(fu => !fu.completed && fu.nextFollowUpDate > today);
+    } else if (status === 'Overdue') {
+      filtered = filtered.filter(fu => !fu.completed && fu.nextFollowUpDate && fu.nextFollowUpDate < today);
+    } else if (status === 'Pending') {
+      filtered = filtered.filter(fu => !fu.completed && !fu.nextFollowUpDate);
+    } else if (status === 'Completed') {
+      filtered = filtered.filter(fu => {
+        if (!fu.completed) return false;
+        if (from || to) return true; // If user provides date range, skip the 1-week default
+        const oneWeekAgo = getOneWeekAgoStr();
+        return fu.history && fu.history.some(h => h.type === 'completed' && h.date >= oneWeekAgo);
+      });
+    }
+    // If status === 'All', no filter on completion status
+
+    if (assigned !== 'All') {
+      filtered = filtered.filter(fu => fu.assignedToUid === assigned);
+    }
+
+    if (from) {
+      filtered = filtered.filter(fu => fu.date >= from);
+    }
+
+    if (to) {
+      filtered = filtered.filter(fu => fu.date <= to);
+    }
+
+    setFilteredFollowUps(filtered);
+    setCurrentPage(1);
+  };
+
+  const handleSearch = () => {
+    applyFilters(followUps, searchAccount, statusFilter, assignedFilter, dateFrom, dateTo);
+  };
+
+  const handleClear = () => {
+    setSearchAccount('');
+    setStatusFilter('Active');
+    setAssignedFilter('All');
+    setDateFrom('');
+    setDateTo('');
+    applyFilters(followUps, '', 'Active', 'All', '', '');
+  };
+
+  const handleStatusCardClick = (newStatus) => {
+    setStatusFilter(newStatus);
+    applyFilters(followUps, searchAccount, newStatus, assignedFilter, dateFrom, dateTo);
+  };
+
+  const handleMarkComplete = async (fu) => {
+    if (!window.confirm(`Mark follow-up for "${fu.accountName}" as completed? It will be removed from the active list.`)) {
+      return;
+    }
+    try {
+      const prevHistory = (Array.isArray(fu.history) && fu.history.length > 0) ? fu.history : [
+        {
+          id: 'initial',
+          type: 'created',
+          action: 'Created Follow-up',
+          date: fu.date || getTodayStr(),
+          timestamp: fu.createdAt?.toDate ? fu.createdAt.toDate().toISOString() : null,
+          userName: fu.userName || 'Unknown',
+          note: fu.message || '',
+          nextFollowUpDate: fu.nextFollowUpDate || null,
+          assignedTo: fu.assignedTo || null
+        }
+      ];
+
+      const newHistoryItem = {
+        id: 'hist_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        type: 'completed',
+        action: 'Marked Completed',
+        date: getTodayStr(),
+        timestamp: new Date().toISOString(),
+        userName: currentUser?.name || 'Unknown',
+        userUid: currentUser?.uid || '',
+        note: 'Marked as completed directly from Follow-ups tab.'
+      };
+
+      await updateDoc(doc(tallyDb, 'followUps', fu.id), {
+        completed: true,
+        nextFollowUpDate: null,
+        history: [...prevHistory, newHistoryItem],
+        completedAt: serverTimestamp(),
+        completedBy: currentUser?.name || 'Unknown',
+        updatedAt: serverTimestamp()
+      });
+      // Refresh list
+      fetchFollowUps();
+    } catch (error) {
+      console.error('Error updating follow-up:', error);
+      alert('Error marking follow-up as complete: ' + error.message);
+    }
+  };
+
+  // Quick stats counts
+  const totalActive = followUps.filter(f => !f.completed).length;
+  const countToday = followUps.filter(f => !f.completed && f.nextFollowUpDate === getTodayStr()).length;
+  const countOverdue = followUps.filter(f => !f.completed && f.nextFollowUpDate && f.nextFollowUpDate < getTodayStr()).length;
+  const countUpcoming = followUps.filter(f => !f.completed && f.nextFollowUpDate && f.nextFollowUpDate > getTodayStr()).length;
+  const countCompleted = followUps.filter(fu => {
+    if (!fu.completed) return false;
+    const oneWeekAgo = getOneWeekAgoStr();
+    return fu.history && fu.history.some(h => h.type === 'completed' && h.date >= oneWeekAgo);
+  }).length;
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredFollowUps.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = filteredFollowUps.slice(startIndex, startIndex + itemsPerPage);
+
+  const hasActiveFilters = Boolean(
+    searchAccount || 
+    (statusFilter !== 'Active') || 
+    (assignedFilter !== 'All') || 
+    dateFrom || 
+    dateTo
+  );
+
+  const getStatusBadge = (status, isMobile = false) => {
+    const pad = isMobile ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-0.5 text-xs";
+    const iconCls = isMobile ? "w-2.5 h-2.5 shrink-0" : "w-3 h-3 shrink-0";
+    switch (status) {
+      case 'Completed':
+        return <span className={`inline-flex items-center gap-1 font-semibold rounded-full bg-green-100 text-green-800 ${pad}`}><CheckCircle2 className={iconCls}/> Completed</span>;
+      case 'Today':
+        return <span className={`inline-flex items-center gap-1 font-bold rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-xs ${pad}`}><Clock className={`text-amber-600 ${iconCls}`}/> Due Today</span>;
+      case 'Upcoming':
+        return <span className={`inline-flex items-center gap-1 font-medium rounded-full bg-blue-100 text-blue-800 ${pad}`}><Calendar className={iconCls}/> Upcoming</span>;
+      case 'Overdue':
+        return <span className={`inline-flex items-center gap-1 font-semibold rounded-full bg-red-100 text-red-800 border border-red-200 ${pad}`}><AlertCircle className={`text-red-600 ${iconCls}`}/> Overdue</span>;
+      case 'Pending':
+        return <span className={`inline-flex items-center gap-1 font-medium rounded-full bg-gray-100 text-gray-700 ${pad}`}><AlertTriangle className={iconCls}/> Pending</span>;
+      default:
+        return null;
+    }
+  };
+
+  const getRowClass = (status) => {
+    switch (status) {
+      case 'Today': return 'bg-amber-50/40 font-medium';
+      case 'Overdue': return 'bg-red-50/50';
+      case 'Upcoming': return 'bg-blue-50/20';
+      case 'Completed': return 'bg-gray-50 opacity-80';
+      default: return 'bg-white';
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-[#090E17]">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 lg:p-6 lg:pb-0 shrink-0">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            Follow-ups Dashboard
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Pending and upcoming follow-ups</p>
-        </div>
-      </div>
+    <div className="flex flex-col min-h-0 flex-1 gap-3 sm:gap-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col flex-1 min-h-0 overflow-hidden">
+        
+        {/* Unified Top Control Bar */}
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col gap-3 sm:gap-5 bg-white rounded-t-2xl shrink-0 relative z-20">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
+            
+            {/* Top Row on Mobile: Status Cards */}
+            <div className="w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 shrink-0">
+              <div className="flex gap-2 w-max mx-auto md:mx-0">
+                {[
+                  { id: 'Active', label: 'Active', count: totalActive, color: 'text-blue-700 bg-blue-100 border-blue-200' },
+                  { id: 'Today', label: 'Today', count: countToday, color: 'text-amber-700 bg-amber-100 border-amber-200' },
+                  { id: 'Overdue', label: 'Overdue', count: countOverdue, color: 'text-red-700 bg-red-100 border-red-200' },
+                  { id: 'Upcoming', label: 'Upcoming', count: countUpcoming, color: 'text-indigo-700 bg-indigo-100 border-indigo-200' },
+                  { id: 'Completed', label: 'Completed', count: countCompleted, color: 'text-green-700 bg-green-100 border-green-200' }
+                ].map(statusObj => {
+                  const isSelected = statusFilter === statusObj.id;
+                  return (
+                    <button
+                      key={statusObj.id}
+                      type="button"
+                      onClick={() => handleStatusCardClick(statusObj.id)}
+                      className={`flex items-center justify-center rounded-full text-xs font-bold transition-all border ${statusObj.color} ${
+                        isSelected 
+                          ? 'px-3 py-1.5 gap-1.5 shadow-sm ring-2 ring-offset-1 ' + statusObj.color.split(' ')[2].replace('border', 'ring') // uses the border color for ring
+                          : 'w-8 h-8 opacity-75 hover:opacity-100 shadow-sm'
+                      }`}
+                      title={`${statusObj.label}: ${statusObj.count}`}
+                    >
+                      {isSelected ? (
+                        <>
+                          <span>{statusObj.label}</span>
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/60">
+                            {statusObj.count}
+                          </span>
+                        </>
+                      ) : (
+                        <span>{statusObj.count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-      <div className="flex-1 p-4 lg:p-6 min-h-0 overflow-hidden flex flex-col">
-        <Card className="flex-1 flex flex-col border-slate-200/60 dark:border-slate-800/60 shadow-xl shadow-blue-900/5 dark:shadow-blue-900/10 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
-          <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader className="bg-slate-50/80 dark:bg-slate-900/80 sticky top-0 z-10 backdrop-blur-md">
-                <TableRow className="hover:bg-transparent border-slate-200 dark:border-slate-800">
-                  <TableHead className="font-bold text-xs uppercase tracking-wider">Customer / File</TableHead>
-                  <TableHead className="font-bold text-xs uppercase tracking-wider">Address & Contact</TableHead>
-                  <TableHead className="font-bold text-xs uppercase tracking-wider">Recent Follow-up</TableHead>
-                  <TableHead className="font-bold text-xs uppercase tracking-wider">Remarks</TableHead>
-                  <TableHead className="font-bold text-xs uppercase tracking-wider">Next Date</TableHead>
-                  <TableHead className="font-bold text-xs uppercase tracking-wider text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedList.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-slate-500">
-                      No pending or upcoming follow-ups found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  processedList.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                      <TableCell>
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                          {item.customerName}
-                        </div>
-                        <Badge variant="outline" className="text-[10px] mt-1 text-slate-500 font-bold border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                          #{item.fileNumber}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 max-w-[200px] truncate">{item.address}</div>
-                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">{item.contact}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                           <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                             {item.recentDate || '---'}
-                           </span>
-                           {item.entityType === 'sales' ? (
-                             <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">Sales</Badge>
-                           ) : (
-                             <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-purple-50 text-purple-700 border-purple-200">EMI</Badge>
-                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-700 dark:text-slate-300 max-w-[250px] whitespace-pre-wrap">
-                        <div className="flex flex-col gap-1">
-                          <span>{item.remarks || '---'}</span>
-                          {item.userName && (
-                            <span className="text-[10px] text-slate-400 font-medium">By: {item.userName}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-bold border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
-                          {item.nextDate}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800" onClick={() => setSelectedViewDetails(item)}>
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           <Dialog>
-                             <DialogTrigger render={
-                               <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30" onClick={() => setSelectedEntityForHistory({ id: item.entityId, type: item.entityType, saleId: item.saleId })}>
-                                 <Plus className="h-4 w-4" />
-                               </Button>
-                             } />
-                             <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
-                               <DialogHeader>
-                                 <DialogTitle>Follow-up History - {item.customerName}</DialogTitle>
-                               </DialogHeader>
-                               <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="text-xs">Recent Date</TableHead>
-                                      <TableHead className="text-xs">Remarks</TableHead>
-                                      <TableHead className="text-xs">Next Date</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {historyList.map(h => (
-                                      <TableRow key={h.id}>
-                                        <TableCell className="text-xs">
-                                          <div className="flex flex-col gap-1">
-                                            <span>{h.recentDate || '---'}</span>
-                                            {h.type === 'sales' ? (
-                                              <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">Sales</Badge>
-                                            ) : (
-                                              <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-purple-50 text-purple-700 border-purple-200">EMI</Badge>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="text-xs">
-                                          <div className="flex flex-col gap-1">
-                                            <span>{h.remarks || '---'}</span>
-                                            {h.userName && (
-                                              <span className="text-[10px] text-slate-400 font-medium">By: {h.userName}</span>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="text-xs font-semibold text-blue-600">
-                                          {h.nextDate || '---'}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                               </Table>
-                             </DialogContent>
-                           </Dialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            {/* Second Row on Mobile: Search + Filter */}
+            <div className="flex items-center justify-between gap-2 md:gap-4 w-full md:flex-1 min-w-0">
+              {/* Center: Account Name */}
+              <div className="flex-1 w-full min-w-0">
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 font-medium transition-colors"
+                  value={searchAccount}
+                  onChange={e => {
+                    setSearchAccount(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearch();
+                  }}
+                  placeholder="Search account name..."
+                />
+              </div>
+
+              {/* Right: Filter Button */}
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowMobileFilters(true)}
+                  className="flex justify-center items-center gap-1.5 md:gap-2 px-3 py-2 md:px-4 md:py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs md:text-sm font-bold text-gray-800 hover:bg-gray-100 transition shadow-sm"
+                >
+                  <Filter className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600" />
+                  <span className="hidden md:inline">Filters</span>
+                  {hasActiveFilters && (
+                    <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1">
+                      •
+                    </span>
+                  )}
+                  {showMobileFilters ? <ChevronUp className="w-4 h-4 text-gray-400 ml-1 hidden md:block" /> : <ChevronDown className="w-4 h-4 text-gray-400 ml-1 hidden md:block" />}
+                </button>
+              </div>
+            </div>
           </div>
-        </Card>
-      </div>
-      {/* View Details Dialog */}
-      <Dialog open={!!selectedViewDetails} onOpenChange={(open) => !open && setSelectedViewDetails(null)}>
-        <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-900">
-          <DialogHeader>
-            <DialogTitle>Customer & Vehicle Details</DialogTitle>
-          </DialogHeader>
-          {selectedViewDetails && (
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-3">
-                <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider">Customer Info</h3>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl space-y-2">
-                  <div>
-                    <p className="text-xs text-slate-500">Name</p>
-                    <p className="font-semibold text-sm">{selectedViewDetails.customerName}</p>
+        </div>
+
+        {/* Filter Popup / Modal */}
+        {showMobileFilters && createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center sm:p-4">
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity"
+              onClick={() => setShowMobileFilters(false)}
+            ></div>
+            <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl z-[101] flex flex-col w-full max-w-lg max-h-[85vh] absolute bottom-0 sm:relative sm:bottom-auto">
+              {/* Header */}
+              <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100 shrink-0">
+                <h3 className="font-extrabold text-gray-900 text-lg flex items-center gap-2">
+                  <Filter size={18} className="text-blue-600" /> Filters & Options
+                </h3>
+                <button onClick={() => setShowMobileFilters(false)} className="p-1.5 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+                
+                {/* Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status Filter</label>
+                  <select
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white font-medium"
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
+                  >
+                    <option value="Active">Active (All Open)</option>
+                    <option value="Today">Due Today</option>
+                    <option value="Overdue">Overdue</option>
+                    <option value="Upcoming">Upcoming</option>
+                    <option value="Pending">No Date (Pending)</option>
+                    <option value="Completed">Completed Today</option>
+                    <option value="All">All Records (incl. Completed)</option>
+                  </select>
+                </div>
+
+                {/* Assigned To */}
+                {true && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Assigned To</label>
+                    <select
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white font-medium"
+                      value={assignedFilter}
+                      onChange={e => setAssignedFilter(e.target.value)}
+                    >
+                      <option value="All">All Users</option>
+                      {users.map(u => (
+                        <option key={u.uid} value={u.uid}>{u.name}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Contact</p>
-                    <p className="font-semibold text-sm">{selectedViewDetails.contact}</p>
+                )}
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">From Date</label>
+                    <input 
+                      type="date" 
+                      value={dateFrom}
+                      onChange={e => setDateFrom(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white font-medium"
+                    />
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Address</p>
-                    <p className="font-semibold text-sm">{selectedViewDetails.address}</p>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">To Date</label>
+                    <input 
+                      type="date" 
+                      value={dateTo}
+                      onChange={e => setDateTo(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white font-medium"
+                    />
                   </div>
                 </div>
+
               </div>
-              <div className="space-y-3">
-                <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider">Vehicle Info</h3>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl space-y-2">
-                  <div>
-                    <p className="text-xs text-slate-500">File Number</p>
-                    <p className="font-semibold text-sm">#{selectedViewDetails.fileNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Vehicle Type</p>
-                    <p className="font-semibold text-sm">
-                       {(() => {
-                          const sale = sales.find(s => s.id === selectedViewDetails.saleId);
-                          if (!sale) return '---';
-                          const vehicle = vehicles.find(v => v.chassisNumber === sale.chassisNumber);
-                          if (!vehicle) return sale.chassisNumber || '---';
-                          return `${vehicle.company} ${vehicle.model} (${vehicle.color})`;
-                       })()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Chassis Number</p>
-                    <p className="font-semibold text-sm">
-                       {(() => {
-                          const sale = sales.find(s => s.id === selectedViewDetails.saleId);
-                          return sale ? sale.chassisNumber : '---';
-                       })()}
-                    </p>
-                  </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2 p-5 pt-3 border-t border-gray-100 bg-white shrink-0 pb-safe sm:rounded-b-2xl">
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => { handleClear(); setShowMobileFilters(false); }}
+                    className="flex-[1] py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold transition"
+                  >
+                    Clear
+                  </button>
+                  <button 
+                    onClick={() => { handleSearch(); setShowMobileFilters(false); }}
+                    className="flex-[2] py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-bold shadow-md transition"
+                  >
+                    Apply Filters
+                  </button>
                 </div>
               </div>
             </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Table Area */}
+        <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="p-8 text-center text-gray-500">Loading follow-ups...</div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm hidden md:table">
+              <thead className="bg-gray-100/80 sticky top-0 shadow-xs z-10">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Actions</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Created By</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] whitespace-nowrap">Account Name</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-full min-w-[250px]">Discussion / Message</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Next Follow-up</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-[11px] w-px whitespace-nowrap">Assigned To</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {currentData.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-16 text-center text-gray-500 bg-gray-50/50">
+                      <Clock className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                      <p className="font-bold text-gray-600">No follow-ups found matching your criteria.</p>
+                      {statusFilter === 'Today' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Only today's follow-ups are shown by default.
+                        </p>
+                      )}
+                      {statusFilter === 'Active' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Completed follow-ups are filtered out.
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  currentData.map(fu => {
+                    const status = getStatus(fu);
+                    const historyCount = Array.isArray(fu.history) && fu.history.length > 0 ? fu.history.length : 1;
+
+                    return (
+                      <tr key={fu.id} className={`${getRowClass(status)} hover:bg-blue-50/40 transition-colors group`}>
+                        {/* Actions */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(activeDropdown === fu.id ? null : fu.id);
+                            }}
+                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+
+                          {activeDropdown === fu.id && (
+                            <div className="absolute left-10 top-2 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
+                              {!fu.completed && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveDropdown(null); handleOpenUpdate(fu, 'update'); }}
+                                  className="px-4 py-2 text-left text-sm font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2"
+                                >
+                                  <PhoneCall className="w-4 h-4 text-blue-500" /> Reschedule
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => { setActiveDropdown(null); handleOpenUpdate(fu, 'history'); }}
+                                className="px-4 py-2 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <History className="w-4 h-4 text-gray-400" /> History ({historyCount})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setActiveDropdown(null); handleOpenStatement(fu.accountName); }}
+                                className="px-4 py-2 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <FileText className="w-4 h-4 text-gray-400" /> Ledger
+                              </button>
+                              
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap text-sm font-bold text-gray-900">
+                          {fu.date}
+                        </td>
+
+                        {/* Created By */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap text-sm font-bold text-gray-600">
+                          {fu.userName}
+                        </td>
+
+                        {/* Account Name */}
+                        <td className="px-4 py-3.5 align-middle whitespace-nowrap text-sm font-bold text-gray-900">
+                          {fu.accountName}
+                        </td>
+
+                        {/* Discussion / Message */}
+                        <td className="px-4 py-3.5 align-middle w-full min-w-[250px]">
+                          <div className="text-gray-700 text-sm font-bold leading-relaxed whitespace-normal pr-4">{fu.message || <span className="italic text-gray-400">No message</span>}</div>
+                          {fu.lastCallNote && (
+                            <div className="mt-2 text-[11px] text-blue-900 bg-blue-50 p-2 rounded border border-blue-100 flex items-start gap-1.5 w-fit max-w-full">
+                              <PhoneCall className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                              <div className="leading-tight font-bold">
+                                <span className="text-blue-800">Latest Call:</span> <span className="opacity-90">{fu.lastCallNote}</span>{' '}
+                                <span className="text-blue-600 font-bold opacity-80 whitespace-nowrap">({fu.lastCallBy || 'User'} • {fu.lastCallDate})</span>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Next Follow-up */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap">
+                          {fu.nextFollowUpDate ? (
+                            <div className={`font-bold text-sm ${status === 'Today' ? 'text-amber-600' : status === 'Overdue' ? 'text-red-600' : 'text-gray-700'}`}>
+                              {fu.nextFollowUpDate}
+                            </div>
+                          ) : (
+                            <span className="text-gray-300 font-bold">-</span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap">
+                          {getStatusBadge(status)}
+                        </td>
+
+                        {/* Assigned To */}
+                        <td className="px-4 py-3.5 align-middle w-px whitespace-nowrap">
+                          {fu.assignedTo ? (
+                            <span className="inline-flex items-center gap-1 text-sm font-bold text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200 shadow-xs">
+                              <User className="w-3 h-3 text-gray-400" />
+                              {fu.assignedTo}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400 font-bold px-1">Unassigned</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           )}
-        </DialogContent>
-      </Dialog>
+          {/* Mobile Card View */}
+          <div className="block md:hidden bg-gray-50/50 p-3 space-y-3">
+            {currentData.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-500">
+                <Clock className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p className="font-medium text-sm">No follow-ups found.</p>
+              </div>
+            ) : (
+              currentData.map(fu => {
+                const status = getStatus(fu);
+                const historyCount = Array.isArray(fu.history) && fu.history.length > 0 ? fu.history.length : 1;
+                const statusStyles = {
+                  'Today': { label: 'Due Today', color: 'bg-amber-100 text-amber-900 border-amber-300', stripe: 'bg-amber-500', icon: <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" /> },
+                  'Overdue': { label: 'Overdue', color: 'bg-red-100 text-red-800 border-red-200', stripe: 'bg-red-500', icon: <AlertCircle className="w-3.5 h-3.5 mr-1 text-red-600" /> },
+                  'Upcoming': { label: 'Upcoming', color: 'bg-blue-100 text-blue-800 border-blue-200', stripe: 'bg-blue-500', icon: <Calendar className="w-3.5 h-3.5 mr-1 text-blue-600" /> },
+                  'Completed': { label: 'Completed', color: 'bg-green-100 text-green-800 border-green-200', stripe: 'bg-green-500', icon: <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-green-600" /> },
+                  'Pending': { label: 'Pending', color: 'bg-gray-100 text-gray-800 border-gray-200', stripe: 'bg-gray-400', icon: <Clock className="w-3.5 h-3.5 mr-1 text-gray-600" /> }
+                };
+                const currentStyle = statusStyles[status] || statusStyles['Pending'];
+
+                return (
+                  <div key={fu.id} className="bg-white border border-gray-100 rounded-xl shadow-sm relative overflow-hidden transition-all hover:shadow-md mb-3">
+                    {/* Color stripe on the left */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${currentStyle.stripe}`}></div>
+                    
+                    <div className="p-4 pl-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center space-x-2.5">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${currentStyle.color}`}>
+                            {currentStyle.icon}
+                            {currentStyle.label}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-gray-500 flex items-center bg-gray-50 px-2 py-1 rounded-md border border-gray-100 shrink-0">
+                          <User className="w-3.5 h-3.5 mr-1.5 text-gray-400 shrink-0" />
+                          <span className="truncate max-w-[80px]">{fu.userName}</span>
+                        </div>
+                      </div>
+
+                      {/* Account Name */}
+                      <h4 className="font-extrabold text-sm text-gray-900 leading-tight mb-2 truncate" title={fu.accountName}>
+                        {fu.accountName}
+                      </h4>
+                      
+                      {/* Message */}
+                      <div className="text-gray-800 text-sm font-medium leading-relaxed whitespace-pre-wrap line-clamp-3">
+                        {fu.message}
+                      </div>
+
+                      {/* Latest Call Info if present */}
+                      {fu.lastCallNote && (
+                        <div className="mt-3 text-[11px] text-blue-900 bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 flex items-start gap-2">
+                          <PhoneCall className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold text-blue-800">Latest Call:</span> <span className="font-medium text-gray-700">{fu.lastCallNote}</span>{' '}
+                            <span className="text-blue-600 font-bold block mt-0.5">({fu.lastCallBy || 'User'} on {fu.lastCallDate})</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Card Footer: Next Date, Assigned, and Action buttons */}
+                      <div className={`mt-4 pt-3 border-t border-gray-100 flex ${fu.completed ? 'flex-col' : 'flex-wrap items-start justify-between'} gap-3 text-xs text-gray-600`}>
+                        {!fu.completed && (
+                          <div className="flex items-center gap-4 w-full">
+                            {fu.nextFollowUpDate && (
+                              <div className="flex flex-col flex-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Next Follow-up</span>
+                                <b className="text-blue-700 text-xs mt-0.5">{fu.nextFollowUpDate}</b>
+                              </div>
+                            )}
+                            {fu.assignedTo && (
+                              <div className="flex flex-col flex-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assigned To</span>
+                                <span className="font-bold text-gray-700 text-xs mt-0.5 truncate">{fu.assignedTo}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className={`grid ${fu.completed ? 'grid-cols-2 gap-2 w-full' : 'grid-cols-3 gap-1.5 w-full'}`}>
+                          {!fu.completed && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenUpdate(fu)}
+                              className="py-2 px-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-bold transition-colors flex flex-col items-center justify-center gap-1 shadow-sm"
+                              title="Reschedule"
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                <PhoneCall className="w-4 h-4 shrink-0" />
+                              </div>
+                              <span className="truncate w-full text-center">Reschedule</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenUpdate(fu, 'history')}
+                            className={`${fu.completed ? 'col-span-1 px-3 py-2.5 flex-row' : 'py-2 px-1 flex-col'} bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm`}
+                            title="History"
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              <History className="w-4 h-4 text-gray-500 shrink-0" />
+                              <span className="bg-white border border-gray-200 text-gray-700 text-[9px] px-1.5 rounded-full font-black shrink-0">{historyCount}</span>
+                            </div>
+                            <span className={`truncate ${fu.completed ? 'w-auto' : 'w-full text-center'}`}>History</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStatement(fu.accountName)}
+                            className={`${fu.completed ? 'col-span-1 px-3 py-2 flex-row gap-1.5' : 'py-2 px-1 flex-col'} flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition border border-blue-100 shadow-sm`}
+                            title="View Statement"
+                          >
+                            <Eye size={16} className={fu.completed ? '' : 'mb-1'} />
+                            <span className="text-[9px] font-bold">Stmt</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Pagination Bar */}
+        {!loading && filteredFollowUps.length > 0 && (
+          <div className="flex flex-row justify-between items-center px-3 py-3 sm:py-2 bg-white sm:bg-gray-50 border-t border-gray-200 shrink-0">
+            {/* Desktop Showing */}
+            <span className="hidden sm:inline text-[11px] font-bold text-gray-500 uppercase tracking-wider text-left">
+              Showing <span className="text-gray-900">{startIndex + 1}</span> to <span className="text-gray-900">{Math.min(startIndex + itemsPerPage, filteredFollowUps.length)}</span> of <span className="text-gray-900">{filteredFollowUps.length}</span> results
+            </span>
+            <div className="flex w-full sm:w-auto gap-2 items-center justify-between sm:justify-end">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="shrink-0 py-1.5 px-2.5 sm:py-1.5 sm:px-3 bg-gray-100 sm:bg-white text-gray-700 text-xs sm:text-sm font-bold sm:font-medium rounded border border-gray-200 sm:border-gray-300 disabled:opacity-40 transition"
+              >
+                <span className="sm:hidden">← Prev.</span><span className="hidden sm:inline">Previous</span>
+              </button>
+
+              <div className="flex items-center justify-center text-[10px] sm:text-sm text-center truncate flex-1 sm:flex-none font-medium text-gray-600">
+                <span className="sm:hidden truncate mr-1">
+                  {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredFollowUps.length)} of {filteredFollowUps.length}
+                </span>
+                <span className="sm:hidden text-gray-400 mr-1">•</span>
+                <span className="font-bold text-gray-800 whitespace-nowrap">
+                  <span className="sm:hidden">Pg </span>{currentPage} <span className="text-gray-400">/ {totalPages}</span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="shrink-0 py-1.5 px-2.5 sm:py-1.5 sm:px-3 bg-blue-50 sm:bg-white text-blue-700 sm:text-gray-700 text-xs sm:text-sm font-bold sm:font-medium rounded border border-blue-200 sm:border-gray-300 disabled:opacity-40 transition"
+              >
+                <span className="sm:hidden">Next →</span><span className="hidden sm:inline">Next</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Account Statement Modal */}
+      <TallyStatementModal 
+        open={isStatementOpen}
+        onOpenChange={(v) => { if (!v) { setIsStatementOpen(false); setStatementAccountName(''); } }}
+        tallyAccountId={null}
+        partyName={statementAccountName}
+      />
+
+      {/* Update / Reschedule / History Modal */}
+      <UpdateFollowUpModal
+        isOpen={isUpdateModalOpen}
+        initialTab={updateModalTab}
+        onClose={() => { setIsUpdateModalOpen(false); setSelectedFollowUp(null); }}
+        followUp={selectedFollowUp}
+        currentUser={currentUser}
+        users={users}
+        onSuccess={fetchFollowUps}
+      />
     </div>
   );
 }

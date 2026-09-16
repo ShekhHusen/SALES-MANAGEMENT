@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc } from '@/lib/trackedFirestore';
+import { collection, addDoc, Timestamp, updateDoc, doc, deleteDoc, getDoc } from '@/lib/trackedFirestore';
 import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Party } from '@/types';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,8 @@ import * as z from 'zod';
 import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TallyLinkModal } from '@/components/TallyLinkModal';
+import { TallyStatementModal } from '@/components/TallyStatementModal';
 
 const partySchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -47,11 +49,37 @@ export function Parties() {
   
 
   const { parties, purchases, sales, loadParties, loadPurchases, loadSales, isPartiesLoaded } = useGlobalData();
+
+  const handleLinkTallyAccount = async (tallyAccountId: string) => {
+    if (!selectedPartyForTally) return;
+    try {
+      await updateDoc(doc(db, 'parties', selectedPartyForTally.id), {
+        tallyAccountId
+      });
+      toast.success('Tally Account linked successfully!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to link account.');
+    }
+  };
+
+  const handleUnlinkTallyAccount = async (partyId: string) => {
+    try {
+      await updateDoc(doc(db, 'parties', partyId), {
+        tallyAccountId: null
+      });
+      toast.success('Tally Account unlinked.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to unlink account.');
+    }
+  };
   useEffect(() => {
     loadParties();
     loadPurchases();
     loadSales();
   }, []);
+
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState<'name' | 'type' | 'contactNumber' | 'address' | 'createdAt' | null>(null);
@@ -59,7 +87,27 @@ export function Parties() {
 
   // View Sheet state
   const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [selectedPartyForTally, setSelectedPartyForTally] = useState<Party | null>(null);
   const [viewSale, setViewSale] = useState<any>(null);
+
+  const handleViewSale = async (sale: any) => {
+    try {
+      const docRef = doc(db, 'otherDetails', sale.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setViewSale({ ...sale, otherDetails: docSnap.data() as any });
+      } else {
+        setViewSale(sale);
+      }
+    } catch (error) {
+      console.error("Failed to fetch other details:", error);
+      setViewSale(sale);
+    }
+    setViewSheetOpen(true);
+  };
+
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -348,7 +396,8 @@ export function Parties() {
           <Table>
             <TableHeader>
                 <TableRow className="bg-slate-100 dark:bg-[#0f172a] hover:bg-slate-100 dark:hover:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                    <TableHead className="py-2.5 px-6">
+                    <TableHead className="py-2.5 px-2 text-center w-[160px]"><span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Menu</span></TableHead>
+                  <TableHead className="py-2.5 px-6">
                     <div 
                       className="flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 transition-colors group text-[11px] font-extrabold uppercase tracking-widest text-slate-500"
                       onClick={() => {
@@ -356,7 +405,7 @@ export function Parties() {
                         else { setSortField('name'); setSortOrder('asc'); }
                       }}
                     >
-                      Principal Identity
+                      Party Name
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'name' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -368,7 +417,7 @@ export function Parties() {
                         else { setSortField('type'); setSortOrder('asc'); }
                       }}
                     >
-                      Classification
+                      Type
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'type' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -380,7 +429,7 @@ export function Parties() {
                         else { setSortField('contactNumber'); setSortOrder('asc'); }
                       }}
                     >
-                      Contact Line
+                      Contact Number
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'contactNumber' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -392,7 +441,7 @@ export function Parties() {
                         else { setSortField('address'); setSortOrder('asc'); }
                       }}
                     >
-                      Registry Address
+                      Address
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'address' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -404,7 +453,7 @@ export function Parties() {
                         else { setSortField('createdAt'); setSortOrder('asc'); }
                       }}
                     >
-                      Onboarding Date
+                      Register Date
                       <ArrowUpDown className={cn("h-3 w-3 opacity-50 group-hover:opacity-100", sortField === 'createdAt' && "opacity-100 text-[#1a4731]")} />
                     </div>
                   </TableHead>
@@ -415,6 +464,54 @@ export function Parties() {
               {paginatedParties.length > 0 ? (
                 paginatedParties.map((party) => (
                   <TableRow key={party.id} className="hover:bg-slate-200 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors">
+                    <TableCell className="px-2 py-2.5 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {party.tallyAccountId ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-indigo-600 hover:text-white border-indigo-200 hover:bg-indigo-600 font-bold text-[10px] rounded-lg shadow-sm px-2"
+                            onClick={() => {
+                              setSelectedPartyForTally(party);
+                              setStatementModalOpen(true);
+                            }}
+                          >
+                            STATEMENT
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-slate-500 hover:text-slate-700 border-slate-200 font-bold text-[10px] rounded-lg px-2"
+                            onClick={() => {
+                              setSelectedPartyForTally(party);
+                              setLinkModalOpen(true);
+                            }}
+                          >
+                            LINK TALLY
+                          </Button>
+                        )}
+                        {party.type === 'customer' && (() => {
+                          const customerSales = sales.filter(s => s.customerId === party.id);
+                          if (customerSales.length > 0) {
+                            return (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
+                                onClick={() => {
+                                  const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
+                                  handleViewSale(latestSale);
+                                }}
+                              >
+                                VIEW
+                              </Button>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </TableCell>
                     <TableCell className="px-6 py-2.5 font-extrabold text-slate-900 dark:text-slate-100">{party.name}</TableCell>
                     <TableCell className="px-6 py-2.5 text-center">
                       <span className={cn(
@@ -433,27 +530,16 @@ export function Parties() {
                     </TableCell>
                     <TableCell className="px-6 py-2.5 text-right">
                       <div className="flex justify-end gap-2">
-                        {party.type === 'customer' && (() => {
-                          const customerSales = sales.filter(s => s.customerId === party.id);
-                          if (customerSales.length > 0) {
-                            return (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 text-emerald-600 hover:text-white border-emerald-200 hover:bg-emerald-600 font-bold text-[10px] rounded-lg shadow-sm px-2 flex items-center"
-                                onClick={() => {
-                                  // Show the most recent sale for this customer
-                                  const latestSale = customerSales.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
-                                  setViewSale(latestSale);
-                                  setViewSheetOpen(true);
-                                }}
-                              >
-                                VIEW
-                              </Button>
-                            );
-                          }
-                          return null;
-                        })()}
+                        {party.tallyAccountId && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-slate-400 hover:text-rose-500 font-bold text-[10px] rounded-lg px-2"
+                            onClick={() => handleUnlinkTallyAccount(party.id)}
+                          >
+                            UNLINK
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -529,6 +615,20 @@ export function Parties() {
         onOpenChange={setViewSheetOpen} 
         viewSale={viewSale} 
       />
+
+      <TallyLinkModal 
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        onLink={handleLinkTallyAccount}
+        partyName={selectedPartyForTally?.name || ''}
+      />
+      <TallyStatementModal 
+        open={statementModalOpen}
+        onOpenChange={setStatementModalOpen}
+        tallyAccountId={selectedPartyForTally?.tallyAccountId || null}
+        partyName={selectedPartyForTally?.name || ''}
+      />
     </div>
   );
 }
+

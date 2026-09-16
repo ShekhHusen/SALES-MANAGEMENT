@@ -23,7 +23,8 @@ import {
   KeyRound,
   ChevronDown,
   DownloadCloud,
-  Store
+  Store,
+  FileSignature,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -41,6 +42,7 @@ export const navItems = [
   { id: 'process_document', label: 'Process Document', icon: FileText, path: '/process-document', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'follow_ups', label: 'Follow Ups', icon: CalendarClock, path: '/follow-ups', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'emi_management', label: 'EMI Management', icon: Calculator, path: '/emi-management', roles: ['admin', 'sales_manager', 'viewer'] },
+  { id: 'quotations', label: 'Quotations', icon: FileSignature, path: '/quotations', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'quotation', label: 'Print Quotation', icon: Printer, path: '/quotation', roles: ['admin', 'sales_manager', 'viewer'] },
   { id: 'users', label: 'User Mgmt', icon: Shield, path: '/users', roles: ['admin'] },
   { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/settings', roles: ['admin', 'viewer'] },

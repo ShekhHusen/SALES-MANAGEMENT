@@ -3,153 +3,152 @@ import re
 with open('src/pages/process-document.tsx', 'r') as f:
     content = f.read()
 
-# 1. Update imports
-content = content.replace(
-    "import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, addDoc } from '@/lib/trackedFirestore';",
-    "import { collection, query, onSnapshot, orderBy, doc, updateDoc, where, limit, getDocs, startAfter, addDoc, setDoc, getDoc } from '@/lib/trackedFirestore';"
-)
+# 1. Add imports
+if 'TallyLinkModal' not in content:
+    content = content.replace(
+        "import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';",
+        "import { ProcessDocumentSheet } from '@/components/ProcessDocumentSheet';\nimport { TallyLinkModal } from '@/components/TallyLinkModal';\nimport { TallyStatementModal } from '@/components/TallyStatementModal';"
+    )
 
-# 2. Add handleSelectSale and handleViewSale before handleProcess
-select_funcs = """  const handleSelectSale = async (sale: Sale) => {
-    setSelectedSale(sale);
+# 2. Add states and handlers
+state_block = """  const [viewSheetOpen, setViewSheetOpen] = useState(false);
+  const [viewSale, setViewSale] = useState<Sale | null>(null);
+
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [selectedPartyForTally, setSelectedPartyForTally] = useState<Party | null>(null);
+
+  const handleLinkTallyAccount = async (tallyAccountId: string) => {
+    if (!selectedPartyForTally) return;
     try {
-      const docRef = doc(db, 'sale_other_details', sale.id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setVehiclePrice(data.vehiclePrice ?? '');
-        setPaidAmount(data.paidAmount ?? '');
-        setDuesAmount(data.duesAmount ?? '');
-        setFathersName(data.fathersName ?? '');
-        setGrandFathersName(data.grandFathersName ?? '');
-        setCustomerAltNumber(data.customerAltNumber ?? '');
-        setEngineNumber(data.engineNumber ?? '');
-        setVehicleNumber(data.vehicleNumber ?? '');
-        setCitizenshipNumber(data.citizenshipNumber ?? '');
-        setOnEmi(data.onEmi ?? false);
-        setEmiVehiclePrice(data.emiVehiclePrice ?? '');
-        setEmiDownPayment(data.emiDownPayment ?? '');
-        setEmiPeriod(data.emiPeriod ?? '');
-        setEmiInterest(data.emiInterest ?? '');
-        setEmiStartDate(data.emiStartDate ?? '');
-        setBatteryType(data.batteryType ?? '');
-        setBatteryBrand(data.batteryBrand ?? '');
-        setBluetoothId(data.bluetoothId ?? '');
-        setProductId(data.productId ?? '');
-        setNotes(data.notes ?? '');
-        setNoOfBattery(data.noOfBattery ?? '');
-        setSerialNumbers(data.serialNumbers ?? []);
-      } else {
-        setVehiclePrice('');
-        setPaidAmount('');
-        setDuesAmount('');
-        setFathersName('');
-        setGrandFathersName('');
-        setCustomerAltNumber('');
-        setEngineNumber('');
-        setVehicleNumber('');
-        setCitizenshipNumber('');
-        setOnEmi(false);
-        setEmiVehiclePrice('');
-        setEmiDownPayment('');
-        setEmiPeriod('');
-        setEmiInterest('');
-        setEmiStartDate('');
-        setBatteryType('');
-        setBatteryBrand('');
-        setBluetoothId('');
-        setProductId('');
-        setNotes('');
-        setNoOfBattery('');
-        setSerialNumbers([]);
-      }
-    } catch (error) {
-      console.error("Failed to load other details:", error);
+      await updateDoc(doc(db, 'parties', selectedPartyForTally.id), {
+        tallyAccountId
+      });
+      toast.success('Tally Account linked successfully!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to link account.');
     }
   };
 
-  const handleViewSale = async (sale: Sale) => {
+  const handleUnlinkTallyAccount = async (partyId: string) => {
     try {
-      const docRef = doc(db, 'sale_other_details', sale.id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setViewSale({ ...sale, otherDetails: docSnap.data() as any });
-      } else {
-        setViewSale(sale);
-      }
-    } catch (error) {
-      console.error("Failed to fetch other details:", error);
-      setViewSale(sale);
+      await updateDoc(doc(db, 'parties', partyId), {
+        tallyAccountId: null
+      });
+      toast.success('Tally Account unlinked.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to unlink account.');
     }
-    setViewSheetOpen(true);
   };
 """
-content = content.replace("  const handleProcess = (sale: Sale) => {", select_funcs + "\n  const handleProcess = (sale: Sale) => {")
 
-# 3. Replace setSelectedSale(sale) with handleSelectSale(sale) inside the render method where it's clicked
-content = content.replace("onClick={() => setSelectedSale(sale)}", "onClick={() => handleSelectSale(sale)}")
-# And in handleProcess ? handleProcess does setUnlockedTabs and setActiveTab. Wait, if handleProcess calls setSelectedSale, we should replace that too.
-# Let's check handleProcess: it says setSelectedSale(sale). Let's change it.
-content = content.replace("setSelectedSale(sale);\n    setUnlockedTabs", "handleSelectSale(sale);\n    setUnlockedTabs")
-# Also in loadProcessDocumentData, if tSale is found: setSelectedSale(tSale);
-content = content.replace("setSelectedSale(tSale);", "handleSelectSale(tSale);")
+content = content.replace(
+    "  const [viewSheetOpen, setViewSheetOpen] = useState(false);\n  const [viewSale, setViewSale] = useState<Sale | null>(null);",
+    state_block
+)
 
-# 4. Replace setViewSale(sale); setViewSheetOpen(true); with handleViewSale(sale)
-content = content.replace("setViewSale(sale);\n                                  setViewSheetOpen(true);", "handleViewSale(sale);")
+# 3. Add modals at the end of the return statement
+modals_code = """      <ProcessDocumentSheet 
+        open={viewSheetOpen} 
+        onOpenChange={setViewSheetOpen} 
+        viewSale={viewSale} 
+        onEditDriveLink={handleOpenDriveModal}
+      />
 
-# 5. Update handleConfirmCrossCheck to save the details
-old_crosscheck = """  const handleConfirmCrossCheck = () => {
-    setShowCrossCheckModal(false);
-    setUnlockedTabs(prev => ({ ...prev, documents: true }));
-    setActiveTab('documents');
-  };"""
+      <TallyLinkModal 
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        onLink={handleLinkTallyAccount}
+        partyName={selectedPartyForTally?.name || ''}
+      />
+      <TallyStatementModal 
+        open={statementModalOpen}
+        onOpenChange={setStatementModalOpen}
+        tallyAccountId={selectedPartyForTally?.tallyAccountId || null}
+        partyName={selectedPartyForTally?.name || ''}
+      />"""
 
-new_crosscheck = """  const handleConfirmCrossCheck = async () => {
-    setShowCrossCheckModal(false);
-    
-    if (selectedSale) {
-      setLoading(true);
-      try {
-        await setDoc(doc(db, 'sale_other_details', selectedSale.id), {
-          saleId: selectedSale.id,
-          vehiclePrice,
-          paidAmount,
-          duesAmount,
-          fathersName,
-          grandFathersName,
-          customerAltNumber,
-          engineNumber,
-          vehicleNumber,
-          citizenshipNumber,
-          onEmi,
-          emiVehiclePrice,
-          emiDownPayment,
-          emiPeriod,
-          emiInterest,
-          emiStartDate,
-          batteryType,
-          batteryBrand,
-          bluetoothId,
-          productId,
-          notes,
-          noOfBattery,
-          serialNumbers,
-          updatedAt: serverTimestamp()
-        });
-      } catch (error) {
-        console.error("Failed to save other details:", error);
-        toast.error("Failed to save details.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    setUnlockedTabs(prev => ({ ...prev, documents: true }));
-    setActiveTab('documents');
-  };"""
+content = content.replace(
+    """      <ProcessDocumentSheet 
+        open={viewSheetOpen} 
+        onOpenChange={setViewSheetOpen} 
+        viewSale={viewSale} 
+        onEditDriveLink={handleOpenDriveModal}
+      />""",
+    modals_code
+)
 
-content = content.replace(old_crosscheck, new_crosscheck)
+# 4. Add buttons in Action column
+buttons_code = """                              <Button 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
+                                 onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewSale(sale);
+                                }}
+                              >
+                                View
+                              </Button>
+                              
+                              {customer && customer.tallyAccountId ? (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="font-bold rounded-xl border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all border shadow-sm px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPartyForTally(customer);
+                                      setStatementModalOpen(true);
+                                    }}
+                                  >
+                                    Statement
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 text-slate-400 hover:text-rose-500 font-bold text-[10px] rounded-lg px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUnlinkTallyAccount(customer.id);
+                                    }}
+                                  >
+                                    Unlink
+                                  </Button>
+                                </>
+                              ) : (
+                                customer && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="font-bold rounded-xl border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all border shadow-sm px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPartyForTally(customer);
+                                      setLinkModalOpen(true);
+                                    }}
+                                  >
+                                    Link Tally
+                                  </Button>
+                                )
+                              )}"""
+
+target_buttons = """                              <Button 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="font-bold rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all border shadow-sm" 
+                                 onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewSale(sale);
+                                }}
+                              >
+                                View
+                              </Button>"""
+
+content = content.replace(target_buttons, buttons_code)
 
 with open('src/pages/process-document.tsx', 'w') as f:
     f.write(content)
-

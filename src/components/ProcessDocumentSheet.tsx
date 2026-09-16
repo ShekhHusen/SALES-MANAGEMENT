@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sale } from '@/types';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { openPopup } from '@/lib/utils';
+import { TallyStatementModal } from '@/components/TallyStatementModal';
 
 interface ProcessDocumentSheetProps {
   open: boolean;
@@ -16,10 +17,12 @@ interface ProcessDocumentSheetProps {
 export function ProcessDocumentSheet({ open, onOpenChange, viewSale, onEditDriveLink }: ProcessDocumentSheetProps) {
   const { parties, vehicles, companies, models } = useGlobalData();
   const customers = parties.filter(p => p.type === 'customer');
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
 
 
     
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-5xl overflow-y-auto bg-[#F8FAFC]">
           <SheetHeader className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
@@ -29,6 +32,23 @@ export function ProcessDocumentSheet({ open, onOpenChange, viewSale, onEditDrive
               </SheetTitle>
               {viewSale && (
                 <div className="flex items-center gap-2 mr-6">
+                  {(() => {
+                    const party = parties.find(p => p.id === viewSale.customerId);
+                    if (party && party.tallyAccountId) {
+                      return (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl font-bold gap-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                          onClick={() => setStatementModalOpen(true)}
+                        >
+                          <FileText className="w-4 h-4 text-indigo-600" />
+                          STATEMENT
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
                   {viewSale.driveFolderUrl ? (
                     <Button
                       variant="outline"
@@ -280,6 +300,18 @@ export function ProcessDocumentSheet({ open, onOpenChange, viewSale, onEditDrive
           )}
         </SheetContent>
       </Sheet>
-
+    
+    {(() => {
+      const party = viewSale ? parties.find(p => p.id === viewSale.customerId) : null;
+      return (
+        <TallyStatementModal 
+          open={statementModalOpen}
+          onOpenChange={setStatementModalOpen}
+          tallyAccountId={party?.tallyAccountId || null}
+          partyName={party?.name || ''}
+        />
+      );
+    })()}
+  </>
   );
 }

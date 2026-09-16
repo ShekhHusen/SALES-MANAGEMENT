@@ -3,150 +3,110 @@ import re
 with open('src/pages/settings.tsx', 'r') as f:
     content = f.read()
 
-# Import Textarea
-content = content.replace("import { Input } from '@/components/ui/input';", "import { Input } from '@/components/ui/input';\nimport { Textarea } from '@/components/ui/textarea';\nimport { Pencil } from 'lucide-react';")
+import_pattern = "import { Company, Model } from '@/types';"
+content = content.replace(import_pattern, "import { Company, Model, BusinessProfile } from '@/types';")
 
-# State
-content = content.replace("const [newModel, setNewModel] = useState({ name: '', companyId: '' });", "const [newModel, setNewModel] = useState({ name: '', companyId: '', termsAndConditions: '', warrantyInfo: '' });\n  const [editingModel, setEditingModel] = useState<Model | null>(null);")
+state_add = """  const [newColor, setNewColor] = useState('');
+  
+  const { businessProfile, updateBusinessProfile } = useGlobalData();
+  const [editingProfile, setEditingProfile] = useState<BusinessProfile>({
+    name: '',
+    address: '',
+    contactNumber: ''
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-# addModel function
-add_model_old = """  const addModel = async () => {
-    if (!newModel.name.trim() || !newModel.companyId) return;
-    try {
-      await addDoc(collection(db, 'models'), newModel);
-      setNewModel({ name: '', companyId: '' });"""
-add_model_new = """  const addModel = async () => {
-    if (!newModel.name.trim() || !newModel.companyId) return;
-    try {
-      await addDoc(collection(db, 'models'), newModel);
-      setNewModel({ name: '', companyId: '', termsAndConditions: '', warrantyInfo: '' });"""
-content = content.replace(add_model_old, add_model_new)
+  useEffect(() => {
+    if (businessProfile) {
+      setEditingProfile(businessProfile);
+    }
+  }, [businessProfile]);
 
-# add updateModel function
-update_model_code = """  const updateModel = async () => {
-    if (!editingModel || !editingModel.name.trim()) return;
+  const handleSaveProfile = async () => {
     try {
-      await updateDoc(doc(db, 'models', editingModel.id), { 
-        name: editingModel.name,
-        termsAndConditions: editingModel.termsAndConditions || '',
-        warrantyInfo: editingModel.warrantyInfo || ''
-      });
-      setEditingModel(null);
-      toast.success('Model updated');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'models');
+      await updateBusinessProfile(editingProfile);
+      toast.success('Business profile updated');
+      setIsEditingProfile(false);
+    } catch (err) {
+      toast.error('Failed to update profile');
     }
   };
 """
-content = content.replace("  const addColor", update_model_code + "\n  const addColor")
+content = content.replace("  const [newColor, setNewColor] = useState('');", state_add)
 
-# Update Add Variant UI
-old_add_ui = """              <div className="flex gap-2">
-                <Input 
-                  placeholder="Variant/Model Name..." 
-                  value={newModel.name}
-                  onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
-                />
-                <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold px-6" disabled={isViewer}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Variant
-                </Button>
-              </div>"""
-new_add_ui = """              <div className="flex gap-2">
-                <Input 
-                  placeholder="Variant/Model Name..." 
-                  value={newModel.name}
-                  onChange={(e) => setNewModel(prev => ({ ...prev, name: e.target.value }))}
-                  className="h-11 rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
-                />
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Terms & Conditions (Optional)</label>
-                  <Textarea 
-                    placeholder="Enter terms specific to this model..." 
-                    value={newModel.termsAndConditions}
-                    onChange={(e) => setNewModel(prev => ({ ...prev, termsAndConditions: e.target.value }))}
-                    className="min-h-[80px] rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Warranty Info (Optional)</label>
-                  <Textarea 
-                    placeholder="Enter warranty details specific to this model..." 
-                    value={newModel.warrantyInfo}
-                    onChange={(e) => setNewModel(prev => ({ ...prev, warrantyInfo: e.target.value }))}
-                    className="min-h-[80px] rounded-lg bg-slate-50 dark:bg-[#0f172a] border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900"
-                  />
-                </div>
-              </div>
-              <Button onClick={addModel} className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold w-full" disabled={isViewer}>
-                <Plus className="h-4 w-4 mr-2" /> Add Variant
-              </Button>"""
-content = content.replace(old_add_ui, new_add_ui)
-
-
-# Add edit button to table
-old_table_row = """                        <TableCell className="px-6 py-4 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors" disabled={isViewer}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>"""
-new_table_row = """                        <TableCell className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => setEditingModel(model)} className="h-9 w-9 rounded-lg hover:bg-blue-50 hover:text-blue-500 transition-colors" disabled={isViewer}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => attemptDeleteItem('models', model.id, model.name)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors" disabled={isViewer}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>"""
-content = content.replace(old_table_row, new_table_row)
-
-# Add Edit Dialog at the end
-edit_dialog_code = """      <Dialog open={!!editingModel} onOpenChange={(open) => !open && setEditingModel(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Variant</DialogTitle>
-            <DialogDescription>Modify the variant details and terms.</DialogDescription>
-          </DialogHeader>
-          {editingModel && (
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input 
-                  value={editingModel.name}
-                  onChange={(e) => setEditingModel({...editingModel, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Terms & Conditions</label>
-                <Textarea 
-                  value={editingModel.termsAndConditions || ''}
-                  onChange={(e) => setEditingModel({...editingModel, termsAndConditions: e.target.value})}
-                  className="min-h-[100px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Warranty Info</label>
-                <Textarea 
-                  value={editingModel.warrantyInfo || ''}
-                  onChange={(e) => setEditingModel({...editingModel, warrantyInfo: e.target.value})}
-                  className="min-h-[100px]"
-                />
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button onClick={updateModel} className="bg-blue-600 hover:bg-blue-700">Save Changes</Button>
-              </div>
+profile_ui = """
+      <Card className="shadow-sm border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden mb-8">
+        <div className="bg-slate-50 dark:bg-[#0f172a] px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+              <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Business Profile</h2>
+              <p className="text-sm text-slate-500">Update system contact number, address, and business name used in statements and PDFs.</p>
+            </div>
+          </div>
+          {!isViewer && (
+            <Button 
+              variant={isEditingProfile ? "default" : "outline"}
+              onClick={() => {
+                if (isEditingProfile) {
+                  handleSaveProfile();
+                } else {
+                  setIsEditingProfile(true);
+                }
+              }}
+              className={isEditingProfile ? "bg-blue-600 hover:bg-blue-700" : ""}
+            >
+              {isEditingProfile ? "Save Profile" : "Edit Profile"}
+            </Button>
           )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}"""
-content = content.replace("    </div>\n  );\n}", edit_dialog_code)
+        </div>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Business Name</label>
+              {isEditingProfile ? (
+                <Input 
+                  value={editingProfile.name}
+                  onChange={(e) => setEditingProfile({...editingProfile, name: e.target.value})}
+                  placeholder="e.g. Vehicle Management System"
+                />
+              ) : (
+                <p className="font-semibold text-slate-900 dark:text-slate-100">{businessProfile?.name || 'Not set'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Contact Number</label>
+              {isEditingProfile ? (
+                <Input 
+                  value={editingProfile.contactNumber}
+                  onChange={(e) => setEditingProfile({...editingProfile, contactNumber: e.target.value})}
+                  placeholder="e.g. +977 9800000000"
+                />
+              ) : (
+                <p className="font-semibold text-slate-900 dark:text-slate-100">{businessProfile?.contactNumber || 'Not set'}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Address</label>
+              {isEditingProfile ? (
+                <Input 
+                  value={editingProfile.address}
+                  onChange={(e) => setEditingProfile({...editingProfile, address: e.target.value})}
+                  placeholder="e.g. 123 Business Street, Auto Market"
+                />
+              ) : (
+                <p className="font-semibold text-slate-900 dark:text-slate-100">{businessProfile?.address || 'Not set'}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
+"""
+content = content.replace('      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">', profile_ui, 1)
 
 with open('src/pages/settings.tsx', 'w') as f:
     f.write(content)

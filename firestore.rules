@@ -105,6 +105,12 @@ service cloud.firestore {
       allow read, list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }
+    // Quotations
+    match /quotations/{quotationId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
     // Users
     match /users/{userId} {
       allow read: if isSignedIn();
@@ -112,6 +118,11 @@ service cloud.firestore {
       // Allow admin to manage users - simple check for role 
       // (in production, we should securely verify admin claim)
       allow write: if isSignedIn();
+    }
+
+    // Settings
+    match /settings/{settingId} {
+      allow read, write: if isSignedIn();
     }
   }
 }

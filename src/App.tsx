@@ -15,7 +15,8 @@ import { Sales } from '@/pages/sales';
 import { ProcessDocument } from '@/pages/process-document';
 import { EmiManagement } from '@/pages/emi-management';
 import { FollowUps } from '@/pages/follow-ups';
-import { Quotation } from '@/pages/quotation';
+import { DocumentPrinting } from '@/pages/document-printing';
+import { Quotations } from '@/pages/quotations';
 import { Settings } from '@/pages/settings';
 import { UserManagement } from '@/pages/users';
 import { AuthScreen } from '@/components/AuthScreen';
@@ -104,7 +105,8 @@ function AppRoutes() {
           <Route path="/process-document" element={<TabGuard path="/process-document"><ProcessDocument /></TabGuard>} />
           <Route path="/follow-ups" element={<TabGuard path="/follow-ups"><FollowUps /></TabGuard>} />
           <Route path="/emi-management" element={<TabGuard path="/emi-management"><EmiManagement /></TabGuard>} />
-          <Route path="/quotation" element={<TabGuard path="/quotation"><Quotation /></TabGuard>} />
+          <Route path="/quotation" element={<TabGuard path="/quotation"><DocumentPrinting /></TabGuard>} />
+          <Route path="/quotations" element={<TabGuard path="/quotations"><Quotations /></TabGuard>} />
           <Route path="/users" element={<TabGuard path="/users"><UserManagement /></TabGuard>} />
           <Route path="/settings" element={<TabGuard path="/settings"><Settings /></TabGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useAuth } from '@/hooks/use-auth';
+import FollowUpModal from '@/components/FollowUpModal';
 
 interface EmiRecord {
   id: string;
@@ -42,6 +43,7 @@ interface EmiRecord {
 }
 
 export function EmiManagement() {
+  const { user: currentUser } = useAuth();
   const { user, userProfile } = useAuth();
   const isViewer = userProfile?.role === 'viewer';
   const { parties, loadParties } = useGlobalData();
@@ -142,82 +144,11 @@ export function EmiManagement() {
     }
   }, [selectedEmiForView]);
 
-  const [selectedEmiForFollowUp, setSelectedEmiForFollowUp] = useState<EmiRecord | null>(null);
-  const [followUpsList, setFollowUpsList] = useState<any[]>([]);
-  const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
-  const [followUpRecentDate, setFollowUpRecentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [followUpRemarks, setFollowUpRemarks] = useState('');
-  const [followUpNextDate, setFollowUpNextDate] = useState('');
-  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+  const [followUpAccount, setFollowUpAccount] = useState<any>(null);
+            
+  
 
-  useEffect(() => {
-    if (selectedEmiForFollowUp) {
-      const qEmi = query(collection(db, 'emiFollowUps'), where('emiId', '==', selectedEmiForFollowUp.id));
-      const qSales = query(collection(db, 'salesFollowUps'), where('saleId', '==', selectedEmiForFollowUp.saleId));
-      
-      let emiFollowUps: any[] = [];
-      let salesFollowUps: any[] = [];
-
-      const updateList = () => {
-        const combined = [...emiFollowUps, ...salesFollowUps];
-        combined.sort((a: any, b: any) => {
-          const tA = a.createdAt?.seconds || 0;
-          const tB = b.createdAt?.seconds || 0;
-          return tB - tA;
-        });
-        setFollowUpsList(combined);
-      };
-
-      const unsubEmi = onSnapshot(qEmi, (snapshot) => {
-        emiFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'emi', ...doc.data() }));
-        updateList();
-      }, (err) => {
-        console.error('EMI Follow-ups snapshot error:', err);
-      });
-
-      const unsubSales = onSnapshot(qSales, (snapshot) => {
-        salesFollowUps = snapshot.docs.map(doc => ({ id: doc.id, type: 'sales', ...doc.data() }));
-        updateList();
-      }, (err) => {
-        console.error('Sales Follow-ups snapshot error:', err);
-      });
-
-      return () => {
-        unsubEmi();
-        unsubSales();
-      };
-    } else {
-      setFollowUpsList([]);
-    }
-  }, [selectedEmiForFollowUp]);
-
-  const handleSaveFollowUp = async () => {
-    if (!selectedEmiForFollowUp) return;
-    if (!followUpRemarks.trim()) {
-      toast.error('Please enter remarks');
-      return;
-    }
-    setIsSavingFollowUp(true);
-    try {
-      await addDoc(collection(db, 'emiFollowUps'), {
-        emiId: selectedEmiForFollowUp.id,
-        recentDate: followUpRecentDate,
-        remarks: followUpRemarks.trim(),
-        nextDate: followUpNextDate,
-        userName: userProfile?.displayName || user?.email || 'Unknown User',
-        createdAt: new Date()
-      });
-      toast.success('Follow up saved successfully');
-      setIsAddFollowUpOpen(false);
-      setFollowUpRemarks('');
-      setFollowUpNextDate('');
-    } catch (error) {
-      console.error('Error saving follow up', error);
-      toast.error('Failed to save follow up');
-    } finally {
-      setIsSavingFollowUp(false);
-    }
-  };
+  
 
   const handleDeleteFollowUp = async (id: string, type: 'emi' | 'sales' = 'emi') => {
     try {
@@ -709,7 +640,16 @@ export function EmiManagement() {
                             size="sm" 
                             className="h-8 w-8 p-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 shrink-0" 
                             title="Follow up History"
-                            onClick={() => setSelectedEmiForFollowUp(emi)}
+                            onClick={() => {
+                              const cust = parties.find((c: any) => c.id === emi.customerId);
+                              if (cust) {
+                                setFollowUpAccount({
+                                  id: cust.id,
+                                  name: cust.name,
+                                  allDocIds: [cust.id, cust.tallyAccountId].filter(Boolean)
+                                });
+                              }
+                            }}
                           >
                             <Plus className="w-4 h-4" />
                           </Button>
@@ -1106,180 +1046,15 @@ export function EmiManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Follow up History Dialog */}
-      <Dialog open={!!selectedEmiForFollowUp} onOpenChange={(open) => !open && setSelectedEmiForFollowUp(null)}>
-        <DialogContent className="w-full sm:max-w-2xl p-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl overflow-hidden max-h-[85vh]">
-          {selectedEmiForFollowUp && (
-            <>
-              <DialogHeader className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                      <span>Follow up History</span>
-                      {selectedEmiForFollowUp.fileNumber && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800 text-xs">
-                          #{selectedEmiForFollowUp.fileNumber}
-                        </Badge>
-                      )}
-                    </DialogTitle>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Customer: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedEmiForFollowUp.customerName}</span> ({selectedEmiForFollowUp.customerContact || '---'})
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm" 
-                      className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs gap-1"
-                      onClick={() => {
-                        setFollowUpRecentDate(new Date().toISOString().split('T')[0]);
-                        setFollowUpRemarks('');
-                        setFollowUpNextDate('');
-                        setIsAddFollowUpOpen(true);
-                      }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Follow up
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedEmiForFollowUp(null)}
-                      className="h-8 w-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="p-4 overflow-y-auto flex-1 min-h-[220px]">
-                {followUpsList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
-                    <p className="text-sm font-medium">No follow up history found.</p>
-                    <p className="text-xs text-slate-400 mt-1">Click "Add Follow up" to create a new record.</p>
-                  </div>
-                ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                    <Table>
-                      <TableHeader className="bg-slate-50 dark:bg-slate-800/60">
-                        <TableRow>
-                          <TableHead className="font-bold text-xs">Recent Date</TableHead>
-                          <TableHead className="font-bold text-xs">Remarks</TableHead>
-                          <TableHead className="font-bold text-xs">Next Date</TableHead>
-                          <TableHead className="font-bold text-xs text-right w-12">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {followUpsList.map((item) => (
-                          <TableRow key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                            <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              <div className="flex flex-col gap-1">
-                                <span>{item.recentDate ? new Date(item.recentDate).toLocaleDateString('en-GB') : '---'}</span>
-                                {item.type === 'sales' && (
-                                  <Badge variant="outline" className="w-fit text-[9px] py-0 px-1 bg-amber-50 text-amber-700 border-amber-200">
-                                    Sales Follow-up
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-w-[250px]">
-                              <div className="flex flex-col gap-1">
-                                <span>{item.remarks || '---'}</span>
-                                {item.userName && (
-                                  <span className="text-[10px] text-slate-400 font-medium">Added by: {item.userName}</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                              {item.nextDate ? new Date(item.nextDate).toLocaleDateString('en-GB') : '---'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                onClick={() => handleDeleteFollowUp(item.id, item.type || 'emi')}
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Close File Confirmation Dialog */}
-      <Dialog open={isCloseFileConfirmOpen} onOpenChange={setIsCloseFileConfirmOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-red-600">Close EMI File</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-slate-600 dark:text-slate-300">
-              Are you sure you want to close this file? No further EMIs can be received. This action cannot be undone easily.
-            </p>
-          </div>
-          <DialogFooter className="flex gap-2 justify-end sm:justify-end">
-            <Button variant="outline" onClick={() => setIsCloseFileConfirmOpen(false)}>Cancel</Button>
-            <Button variant="destructive" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleCloseFile}>Yes, Close File</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* FollowUpModal */}
+      <FollowUpModal 
+        isOpen={!!followUpAccount} 
+        onClose={() => setFollowUpAccount(null)} 
+        account={followUpAccount} 
+        currentUser={currentUser} 
+      />
       
-      {/* Add Follow up Dialog */}
-      <Dialog open={isAddFollowUpOpen} onOpenChange={setIsAddFollowUpOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Add New Follow up</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Recent Date</Label>
-              <Input 
-                type="date" 
-                value={followUpRecentDate} 
-                onChange={(e) => setFollowUpRecentDate(e.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Remarks</Label>
-              <Textarea 
-                placeholder="Enter remarks or customer conversation details..."
-                value={followUpRemarks}
-                onChange={(e) => setFollowUpRemarks(e.target.value)}
-                rows={3}
-                className="rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Next Date</Label>
-              <Input 
-                type="date" 
-                value={followUpNextDate} 
-                onChange={(e) => setFollowUpNextDate(e.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex flex-row justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsAddFollowUpOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSavingFollowUp || isViewer} onClick={handleSaveFollowUp}>
-              {isSavingFollowUp ? 'Saving...' : 'Save Follow up'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
 
     </div>
   );
