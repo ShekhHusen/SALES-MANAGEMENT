@@ -362,7 +362,11 @@ export function Inventory() {
             <DropdownMenuTrigger render={<Button variant="outline" className="w-[180px] h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] justify-start text-left font-normal text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 border transition-all hover:text-slate-800 dark:hover:text-slate-200">
                 <Filter className="h-3.5 w-3.5 text-slate-400 mr-2" />
                 {filterStatus.length === 0 ? "All Inventory" : 
-                 filterStatus.length === 1 ? (filterStatus[0] === 'ready-to-purchase' ? 'Ready to Purchase' : filterStatus[0] === 'in-stock' ? 'In Stock Units' : 'Sold Units') : 
+                 filterStatus.length === 1 ? 
+                   (filterStatus[0] === 'ready-to-purchase' ? 'Ready to Purchase' : 
+                    filterStatus[0] === 'in-stock' ? 'In Stock Units' : 
+                    filterStatus[0] === 'quoted' ? 'Quoted Units' : 
+                    filterStatus[0] === 'booked' ? 'Booked Units' : 'Sold Units') : 
                  `${filterStatus.length} Selected`}
               </Button>} />
             <DropdownMenuContent className="w-[180px]">
@@ -374,6 +378,12 @@ export function Inventory() {
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem checked={filterStatus.includes('in-stock')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'in-stock'] : p.filter(x => x !== 'in-stock'))}>
                 In Stock Units
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterStatus.includes('quoted')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'quoted'] : p.filter(x => x !== 'quoted'))}>
+                Quoted Units
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={filterStatus.includes('booked')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'booked'] : p.filter(x => x !== 'booked'))}>
+                Booked Units
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem checked={filterStatus.includes('sold')} onCheckedChange={(c) => setFilterStatus(p => c ? [...p, 'sold'] : p.filter(x => x !== 'sold'))}>
                 Sold Units
@@ -680,15 +690,21 @@ export function Inventory() {
                        <div className={cn(
                         "h-2 w-2 rounded-full", 
                         effectiveStatus === 'in-stock' ? "bg-emerald-500" : 
-                        effectiveStatus === 'ready-to-purchase' ? "bg-amber-500" : "bg-slate-300"
+                        effectiveStatus === 'ready-to-purchase' ? "bg-amber-500" : 
+                        effectiveStatus === 'quoted' ? "bg-blue-400" :
+                        effectiveStatus === 'booked' ? "bg-indigo-500" : "bg-slate-300"
                         )} />
                        <span className={cn(
                         "text-xs font-bold capitalize", 
                         effectiveStatus === 'in-stock' ? "text-emerald-700" : 
-                        effectiveStatus === 'ready-to-purchase' ? "text-amber-700" : "text-slate-500"
+                        effectiveStatus === 'ready-to-purchase' ? "text-amber-700" : 
+                        effectiveStatus === 'quoted' ? "text-blue-700" :
+                        effectiveStatus === 'booked' ? "text-indigo-700" : "text-slate-500"
                         )}>
                         {effectiveStatus === 'in-stock' ? 'In-Stock' : 
-                         effectiveStatus === 'ready-to-purchase' ? 'Ready to Purchase' : 'Sold'}
+                         effectiveStatus === 'ready-to-purchase' ? 'Ready to Purchase' : 
+                         effectiveStatus === 'quoted' ? 'Quoted' :
+                         effectiveStatus === 'booked' ? 'Booked' : 'Sold'}
                        </span>
                     </div>
                   </TableCell>

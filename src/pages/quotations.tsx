@@ -227,12 +227,12 @@ export function Quotations() {
       
       const vRef = doc(db, 'vehicles', selectedChassis);
       batch.update(vRef, {
-        status: 'hold',
+        status: (bookingAmount && bookingAmount > 0) ? 'booked' : 'quoted',
         updatedAt: Timestamp.now()
       });
       
       await batch.commit();
-      toast.success('Quotation Created. Vehicle is now on HOLD.');
+      toast.success(`Quotation Created. Vehicle is now ${(bookingAmount && bookingAmount > 0) ? 'BOOKED' : 'QUOTED'}.`);
       
       setIsFormOpen(false);
       setSelectedCustomer('');
@@ -263,7 +263,7 @@ export function Quotations() {
       });
       
       const v = vehicles.find(v => v.chassisNumber === q.chassisNumber);
-      if (v && v.status === 'hold') {
+      if (v && (v.status === 'hold' || v.status === 'quoted' || v.status === 'booked')) {
          const vRef = doc(db, 'vehicles', q.chassisNumber);
          batch.update(vRef, {
            status: 'in-stock',

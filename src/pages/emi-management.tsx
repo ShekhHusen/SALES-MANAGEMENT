@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, Timestamp, where } from '@/lib/trackedFirestore';
-import { Lock, Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Lock, Search, Calculator, CheckSquare, Calendar, CarFront, User, FileText, IndianRupee, Download, Printer, ChevronLeft, ChevronRight, X, Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -94,26 +94,37 @@ export function EmiManagement() {
     if (!selectedEmiForView || !paymentEmiDetail) return;
     setIsSavingPayment(true);
     try {
-      // Create payment record
-      await addDoc(collection(db, 'emiPayments'), {
-        emiId: selectedEmiForView.id,
-        emiNo: paymentEmiDetail.emiNo,
-        receiptNumber,
-        amount: Number(paymentAmount),
-        principal: paymentEmiDetail.principalForMonth,
-        interest: paymentEmiDetail.interestForMonth,
-        createdAt: new Date(),
-      });
+      if (editingPaymentId) {
+        // Update payment record
+        await updateDoc(doc(db, 'emiPayments', editingPaymentId), {
+          receiptNumber,
+          amount: Number(paymentAmount),
+          updatedAt: new Date(),
+        });
+        toast.success('EMI Payment updated successfully');
+      } else {
+        // Create payment record
+        await addDoc(collection(db, 'emiPayments'), {
+          emiId: selectedEmiForView.id,
+          emiNo: paymentEmiDetail.emiNo,
+          receiptNumber,
+          amount: Number(paymentAmount),
+          principal: paymentEmiDetail.principalForMonth,
+          interest: paymentEmiDetail.interestForMonth,
+          createdAt: new Date(),
+        });
+        
+        // Update EMI record
+        await updateDoc(doc(db, 'emis', selectedEmiForView.id), {
+          paidEmis: (selectedEmiForView.paidEmis || 0) + 1
+        });
+        
+        setSelectedEmiForView(prev => prev ? { ...prev, paidEmis: (prev.paidEmis || 0) + 1 } : null);
+        toast.success('EMI Payment saved successfully');
+      }
       
-      // Update EMI record
-      await updateDoc(doc(db, 'emis', selectedEmiForView.id), {
-        paidEmis: (selectedEmiForView.paidEmis || 0) + 1
-      });
-      
-      setSelectedEmiForView(prev => prev ? { ...prev, paidEmis: (prev.paidEmis || 0) + 1 } : null);
-      
-      toast.success('EMI Payment saved successfully');
       setPaymentEmiDetail(null);
+      setEditingPaymentId(null);
       setReceiptNumber('');
       setPaymentAmount('');
     } catch (error) {
@@ -123,14 +134,55 @@ export function EmiManagement() {
       setIsSavingPayment(false);
     }
   };
+
+  const handleDeletePayment = async () => {
+    if (!selectedEmiForView || !paymentToDelete) return;
+    
+    try {
+      await deleteDoc(doc(db, 'emiPayments', paymentToDelete.id));
+      
+      // Update EMI record
+      await updateDoc(doc(db, 'emis', selectedEmiForView.id), {
+        paidEmis: Math.max(0, (selectedEmiForView.paidEmis || 0) - 1)
+      });
+      
+      setSelectedEmiForView(prev => prev ? { ...prev, paidEmis: Math.max(0, (prev.paidEmis || 0) - 1) } : null);
+      toast.success('Payment deleted successfully');
+      setPaymentToDelete(null);
+    } catch (error) {
+      console.error('Error deleting payment', error);
+      toast.error('Failed to delete payment');
+    }
+  };
+
+  const handleSaveStartDate = async () => {
+    if (!selectedEmiForView || !tempStartDate) return;
+    try {
+      await updateDoc(doc(db, 'emis', selectedEmiForView.id), {
+        startDate: tempStartDate,
+        updatedAt: Timestamp.now()
+      });
+      setSelectedEmiForView({ ...selectedEmiForView, startDate: tempStartDate });
+      setIsEditingStartDate(false);
+      toast.success('Start date updated successfully');
+    } catch (error) {
+      console.error('Error updating start date:', error);
+      toast.error('Failed to update start date');
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [selectedEmiForView, setSelectedEmiForView] = useState<EmiRecord | null>(null);
   const [isCloseFileConfirmOpen, setIsCloseFileConfirmOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<any | null>(null);
   const [paymentEmiDetail, setPaymentEmiDetail] = useState<{emiNo: number, principalForMonth: number, interestForMonth: number, monthlyEmi: number} | null>(null);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [emiPaymentsList, setEmiPaymentsList] = useState<any[]>([]);
+  
+  const [isEditingStartDate, setIsEditingStartDate] = useState(false);
+  const [tempStartDate, setTempStartDate] = useState('');
 
   useEffect(() => {
     if (selectedEmiForView) {
@@ -772,7 +824,33 @@ export function EmiManagement() {
                     </div>
                     <span className="text-xs sm:text-sm font-normal text-slate-500 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      Sale Date: {selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---')}
+                      {isEditingStartDate ? (
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="date" 
+                            className="h-8 w-40 text-xs" 
+                            value={tempStartDate} 
+                            onChange={(e) => setTempStartDate(e.target.value)}
+                          />
+                          <Button size="sm" className="h-8 px-2" onClick={handleSaveStartDate}>Save</Button>
+                          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setIsEditingStartDate(false)}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <>
+                          Start Date: {selectedEmiForView.startDate ? new Date(selectedEmiForView.startDate).toLocaleDateString('en-GB') : (selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toLocaleDateString('en-GB') : (selectedEmiForView.createdAt ? new Date(selectedEmiForView.createdAt.seconds * 1000).toLocaleDateString('en-GB') : '---'))}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-slate-400 hover:text-blue-600" 
+                            onClick={() => {
+                              setIsEditingStartDate(true);
+                              setTempStartDate(selectedEmiForView.startDate || (selectedEmiForView.saleDate ? new Date(selectedEmiForView.saleDate.seconds * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]));
+                            }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
                     </span>
                   </DialogTitle>
                   <div className="flex items-center gap-2 shrink-0">
@@ -971,7 +1049,41 @@ export function EmiManagement() {
                                     Rs. {Math.round(remainingBalance).toLocaleString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono p-2 text-emerald-600 dark:text-emerald-400 text-xs">
-                                    {paymentRecord ? `${paymentRecord.receiptNumber} / Rs. ${paymentRecord.amount.toLocaleString()} (${paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})` : '-'}
+                                    {paymentRecord ? (
+                                      <div className="flex items-center justify-end gap-2 group">
+                                        <span>{paymentRecord.receiptNumber} / Rs. {paymentRecord.amount.toLocaleString()} ({paymentRecord.createdAt ? (paymentRecord.createdAt.seconds ? new Date(paymentRecord.createdAt.seconds * 1000) : new Date(paymentRecord.createdAt)).toLocaleDateString('en-GB') : ''})</span>
+                                        {!selectedEmiForView.isClosed && !isViewer && (
+                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                              onClick={() => {
+                                                setEditingPaymentId(paymentRecord.id);
+                                                setPaymentEmiDetail({
+                                                  emiNo,
+                                                  principalForMonth,
+                                                  interestForMonth,
+                                                  monthlyEmi
+                                                });
+                                                setReceiptNumber(paymentRecord.receiptNumber);
+                                                setPaymentAmount(paymentRecord.amount.toString());
+                                              }}
+                                            >
+                                              <Pencil className="w-3 h-3" />
+                                            </Button>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                              onClick={() => setPaymentToDelete(paymentRecord)}
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : '-'}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -988,6 +1100,42 @@ export function EmiManagement() {
         </DialogContent>
       </Dialog>
 
+
+      {/* Close File Confirmation Dialog */}
+      <Dialog open={isCloseFileConfirmOpen} onOpenChange={setIsCloseFileConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close EMI File</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Are you sure you want to close this EMI file? This action will mark the EMI process as completed or terminated, and you won't be able to add new payments.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsCloseFileConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleCloseFile}>Confirm Close File</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Payment Confirmation Dialog */}
+      <Dialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete EMI Payment</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Are you sure you want to delete the payment record for EMI #{paymentToDelete?.emiNo}? This action cannot be undone and will reduce the paid EMI count.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPaymentToDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeletePayment}>Confirm Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Dialog */}
       <Dialog open={!!paymentEmiDetail} onOpenChange={(open) => !open && setPaymentEmiDetail(null)}>
