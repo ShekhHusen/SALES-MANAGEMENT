@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Trash2, Plus, ChevronDown, ChevronUp, KeyRound, Store } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, ChevronUp, KeyRound, Store, Database } from 'lucide-react';
 
 import { ImportData } from '@/components/ImportData';
 import { ExportData } from '@/components/ExportData';
@@ -624,338 +624,397 @@ export function Settings() {
           <ImportData />
           <ExportData />
           <BackupRestore />
+          
+          <Card className="shadow-sm border-amber-200 dark:border-amber-900/50 rounded-xl overflow-hidden mt-8">
+            <div className="bg-amber-50 dark:bg-amber-900/10 px-6 py-4 border-b border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
+               <Database className="w-5 h-5 text-amber-600" />
+               <div>
+                 <h3 className="text-sm font-black uppercase tracking-widest text-amber-600">Database Repair Tool</h3>
+                 <p className="text-[10px] text-amber-700 font-bold">Fix minor data inconsistencies and system status flags.</p>
+               </div>
+            </div>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-900 dark:text-slate-100">Fix Status Anomalies</h4>
+                  <p className="text-xs text-slate-500 max-lg">
+                    Scans for vehicles with incorrect status flags (e.g. "available") and reverts them to the standard "in-stock" status.
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="font-bold border-amber-200 text-amber-700 hover:bg-amber-50"
+                  onClick={async () => {
+                    toast.info('Starting intelligent database repair...');
+                    try {
+                      const [availSnap, salesSnap] = await Promise.all([
+                        getDocs(query(collection(db, 'vehicles'), where('status', '==', 'available'))),
+                        getDocs(collection(db, 'sales'))
+                      ]);
+                      
+                      if (availSnap.empty) {
+                        toast.success('No status anomalies found. Database is healthy.');
+                        return;
+                      }
+
+                      const allSales = salesSnap.docs.map(d => d.data());
+                      const batch = writeBatch(db);
+                      let repairedCount = 0;
+
+                      availSnap.docs.forEach(d => {
+                        const chassis = d.id;
+                        const hasSale = allSales.some(s => s.chassisNumber === chassis && s.status !== 'returned');
+                        
+                        batch.update(doc(db, 'vehicles', chassis), { 
+                          status: hasSale ? 'sold' : 'in-stock' 
+                        });
+                        repairedCount++;
+                      });
+                      
+                      await batch.commit();
+                      toast.success(`Successfully repaired ${repairedCount} vehicle records.`);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Repair failed. Please check permissions.');
+                    }
+                  }}
+                >
+                  Run Repair
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="shadow-sm border-red-200 dark:border-red-900 rounded-xl overflow-hidden mt-8">
+            <div className="bg-red-50 dark:bg-red-900/10 px-6 py-4 border-b border-red-200 dark:border-red-900">
+              <h3 className="text-sm font-black uppercase tracking-widest text-red-600 dark:text-red-500">Danger Zone</h3>
+            </div>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-4">
+                
+                {/* Clear Sales */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Sales</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Deletes all sales records and resets linked vehicles back to 'in-stock'.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => {
+                      setConfirmAction({
+                        title: "Clear All Sales?",
+                        description: "Are you sure you want to clear ALL sales? This will reset all sold vehicles to 'in-stock'.",
+                        actionLabel: "Clear Sales",
+                        onConfirm: async () => {
+                          try {
+                            const salesSnap = await getDocs(query(collection(db, 'sales')));
+                            let count = 0;
+                            let batch = writeBatch(db);
+                            let ops = 0;
+                            
+                            for (const d of salesSnap.docs) {
+                              const chassis = d.data().chassisNumber;
+                              if (chassis) {
+                                batch.update(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
+                                ops++;
+                              }
+                              batch.delete(d.ref);
+                              count++;
+                              ops++;
+                              
+                              if (ops >= 400) {
+                                  await batch.commit();
+                                  batch = writeBatch(db);
+                                  ops = 0;
+                              }
+                            }
+                            
+                            if (ops > 0) {
+                                await batch.commit();
+                            }
+                            toast.success(`Successfully cleared ${count} sales records.`);
+                          } catch (err) {
+                            toast.error('Failed to clear sales.');
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    Clear Sales
+                  </Button>
+                </div>
+
+                {/* Clear Purchases */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Purchases</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Deletes purchases and their in-stock vehicles. Skips purchases linked to sold vehicles.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => {
+                      setConfirmAction({
+                        title: "Clear All Purchases?",
+                        description: "Are you sure you want to clear ALL purchases? Purchases having sold vehicles will be skipped.",
+                        actionLabel: "Clear Purchases",
+                        onConfirm: async () => {
+                          try {
+                            const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                            const salesSnap = await getDocs(query(collection(db, 'sales')));
+                            const vehSnap = await getDocs(query(collection(db, 'vehicles')));
+                            
+                            const soldChassis = new Set([
+                              ...vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber),
+                              ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                            ]);
+                            
+                            let deleted = 0;
+                            let skipped = 0;
+                            let batch = writeBatch(db);
+                            let ops = 0;
+
+                            for (const d of purchSnap.docs) {
+                              const chassisArr = d.data().chassisNumbers || [];
+                              const hasSold = chassisArr.some((c: string) => soldChassis.has(c));
+                              if (hasSold) {
+                                skipped++;
+                              } else {
+                                for (const c of chassisArr) {
+                                  batch.delete(doc(db, 'vehicles', c));
+                                  ops++;
+                                  if (ops >= 400) {
+                                      await batch.commit();
+                                      batch = writeBatch(db);
+                                      ops = 0;
+                                  }
+                                }
+                                batch.delete(d.ref);
+                                deleted++;
+                                ops++;
+                                
+                                if (ops >= 400) {
+                                    await batch.commit();
+                                    batch = writeBatch(db);
+                                    ops = 0;
+                                }
+                              }
+                            }
+
+                            if (ops > 0) {
+                                await batch.commit();
+                            }
+                            toast.success(`Cleared ${deleted} purchases. Skipped ${skipped} linked to sales.`);
+                          } catch (err) {
+                            toast.error('Failed to clear purchases.');
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    Clear Purchases
+                  </Button>
+                </div>
+
+                {/* Clear Vehicles */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Inventory (Vehicles)</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Deletes all inventory not linked to any purchase or sale.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => {
+                      setConfirmAction({
+                        title: "Clear Standalone Inventory?",
+                        description: "Are you sure you want to clear standalone inventory? Vehicles linked to purchases or sales will be preserved.",
+                        actionLabel: "Clear Vehicles",
+                        onConfirm: async () => {
+                          try {
+                            const vehSnap = await getDocs(query(collection(db, 'vehicles')));
+                            const salesSnap = await getDocs(query(collection(db, 'sales')));
+                            const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                            
+                            const usedChassis = new Set([
+                              ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
+                            ]);
+                            
+                            for (const p of purchSnap.docs) {
+                              const arr = p.data().chassisNumbers || [];
+                              for (const c of arr) if (c) usedChassis.add(c);
+                            }
+
+                            let deleted = 0;
+                            let skipped = 0;
+                            let batch = writeBatch(db);
+                            let ops = 0;
+                            
+                            for (const d of vehSnap.docs) {
+                              const data = d.data();
+                              if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
+                                skipped++;
+                              } else {
+                                batch.delete(d.ref);
+                                deleted++;
+                                ops++;
+                                
+                                if (ops >= 400) {
+                                    await batch.commit();
+                                    batch = writeBatch(db);
+                                    ops = 0;
+                                }
+                              }
+                            }
+                            
+                            if (ops > 0) {
+                                await batch.commit();
+                            }
+                            toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
+                          } catch (err) {
+                            toast.error('Failed to clear inventory.');
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    Clear Vehicles
+                  </Button>
+                </div>
+
+                {/* Clear Parties */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Parties</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Deletes vendors and customers. Parties linked to sales or purchases are skipped.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={() => {
+                      setConfirmAction({
+                        title: "Clear All Parties?",
+                        description: "Are you sure you want to clear parties? Linked parties will be kept.",
+                        actionLabel: "Clear Parties",
+                        onConfirm: async () => {
+                          try {
+                            const partiesSnap = await getDocs(query(collection(db, 'parties')));
+                            const salesSnap = await getDocs(query(collection(db, 'sales')));
+                            const purchSnap = await getDocs(query(collection(db, 'purchases')));
+                            
+                            const usedIds = new Set([
+                              ...salesSnap.docs.map(s => s.data().customerId).filter(Boolean),
+                              ...purchSnap.docs.map(p => p.data().vendorId).filter(Boolean)
+                            ]);
+
+                            let deleted = 0;
+                            let skipped = 0;
+                            let batch = writeBatch(db);
+                            let ops = 0;
+
+                            for (const p of partiesSnap.docs) {
+                              if (usedIds.has(p.id)) {
+                                skipped++;
+                              } else {
+                                batch.delete(p.ref);
+                                deleted++;
+                                ops++;
+                                
+                                if (ops === 400) {
+                                    await batch.commit();
+                                    batch = writeBatch(db);
+                                    ops = 0;
+                                }
+                              }
+                            }
+                            
+                            if (ops > 0) {
+                                await batch.commit();
+                            }
+                            toast.success(`Cleared ${deleted} parties. Skipped ${skipped} linked parties.`);
+                          } catch (err) {
+                            toast.error('Failed to clear parties.');
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    Clear Parties
+                  </Button>
+                </div>
+
+              </div>
+
+              <div className="mt-8 pt-6 border-t font-mono border-red-200 dark:border-red-900/50">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-red-600 dark:text-red-500">Master Reset</h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Permanently delete everything (Vehicles, Purchases, Sales, Parties, Brands, Models). Destructive.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    className="font-bold shrink-0 bg-red-600 hover:bg-red-700 text-white"
+                    onClick={() => {
+                      setConfirmAction({
+                        title: "Master Reset",
+                        description: "Permanently delete everything (Vehicles, Purchases, Sales, Parties, Brands, Models). This action is highly destructive and cannot be undone.",
+                        actionLabel: "Clear Everything",
+                        expectedText: "DELETE ALL",
+                        onConfirm: async () => {
+                          const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models'];
+                          try {
+                            for (const colName of collections) {
+                              const q = query(collection(db, colName));
+                              const snap = await getDocs(q);
+                              
+                              let batch = writeBatch(db);
+                              let ops = 0;
+                              
+                              for (const d of snap.docs) {
+                                  batch.delete(doc(db, colName, d.id));
+                                  ops++;
+                                  if (ops >= 400) {
+                                      await batch.commit();
+                                      batch = writeBatch(db);
+                                      ops = 0;
+                                  }
+                              }
+                              
+                              if (ops > 0) {
+                                  await batch.commit();
+                              }
+                            }
+                            toast.success('All system data cleared successfully.');
+                          } catch (err) {
+                            console.error("Error clearing data:", err);
+                            toast.error('Failed to clear all data.');
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear Everything
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
-      {/* Danger Zone */}
-      {!isViewer && (
-        <Card className="shadow-sm border-red-200 dark:border-red-900 rounded-xl overflow-hidden mt-8">
-        <div className="bg-red-50 dark:bg-red-900/10 px-6 py-4 border-b border-red-200 dark:border-red-900">
-          <h3 className="text-sm font-black uppercase tracking-widest text-red-600 dark:text-red-500">Danger Zone</h3>
-        </div>
-        <CardContent className="p-6 space-y-6">
-          <div className="space-y-4">
-            
-            {/* Clear Sales */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Sales</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes all sales records and resets linked vehicles back to 'in-stock'.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear All Sales?",
-                    description: "Are you sure you want to clear ALL sales? This will reset all sold vehicles to 'in-stock'.",
-                    actionLabel: "Clear Sales",
-                    onConfirm: async () => {
-                      try {
-                        const salesSnap = await getDocs(query(collection(db, 'sales')));
-                        let count = 0;
-                        let batch = writeBatch(db);
-                        let ops = 0;
-                        
-                        for (const d of salesSnap.docs) {
-                          const chassis = d.data().chassisNumber;
-                          if (chassis) {
-                            batch.update(doc(db, 'vehicles', chassis), { status: 'in-stock', saleId: null });
-                            ops++;
-                          }
-                          batch.delete(d.ref);
-                          count++;
-                          ops++;
-                          
-                          if (ops >= 400) {
-                              await batch.commit();
-                              batch = writeBatch(db);
-                              ops = 0;
-                          }
-                        }
-                        
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        toast.success(`Successfully cleared ${count} sales records.`);
-                      } catch (err) {
-                        toast.error('Failed to clear sales.');
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Sales
-              </Button>
-            </div>
-
-            {/* Clear Purchases */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Purchases</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes purchases and their in-stock vehicles. Skips purchases linked to sold vehicles.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear All Purchases?",
-                    description: "Are you sure you want to clear ALL purchases? Purchases having sold vehicles will be skipped.",
-                    actionLabel: "Clear Purchases",
-                    onConfirm: async () => {
-                      try {
-                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                        const salesSnap = await getDocs(query(collection(db, 'sales')));
-                        const vehSnap = await getDocs(query(collection(db, 'vehicles')));
-                        
-                        const soldChassis = new Set([
-                          ...vehSnap.docs.filter(v => v.data().status === 'sold' || v.data().saleId).map(v => v.data().chassisNumber),
-                          ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
-                        ]);
-                        
-                        let deleted = 0;
-                        let skipped = 0;
-                        let batch = writeBatch(db);
-                        let ops = 0;
-
-                        for (const d of purchSnap.docs) {
-                          const chassisArr = d.data().chassisNumbers || [];
-                          const hasSold = chassisArr.some((c: string) => soldChassis.has(c));
-                          if (hasSold) {
-                            skipped++;
-                          } else {
-                            for (const c of chassisArr) {
-                              batch.delete(doc(db, 'vehicles', c));
-                              ops++;
-                              if (ops >= 400) {
-                                  await batch.commit();
-                                  batch = writeBatch(db);
-                                  ops = 0;
-                              }
-                            }
-                            batch.delete(d.ref);
-                            deleted++;
-                            ops++;
-                            
-                            if (ops >= 400) {
-                                await batch.commit();
-                                batch = writeBatch(db);
-                                ops = 0;
-                            }
-                          }
-                        }
-
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        toast.success(`Cleared ${deleted} purchases. Skipped ${skipped} linked to sales.`);
-                      } catch (err) {
-                        toast.error('Failed to clear purchases.');
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Purchases
-              </Button>
-            </div>
-
-            {/* Clear Vehicles */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Inventory (Vehicles)</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes all inventory not linked to any purchase or sale.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear Standalone Inventory?",
-                    description: "Are you sure you want to clear standalone inventory? Vehicles linked to purchases or sales will be preserved.",
-                    actionLabel: "Clear Vehicles",
-                    onConfirm: async () => {
-                      try {
-                        const vehSnap = await getDocs(query(collection(db, 'vehicles')));
-                        const salesSnap = await getDocs(query(collection(db, 'sales')));
-                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                        
-                        const usedChassis = new Set([
-                          ...salesSnap.docs.map(s => s.data().chassisNumber).filter(Boolean)
-                        ]);
-                        
-                        for (const p of purchSnap.docs) {
-                          const arr = p.data().chassisNumbers || [];
-                          for (const c of arr) if (c) usedChassis.add(c);
-                        }
-
-                        let deleted = 0;
-                        let skipped = 0;
-                        let batch = writeBatch(db);
-                        let ops = 0;
-                        
-                        for (const d of vehSnap.docs) {
-                          const data = d.data();
-                          if (data.status === 'sold' || data.saleId || usedChassis.has(data.chassisNumber) || usedChassis.has(d.id)) {
-                            skipped++;
-                          } else {
-                            batch.delete(d.ref);
-                            deleted++;
-                            ops++;
-                            
-                            if (ops >= 400) {
-                                await batch.commit();
-                                batch = writeBatch(db);
-                                ops = 0;
-                            }
-                          }
-                        }
-                        
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        toast.success(`Cleared ${deleted} standalone vehicles. Skipped ${skipped} linked vehicles.`);
-                      } catch (err) {
-                        toast.error('Failed to clear inventory.');
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Vehicles
-              </Button>
-            </div>
-
-            {/* Clear Parties */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100">Clear All Parties</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Deletes vendors and customers. Parties linked to sales or purchases are skipped.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="font-bold shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Clear All Parties?",
-                    description: "Are you sure you want to clear parties? Linked parties will be kept.",
-                    actionLabel: "Clear Parties",
-                    onConfirm: async () => {
-                      try {
-                        const partiesSnap = await getDocs(query(collection(db, 'parties')));
-                        const salesSnap = await getDocs(query(collection(db, 'sales')));
-                        const purchSnap = await getDocs(query(collection(db, 'purchases')));
-                        
-                        const usedIds = new Set([
-                          ...salesSnap.docs.map(s => s.data().customerId).filter(Boolean),
-                          ...purchSnap.docs.map(p => p.data().vendorId).filter(Boolean)
-                        ]);
-
-                        let deleted = 0;
-                        let skipped = 0;
-                        let batch = writeBatch(db);
-                        let ops = 0;
-
-                        for (const p of partiesSnap.docs) {
-                          if (usedIds.has(p.id)) {
-                            skipped++;
-                          } else {
-                            batch.delete(p.ref);
-                            deleted++;
-                            ops++;
-                            
-                            if (ops === 400) {
-                                await batch.commit();
-                                batch = writeBatch(db);
-                                ops = 0;
-                            }
-                          }
-                        }
-                        
-                        if (ops > 0) {
-                            await batch.commit();
-                        }
-                        toast.success(`Cleared ${deleted} parties. Skipped ${skipped} linked parties.`);
-                      } catch (err) {
-                        toast.error('Failed to clear parties.');
-                      }
-                    }
-                  });
-                }}
-              >
-                Clear Parties
-              </Button>
-            </div>
-
-          </div>
-
-          <div className="mt-8 pt-6 border-t font-mono border-red-200 dark:border-red-900/50">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h4 className="font-bold text-red-600 dark:text-red-500">Master Reset</h4>
-                <p className="text-sm text-slate-500 mt-1">
-                  Permanently delete everything (Vehicles, Purchases, Sales, Parties, Brands, Models). Destructive.
-                </p>
-              </div>
-              <Button 
-                variant="destructive" 
-                className="font-bold shrink-0 bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => {
-                  setConfirmAction({
-                    title: "Master Reset",
-                    description: "Permanently delete everything (Vehicles, Purchases, Sales, Parties, Brands, Models). This action is highly destructive and cannot be undone.",
-                    actionLabel: "Clear Everything",
-                    expectedText: "DELETE ALL",
-                    onConfirm: async () => {
-                      const collections = ['vehicles', 'purchases', 'sales', 'parties', 'companies', 'models'];
-                      try {
-                        for (const colName of collections) {
-                          const q = query(collection(db, colName));
-                          const snap = await getDocs(q);
-                          
-                          let batch = writeBatch(db);
-                          let ops = 0;
-                          
-                          for (const d of snap.docs) {
-                              batch.delete(doc(db, colName, d.id));
-                              ops++;
-                              if (ops >= 400) {
-                                  await batch.commit();
-                                  batch = writeBatch(db);
-                                  ops = 0;
-                              }
-                          }
-                          
-                          if (ops > 0) {
-                              await batch.commit();
-                          }
-                        }
-                        toast.success('All system data cleared successfully.');
-                      } catch (err) {
-                        console.error("Error clearing data:", err);
-                        toast.error('Failed to clear all data.');
-                      }
-                    }
-                  });
-                }}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Clear Everything
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )}
       <Dialog open={!!editingModel} onOpenChange={(open) => !open && setEditingModel(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

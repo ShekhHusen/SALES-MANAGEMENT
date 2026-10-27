@@ -247,7 +247,7 @@ export function Sales() {
           if (editingSale.chassisNumber) {
             const oldVehicleRef = doc(db, 'vehicles', editingSale.chassisNumber);
             batch.update(oldVehicleRef, {
-              status: 'available',
+              status: 'in-stock',
               saleId: deleteField(),
               currentOwnerId: deleteField(),
               updatedAt: Timestamp.now(),
