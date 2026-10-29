@@ -1,6 +1,0 @@
-{
-  "summary":  "Implementation plan to calculate Total Purchases as the total sum of chassis across all purchase bills on the Dashboard, and fix customer details fetching via chassis number in Export Complete System Data.",
-  "updatedAt":  "2026-10-29T09:14:18.002684578Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}
