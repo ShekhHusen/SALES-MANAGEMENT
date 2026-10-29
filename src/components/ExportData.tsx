@@ -57,9 +57,9 @@ export function ExportData() {
       wsAllData.columns = allDataColumns;
 
       const allDataRows = vehicles.map(v => {
-        const purchase = purchases.find(p => p.id === v.purchaseId);
+        const purchase = purchases.find(p => (v.purchaseId && p.id === v.purchaseId) || (Array.isArray(p.chassisNumbers) && p.chassisNumbers.includes(v.chassisNumber)));
         const vendor = purchase ? parties.find(p => p.id === purchase.vendorId) : null;
-        const sale = sales.find(s => s.id === v.saleId);
+        const sale = sales.find(s => (s.chassisNumber === v.chassisNumber || (v.saleId && s.id === v.saleId)) && s.status !== 'returned');
         const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
 
         return {
@@ -72,7 +72,7 @@ export function ExportData() {
           'Registration Number': v.registrationNumber || '',
           'Bluebook Status': v.bluebookStatus || '',
           'Naamsari Status': v.naamsariStatus || '',
-          'Status': v.status || '',
+          'Status': sale ? 'sold' : (v.status || 'in-stock'),
           'File No.': sale?.fileNumber || '',
           'Customer Name': customer?.name || '',
           'Address': customer?.address || '',
@@ -101,19 +101,25 @@ export function ExportData() {
         { header: 'Current Owner', key: 'Current Owner' }
       ];
       
-      const inventoryData = vehicles.map(v => ({
-        'Chassis Number': v.chassisNumber,
-        'Company': companies.find(c => c.id === v.companyId)?.name || 'Unknown',
-        'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
-        'Color': v.color,
-        'Registration Number': v.registrationNumber,
-        'Bluebook Status': v.bluebookStatus,
-        'Naamsari Status': v.naamsariStatus,
-        'Status': v.status,
-        'Purchase ID': v.purchaseId || '',
-        'Sale ID': v.saleId || '',
-        'Current Owner': parties.find(p => p.id === v.currentOwnerId)?.name || ''
-      }));
+      const inventoryData = vehicles.map(v => {
+        const sale = sales.find(s => (s.chassisNumber === v.chassisNumber || (v.saleId && s.id === v.saleId)) && s.status !== 'returned');
+        const customer = sale ? parties.find(p => p.id === sale.customerId) : null;
+        const purchase = purchases.find(p => (v.purchaseId && p.id === v.purchaseId) || (Array.isArray(p.chassisNumbers) && p.chassisNumbers.includes(v.chassisNumber)));
+
+        return {
+          'Chassis Number': v.chassisNumber,
+          'Company': companies.find(c => c.id === v.companyId)?.name || 'Unknown',
+          'Model': models.find(m => m.id === v.modelId)?.name || 'Unknown',
+          'Color': v.color,
+          'Registration Number': v.registrationNumber,
+          'Bluebook Status': v.bluebookStatus,
+          'Naamsari Status': v.naamsariStatus,
+          'Status': sale ? 'sold' : (v.status || 'in-stock'),
+          'Purchase ID': purchase?.id || v.purchaseId || '',
+          'Sale ID': sale?.id || v.saleId || '',
+          'Current Owner': customer?.name || parties.find(p => p.id === v.currentOwnerId)?.name || ''
+        };
+      });
       if(inventoryData.length===0) wsInventory.addRow({'Chassis Number': 'No Data'});
       else wsInventory.addRows(inventoryData);
 

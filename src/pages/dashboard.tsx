@@ -20,6 +20,8 @@ import { Company, Model, Party, Purchase, Sale, Vehicle } from '@/types';
 import ExcelJS from '@protobi/exceljs/dist/exceljs.min.js';
 import { toast } from 'sonner';
 import { FileSpreadsheet } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { tallyDb } from '@/lib/tallyFirebase';
 
 export function Dashboard() {
   const [stats, setStats] = useState({
@@ -44,7 +46,6 @@ export function Dashboard() {
         // Parallel counting
         const [
           totalInventorySnap,
-          inStockSnap,
           bluebookPendingSnap,
           bluebookReceivedSnap,
           naamsariPendingSnap,
@@ -53,7 +54,6 @@ export function Dashboard() {
           totalSalesSnap
         ] = await Promise.all([
           getCountFromServer(vehiclesRef),
-          getCountFromServer(query(vehiclesRef, where('status', '==', 'in-stock'))),
           getCountFromServer(query(vehiclesRef, where('bluebookStatus', '==', 'Not Received'))),
           getCountFromServer(query(vehiclesRef, where('bluebookStatus', '==', 'Received'))),
           getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Pending'))),
@@ -62,17 +62,26 @@ export function Dashboard() {
           getCountFromServer(query(salesRef, where('status', '!=', 'returned')))
         ]);
 
-        // We can't aggregate array length easily for purchases.chassisNumbers without fetching them or keeping a count field.
-        // For now we'll fetch purchases to sum them up, or just getCount of purchases if that's close enough.
-        // Or fetch all purchases just for the array sizes (it's much lighter than listening to them real-time).
+        // Sum total chassis across all purchase bills
         const purchasesRef = collection(db, 'purchases');
-        const purchasesSnap = await getCountFromServer(purchasesRef);
+        const purchasesSnap = await getDocs(purchasesRef);
+        let totalPurchasedChassis = 0;
+        purchasesSnap.docs.forEach((doc) => {
+          const data = doc.data();
+          if (Array.isArray(data.chassisNumbers)) {
+            totalPurchasedChassis += data.chassisNumbers.length;
+          }
+        });
+
+        const totalInventory = totalInventorySnap.data().count;
+        const totalSales = totalSalesSnap.data().count;
+        const inStockCount = Math.max(0, totalInventory - totalSales);
 
         setStats({
-          totalInventory: totalInventorySnap.data().count,
-          totalProcurement: purchasesSnap.data().count, // approximate for now
-          totalSales: totalSalesSnap.data().count,
-          inStock: inStockSnap.data().count,
+          totalInventory,
+          totalProcurement: totalPurchasedChassis,
+          totalSales,
+          inStock: inStockCount,
           bluebookPending: bluebookPendingSnap.data().count,
           bluebookReceived: bluebookReceivedSnap.data().count,
           naamsariPending: naamsariPendingSnap.data().count,
@@ -93,15 +102,26 @@ export function Dashboard() {
 
   const handleExportGroup = async (naamsariStatus: string, title: string) => {
     setIsExporting(true);
-    toast.info(`Generating Excel for ${title}...`);
+    toast.info(`Fetching data & customer balances for ${title}...`);
     try {
-      const [vehiclesSnap, companiesSnap, modelsSnap, partiesSnap, purchasesSnap, salesSnap] = await Promise.all([
+      const [
+        vehiclesSnap,
+        companiesSnap,
+        modelsSnap,
+        partiesSnap,
+        purchasesSnap,
+        salesSnap,
+        tallyAccountsSnap,
+        tallyFySnap
+      ] = await Promise.all([
         getDocs(query(collection(db, 'vehicles'), where('naamsariStatus', '==', naamsariStatus))),
         getDocs(collection(db, 'companies')),
         getDocs(collection(db, 'models')),
         getDocs(collection(db, 'parties')),
         getDocs(collection(db, 'purchases')),
-        getDocs(collection(db, 'sales'))
+        getDocs(collection(db, 'sales')),
+        getDocs(collection(tallyDb, 'accounts')),
+        getDocs(collection(tallyDb, 'fiscalYears')).catch(() => null)
       ]);
 
       const filteredVehicles = vehiclesSnap.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id })) as Vehicle[];
@@ -111,8 +131,153 @@ export function Dashboard() {
       const purchases = purchasesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Purchase[];
       const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Sale[];
 
-      if (filteredVehicles.length === 0) {
-        toast.error(`No vehicles found for ${title}`);
+      // Parse Tally accounts
+      const tallyAccounts: any[] = [];
+      tallyAccountsSnap.forEach(d => tallyAccounts.push({ id: d.id, ...d.data() }));
+
+      // Determine active fiscal year in Tally
+      let currentFyId = '';
+      if (tallyFySnap && !tallyFySnap.empty) {
+        const fys: any[] = [];
+        tallyFySnap.forEach(d => fys.push({ id: d.id, ...d.data() }));
+        fys.sort((a, b) => {
+          const dateA = new Date(a.startDate || 0).getTime();
+          const dateB = new Date(b.startDate || 0).getTime();
+          return dateB - dateA;
+        });
+        const today = new Date().toISOString().split('T')[0];
+        const currentFy = fys.find(fy => fy.startDate <= today && fy.endDate >= today) || fys[0];
+        currentFyId = currentFy?.id || '';
+      }
+
+      // Helper to format currency accurately (Indian format)
+      const formatAmt = (val: any) => {
+        if (val === undefined || val === null || val === '') return '0.00';
+        const num = typeof val === 'string' ? Number(val.replace(/,/g, '')) : Number(val);
+        if (isNaN(num)) return '0.00';
+        return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      };
+
+      // Comprehensive function to match customer by name / contact / tallyAccountId
+      const findTallyAccountForCustomer = (customer: Party | null | undefined): any | null => {
+        if (!customer) return null;
+
+        // 1. Direct link if customer.tallyAccountId is set
+        if (customer.tallyAccountId) {
+          const directMatch = tallyAccounts.find(a => a.id === customer.tallyAccountId);
+          if (directMatch) return directMatch;
+        }
+
+        const rawName = (customer.name || '').trim();
+        if (!rawName) return null;
+
+        const cleanName = rawName.toLowerCase().replace(/\s+/g, ' ');
+        const phone = (customer.contactNumber || '').replace(/\D/g, '');
+        const altPhone = (customer.alternateNumber || '').replace(/\D/g, '');
+
+        // 2. Exact name match (case-insensitive)
+        const exactMatch = tallyAccounts.find(a => (a.name || '').trim().toLowerCase() === cleanName);
+        if (exactMatch) return exactMatch;
+
+        // 3. Tally account name starts with customer name (e.g. "NAME - 9800000000" or "NAME-LOCATION")
+        const startsWithMatch = tallyAccounts.find(a => {
+          const aName = (a.name || '').trim().toLowerCase();
+          return aName.startsWith(cleanName);
+        });
+        if (startsWithMatch) return startsWithMatch;
+
+        // 4. Match by phone number if phone has at least 7 digits (Tally names often contain phone numbers)
+        if (phone.length >= 7) {
+          const phoneMatch = tallyAccounts.find(a => {
+            const aName = (a.name || '').replace(/\s+/g, '');
+            const aPhone = (a.contact || a.phone || '').replace(/\D/g, '');
+            return aName.includes(phone) || (aPhone && aPhone.includes(phone));
+          });
+          if (phoneMatch) return phoneMatch;
+        }
+
+        if (altPhone.length >= 7) {
+          const altPhoneMatch = tallyAccounts.find(a => {
+            const aName = (a.name || '').replace(/\s+/g, '');
+            const aPhone = (a.contact || a.phone || '').replace(/\D/g, '');
+            return aName.includes(altPhone) || (aPhone && aPhone.includes(altPhone));
+          });
+          if (altPhoneMatch) return altPhoneMatch;
+        }
+
+        // 5. Stripped match (alphanumeric only)
+        const strippedCust = cleanName.replace(/[^a-z0-9]/g, '');
+        if (strippedCust.length > 3) {
+          const strippedMatch = tallyAccounts.find(a => {
+            const aStripped = (a.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return aStripped.startsWith(strippedCust) || strippedCust.startsWith(aStripped);
+          });
+          if (strippedMatch) return strippedMatch;
+        }
+
+        // 6. Word token match: all words of customer name are in account name
+        const words = cleanName.split(' ').filter(w => w.length > 2);
+        if (words.length >= 2) {
+          const tokenMatch = tallyAccounts.find(a => {
+            const aName = (a.name || '').toLowerCase();
+            return words.every(w => aName.includes(w));
+          });
+          if (tokenMatch) return tokenMatch;
+        }
+
+        return null;
+      };
+
+      // Cache for fetched account balances
+      const balanceCache = new Map<string, string>();
+      const getExactClosingBalance = async (acc: any): Promise<string> => {
+        if (!acc) return '0.00';
+        if (balanceCache.has(acc.id)) return balanceCache.get(acc.id)!;
+
+        let rawBal = acc.closingBalance;
+        let rawType = acc.closingBalanceType || '';
+
+        // Check active fiscal year subcollection for latest FY balance
+        if (currentFyId) {
+          try {
+            const fyDoc = await getDoc(doc(tallyDb, `accounts/${acc.id}/fiscalYears`, currentFyId));
+            if (fyDoc.exists()) {
+              const fyData = fyDoc.data();
+              if (fyData.closingBalance !== undefined && fyData.closingBalance !== null) {
+                rawBal = fyData.closingBalance;
+                rawType = fyData.closingBalanceType || rawType;
+              }
+            }
+          } catch (e) {
+            // Fallback to account doc balance
+          }
+        }
+
+        if (rawBal === undefined || rawBal === null || rawBal === '' || rawBal === 0 || rawBal === '0') {
+          const res = rawType ? `0.00 ${rawType}`.trim() : '0.00';
+          balanceCache.set(acc.id, res);
+          return res;
+        }
+
+        const formatted = `${formatAmt(rawBal)} ${rawType}`.trim();
+        balanceCache.set(acc.id, formatted);
+        return formatted;
+      };
+
+      // IGNORE IN-STOCK VEHICLES: Only include sold vehicles that have an active sale and customer
+      const soldVehicles = filteredVehicles.filter((v) => {
+        // If strictly marked as in-stock or available, ignore it
+        if (v.status === 'in-stock' || (v.status as any) === 'available') return false;
+
+        const sale = sales.find((s) => (v.saleId && s.id === v.saleId) || s.chassisNumber === v.chassisNumber || s.chassisNumber === v.id);
+        // Must have an active sale and valid customer
+        if (!sale || sale.status === 'returned' || !sale.customerId) return false;
+
+        return true;
+      });
+
+      if (soldVehicles.length === 0) {
+        toast.error(`No sold vehicles found for ${title}. (In-stock units were ignored)`);
         setIsExporting(false);
         return;
       }
@@ -134,38 +299,52 @@ export function Dashboard() {
         { header: 'File No.', key: 'File No.', width: 10 },
         { header: 'Customer Name', key: 'Customer Name', width: 20 },
         { header: 'Address', key: 'Address', width: 25 },
-        { header: 'Contact Number', key: 'Contact Number', width: 15 }
+        { header: 'Contact Number', key: 'Contact Number', width: 15 },
+        { header: 'Closing Balance', key: 'Closing Balance', width: 18 }
       ];
 
-      const rows = filteredVehicles.map((v) => {
-        const purchase = purchases.find((p) => p.id === v.purchaseId);
-        const vendor = purchase ? parties.find((p) => p.id === purchase.vendorId) : null;
-        const sale = sales.find((s) => s.id === v.saleId);
-        const customer = sale ? parties.find((p) => p.id === sale.customerId) : null;
+      let matchedBalanceCount = 0;
+      const rows = await Promise.all(
+        soldVehicles.map(async (v) => {
+          const purchase = purchases.find((p) => p.id === v.purchaseId);
+          const vendor = purchase ? parties.find((p) => p.id === purchase.vendorId) : null;
+          const sale = sales.find((s) => (v.saleId && s.id === v.saleId) || s.chassisNumber === v.chassisNumber || s.chassisNumber === v.id);
+          const customer = sale ? parties.find((p) => p.id === sale.customerId) : null;
 
-        return {
-          'Vendor': vendor?.name || '',
-          'Invoice No.': purchase?.invoiceNumber || '',
-          'Chassis Number': v.chassisNumber,
-          'Company': companies.find((c) => c.id === v.companyId)?.name || '',
-          'Model': models.find((m) => m.id === v.modelId)?.name || '',
-          'Color': v.color || '',
-          'Registration Number': v.registrationNumber || '',
-          'Bluebook Status': v.bluebookStatus || '',
-          'Naamsari Status': v.naamsariStatus || '',
-          'Status': v.status || '',
-          'File No.': sale?.fileNumber || '',
-          'Customer Name': customer?.name || '',
-          'Address': customer?.address || '',
-          'Contact Number': customer?.contactNumber || ''
-        };
-      });
+          let closingBal = '0.00';
+          if (customer) {
+            const matchedAcc = findTallyAccountForCustomer(customer);
+            if (matchedAcc) {
+              closingBal = await getExactClosingBalance(matchedAcc);
+              matchedBalanceCount++;
+            }
+          }
+
+          return {
+            'Vendor': vendor?.name || '',
+            'Invoice No.': purchase?.invoiceNumber || '',
+            'Chassis Number': v.chassisNumber,
+            'Company': companies.find((c) => c.id === v.companyId)?.name || '',
+            'Model': models.find((m) => m.id === v.modelId)?.name || '',
+            'Color': v.color || '',
+            'Registration Number': v.registrationNumber || '',
+            'Bluebook Status': v.bluebookStatus || '',
+            'Naamsari Status': v.naamsariStatus || '',
+            'Status': sale ? 'sold' : v.status,
+            'File No.': sale?.fileNumber || '',
+            'Customer Name': customer?.name || '',
+            'Address': customer?.address || '',
+            'Contact Number': customer?.contactNumber || '',
+            'Closing Balance': closingBal
+          };
+        })
+      );
 
       // Sort by Vendor (A-Z) and then by Status (A-Z)
       rows.sort((a: any, b: any) => {
-        const vendorCompare = a.Vendor.localeCompare(b.Vendor);
+        const vendorCompare = (a.Vendor || '').localeCompare(b.Vendor || '');
         if (vendorCompare !== 0) return vendorCompare;
-        return a.Status.localeCompare(b.Status);
+        return (a.Status || '').localeCompare(b.Status || '');
       });
 
       ws.addRows(rows);
@@ -189,10 +368,100 @@ export function Dashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${title.replace(/\s+/g, '_')}_Export.xlsx`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.download = `${title.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`${title} data exported successfully!`);
+      toast.success(`${title} exported successfully! (${rows.length} sold vehicles, in-stock ignored)`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportInStock = async () => {
+    setIsExporting(true);
+    toast.info('Fetching In-Stock Units data...');
+    try {
+      const [vehiclesSnap, companiesSnap, modelsSnap, salesSnap] = await Promise.all([
+        getDocs(collection(db, 'vehicles')),
+        getDocs(collection(db, 'companies')),
+        getDocs(collection(db, 'models')),
+        getDocs(collection(db, 'sales'))
+      ]);
+
+      const vehicles = vehiclesSnap.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id })) as Vehicle[];
+      const companies = companiesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Company[];
+      const models = modelsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Model[];
+      const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Sale[];
+
+      // Filter for in-stock vehicles (no active sale and not marked as sold)
+      const inStockVehicles = vehicles.filter(v => {
+        if (v.status === 'sold') return false;
+        const activeSale = sales.find(s => (s.chassisNumber === v.chassisNumber || (v.saleId && s.id === v.saleId)) && s.status !== 'returned');
+        if (activeSale) return false;
+        return true;
+      });
+
+      if (inStockVehicles.length === 0) {
+        toast.error('No In-Stock units found to export.');
+        setIsExporting(false);
+        return;
+      }
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('In-Stock Units');
+
+      // Export only: Chassis Number, Company, Model, Color
+      ws.columns = [
+        { header: 'Chassis Number', key: 'Chassis Number', width: 25 },
+        { header: 'Company', key: 'Company', width: 20 },
+        { header: 'Model', key: 'Model', width: 25 },
+        { header: 'Color', key: 'Color', width: 15 }
+      ];
+
+      const rows = inStockVehicles.map(v => ({
+        'Chassis Number': v.chassisNumber || v.id,
+        'Company': companies.find(c => c.id === v.companyId)?.name || '',
+        'Model': models.find(m => m.id === v.modelId)?.name || '',
+        'Color': v.color || ''
+      }));
+
+      // Sort by Company (A-Z) and Model (A-Z)
+      rows.sort((a, b) => {
+        const comp = (a.Company || '').localeCompare(b.Company || '');
+        if (comp !== 0) return comp;
+        return (a.Model || '').localeCompare(b.Model || '');
+      });
+
+      ws.addRows(rows);
+
+      // Add Auto-Filter to all columns
+      ws.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: ws.columns.length }
+      };
+
+      // Header formatting
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFEEEEEE' }
+      };
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.download = `In_Stock_Units_${timestamp}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`In-Stock Units exported successfully! (${rows.length} units)`);
     } catch (err) {
       console.error(err);
       toast.error('Export failed');
@@ -222,7 +491,15 @@ export function Dashboard() {
       <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-4">
         <StatCard title="Total Inventory" value={stats.totalInventory} icon={Car} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-500/10" />
         <StatCard title="Total Purchases" value={stats.totalProcurement} icon={ShoppingCart} color="text-purple-500" bg="bg-purple-50 dark:bg-purple-500/10" />
-        <StatCard title="In-Stock Units" value={stats.inStock} icon={Package} color="text-indigo-500" bg="bg-indigo-50 dark:bg-indigo-500/10" />
+        <StatCard 
+          title="In-Stock Units" 
+          value={stats.inStock} 
+          icon={Package} 
+          color="text-indigo-500" 
+          bg="bg-indigo-50 dark:bg-indigo-500/10" 
+          onExport={handleExportInStock}
+          isExporting={isExporting}
+        />
         <StatCard title="Sales Recorded" value={stats.totalSales} icon={BadgeDollarSign} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10" />
       </div>
       

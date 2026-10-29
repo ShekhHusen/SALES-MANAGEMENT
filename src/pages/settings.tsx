@@ -647,32 +647,49 @@ export function Settings() {
                   onClick={async () => {
                     toast.info('Starting intelligent database repair...');
                     try {
-                      const [availSnap, salesSnap] = await Promise.all([
-                        getDocs(query(collection(db, 'vehicles'), where('status', '==', 'available'))),
+                      const [vehiclesSnap, salesSnap] = await Promise.all([
+                        getDocs(collection(db, 'vehicles')),
                         getDocs(collection(db, 'sales'))
                       ]);
-                      
-                      if (availSnap.empty) {
-                        toast.success('No status anomalies found. Database is healthy.');
+
+                      const allSales = salesSnap.docs.map(d => d.data());
+                      const soldChassisSet = new Set(
+                        allSales
+                          .filter(s => s.status !== 'returned' && s.chassisNumber)
+                          .map(s => s.chassisNumber)
+                      );
+
+                      const updates: { ref: any; data: any }[] = [];
+
+                      vehiclesSnap.docs.forEach(d => {
+                        const chassis = d.id;
+                        const v = d.data();
+                        const hasSale = soldChassisSet.has(chassis);
+                        const expectedStatus = hasSale ? 'sold' : 'in-stock';
+
+                        if (v.status !== expectedStatus) {
+                          updates.push({
+                            ref: doc(db, 'vehicles', chassis),
+                            data: { status: expectedStatus }
+                          });
+                        }
+                      });
+
+                      if (updates.length === 0) {
+                        toast.success('No status anomalies found. All vehicles match active sales.');
                         return;
                       }
 
-                      const allSales = salesSnap.docs.map(d => d.data());
-                      const batch = writeBatch(db);
-                      let repairedCount = 0;
+                      // Firestore batch limit is 500
+                      const chunkSize = 400;
+                      for (let i = 0; i < updates.length; i += chunkSize) {
+                        const chunk = updates.slice(i, i + chunkSize);
+                        const batch = writeBatch(db);
+                        chunk.forEach(u => batch.update(u.ref, u.data));
+                        await batch.commit();
+                      }
 
-                      availSnap.docs.forEach(d => {
-                        const chassis = d.id;
-                        const hasSale = allSales.some(s => s.chassisNumber === chassis && s.status !== 'returned');
-                        
-                        batch.update(doc(db, 'vehicles', chassis), { 
-                          status: hasSale ? 'sold' : 'in-stock' 
-                        });
-                        repairedCount++;
-                      });
-                      
-                      await batch.commit();
-                      toast.success(`Successfully repaired ${repairedCount} vehicle records.`);
+                      toast.success(`Successfully repaired ${updates.length} vehicle records.`);
                     } catch (err) {
                       console.error(err);
                       toast.error('Repair failed. Please check permissions.');
