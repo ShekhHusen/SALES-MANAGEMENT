@@ -110,6 +110,9 @@
         "purchaseId": {
           "type": "string"
         },
+        "purchasePrice": {
+          "type": "number"
+        },
         "saleId": {
           "type": "string"
         },
@@ -149,6 +152,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "chassisPrices": {
+          "type": "object"
         },
         "createdAt": {
           "type": "string",

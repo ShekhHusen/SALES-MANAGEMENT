@@ -10,7 +10,8 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  UserCheck
+  UserCheck,
+  Receipt
 } from 'lucide-react';
 import { collection, query, where, getCountFromServer, getAggregateFromServer, sum, getDocs } from '@/lib/trackedFirestore';
 import { db } from '@/lib/firebase';
@@ -34,6 +35,7 @@ export function Dashboard() {
     naamsariPending: 0,
     jbmtName: 0,
     customerDone: 0,
+    vatBillIssued: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +53,7 @@ export function Dashboard() {
           naamsariPendingSnap,
           jbmtNameSnap,
           customerDoneSnap,
+          vatBillIssuedSnap,
           totalSalesSnap
         ] = await Promise.all([
           getCountFromServer(vehiclesRef),
@@ -59,6 +62,7 @@ export function Dashboard() {
           getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Pending'))),
           getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Names of JBMT'))),
           getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'Customer Done'))),
+          getCountFromServer(query(vehiclesRef, where('naamsariStatus', '==', 'VAT Bill Issued'))),
           getCountFromServer(query(salesRef, where('status', '!=', 'returned')))
         ]);
 
@@ -87,6 +91,7 @@ export function Dashboard() {
           naamsariPending: naamsariPendingSnap.data().count,
           jbmtName: jbmtNameSnap.data().count,
           customerDone: customerDoneSnap.data().count,
+          vatBillIssued: vatBillIssuedSnap.data().count,
         });
       } catch (err) {
         console.error("Failed to fetch dashboard stats", err);
@@ -264,20 +269,8 @@ export function Dashboard() {
         return formatted;
       };
 
-      // IGNORE IN-STOCK VEHICLES: Only include sold vehicles that have an active sale and customer
-      const soldVehicles = filteredVehicles.filter((v) => {
-        // If strictly marked as in-stock or available, ignore it
-        if (v.status === 'in-stock' || (v.status as any) === 'available') return false;
-
-        const sale = sales.find((s) => (v.saleId && s.id === v.saleId) || s.chassisNumber === v.chassisNumber || s.chassisNumber === v.id);
-        // Must have an active sale and valid customer
-        if (!sale || sale.status === 'returned' || !sale.customerId) return false;
-
-        return true;
-      });
-
-      if (soldVehicles.length === 0) {
-        toast.error(`No sold vehicles found for ${title}. (In-stock units were ignored)`);
+      if (filteredVehicles.length === 0) {
+        toast.error(`No vehicles found for ${title}.`);
         setIsExporting(false);
         return;
       }
@@ -288,6 +281,7 @@ export function Dashboard() {
       ws.columns = [
         { header: 'Vendor', key: 'Vendor', width: 20 },
         { header: 'Invoice No.', key: 'Invoice No.', width: 15 },
+        { header: 'Purchase Price', key: 'Purchase Price', width: 18, style: { numFmt: '#,##,##0.00' } },
         { header: 'Chassis Number', key: 'Chassis Number', width: 20 },
         { header: 'Company', key: 'Company', width: 15 },
         { header: 'Model', key: 'Model', width: 20 },
@@ -305,14 +299,20 @@ export function Dashboard() {
 
       let matchedBalanceCount = 0;
       const rows = await Promise.all(
-        soldVehicles.map(async (v) => {
+        filteredVehicles.map(async (v) => {
           const purchase = purchases.find((p) => p.id === v.purchaseId);
           const vendor = purchase ? parties.find((p) => p.id === purchase.vendorId) : null;
           const sale = sales.find((s) => (v.saleId && s.id === v.saleId) || s.chassisNumber === v.chassisNumber || s.chassisNumber === v.id);
           const customer = sale ? parties.find((p) => p.id === sale.customerId) : null;
 
-          let closingBal = '0.00';
+          const rawPrice = v.purchasePrice ?? purchase?.chassisPrices?.[v.chassisNumber];
+          const purchasePriceVal = (rawPrice !== undefined && rawPrice !== null && !isNaN(Number(rawPrice)))
+            ? Number(rawPrice)
+            : '';
+
+          let closingBal = '';
           if (customer) {
+            closingBal = '0.00';
             const matchedAcc = findTallyAccountForCustomer(customer);
             if (matchedAcc) {
               closingBal = await getExactClosingBalance(matchedAcc);
@@ -323,6 +323,7 @@ export function Dashboard() {
           return {
             'Vendor': vendor?.name || '',
             'Invoice No.': purchase?.invoiceNumber || '',
+            'Purchase Price': purchasePriceVal,
             'Chassis Number': v.chassisNumber,
             'Company': companies.find((c) => c.id === v.companyId)?.name || '',
             'Model': models.find((m) => m.id === v.modelId)?.name || '',
@@ -330,7 +331,7 @@ export function Dashboard() {
             'Registration Number': v.registrationNumber || '',
             'Bluebook Status': v.bluebookStatus || '',
             'Naamsari Status': v.naamsariStatus || '',
-            'Status': sale ? 'sold' : v.status,
+            'Status': sale && sale.status !== 'returned' ? 'sold' : v.status,
             'File No.': sale?.fileNumber || '',
             'Customer Name': customer?.name || '',
             'Address': customer?.address || '',
@@ -372,7 +373,7 @@ export function Dashboard() {
       a.download = `${title.replace(/\s+/g, '_')}_${timestamp}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`${title} exported successfully! (${rows.length} sold vehicles, in-stock ignored)`);
+      toast.success(`${title} exported successfully! (${rows.length} vehicles)`);
     } catch (err) {
       console.error(err);
       toast.error('Export failed');
@@ -385,16 +386,20 @@ export function Dashboard() {
     setIsExporting(true);
     toast.info('Fetching In-Stock Units data...');
     try {
-      const [vehiclesSnap, companiesSnap, modelsSnap, salesSnap] = await Promise.all([
+      const [vehiclesSnap, companiesSnap, modelsSnap, purchasesSnap, partiesSnap, salesSnap] = await Promise.all([
         getDocs(collection(db, 'vehicles')),
         getDocs(collection(db, 'companies')),
         getDocs(collection(db, 'models')),
+        getDocs(collection(db, 'purchases')),
+        getDocs(collection(db, 'parties')),
         getDocs(collection(db, 'sales'))
       ]);
 
       const vehicles = vehiclesSnap.docs.map(d => ({ ...d.data(), id: d.id, chassisNumber: d.id })) as Vehicle[];
       const companies = companiesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Company[];
       const models = modelsSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Model[];
+      const purchases = purchasesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Purchase[];
+      const parties = partiesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Party[];
       const sales = salesSnap.docs.map(d => ({ ...d.data(), id: d.id })) as Sale[];
 
       // Filter for in-stock vehicles (no active sale and not marked as sold)
@@ -414,26 +419,48 @@ export function Dashboard() {
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('In-Stock Units');
 
-      // Export only: Chassis Number, Company, Model, Color
       ws.columns = [
-        { header: 'Chassis Number', key: 'Chassis Number', width: 25 },
-        { header: 'Company', key: 'Company', width: 20 },
-        { header: 'Model', key: 'Model', width: 25 },
-        { header: 'Color', key: 'Color', width: 15 }
+        { header: 'Vendor', key: 'Vendor', width: 20 },
+        { header: 'Invoice No.', key: 'Invoice No.', width: 15 },
+        { header: 'Purchase Price', key: 'Purchase Price', width: 18, style: { numFmt: '#,##,##0.00' } },
+        { header: 'Chassis Number', key: 'Chassis Number', width: 20 },
+        { header: 'Company', key: 'Company', width: 15 },
+        { header: 'Model', key: 'Model', width: 20 },
+        { header: 'Color', key: 'Color', width: 12 },
+        { header: 'Registration Number', key: 'Registration Number', width: 20 },
+        { header: 'Bluebook Status', key: 'Bluebook Status', width: 15 },
+        { header: 'Naamsari Status', key: 'Naamsari Status', width: 15 },
+        { header: 'Status', key: 'Status', width: 12 }
       ];
 
-      const rows = inStockVehicles.map(v => ({
-        'Chassis Number': v.chassisNumber || v.id,
-        'Company': companies.find(c => c.id === v.companyId)?.name || '',
-        'Model': models.find(m => m.id === v.modelId)?.name || '',
-        'Color': v.color || ''
-      }));
+      const rows = inStockVehicles.map(v => {
+        const purchase = purchases.find((p) => p.id === v.purchaseId);
+        const vendor = purchase ? parties.find((p) => p.id === purchase.vendorId) : null;
+        const rawPrice = v.purchasePrice ?? purchase?.chassisPrices?.[v.chassisNumber];
+        const purchasePriceVal = (rawPrice !== undefined && rawPrice !== null && !isNaN(Number(rawPrice)))
+          ? Number(rawPrice)
+          : '';
 
-      // Sort by Company (A-Z) and Model (A-Z)
+        return {
+          'Vendor': vendor?.name || '',
+          'Invoice No.': purchase?.invoiceNumber || '',
+          'Purchase Price': purchasePriceVal,
+          'Chassis Number': v.chassisNumber || v.id,
+          'Company': companies.find(c => c.id === v.companyId)?.name || '',
+          'Model': models.find(m => m.id === v.modelId)?.name || '',
+          'Color': v.color || '',
+          'Registration Number': v.registrationNumber || '',
+          'Bluebook Status': v.bluebookStatus || '',
+          'Naamsari Status': v.naamsariStatus || '',
+          'Status': v.status || 'in-stock'
+        };
+      });
+
+      // Sort by Vendor (A-Z) and then Company (A-Z)
       rows.sort((a, b) => {
-        const comp = (a.Company || '').localeCompare(b.Company || '');
-        if (comp !== 0) return comp;
-        return (a.Model || '').localeCompare(b.Model || '');
+        const vendorCompare = (a.Vendor || '').localeCompare(b.Vendor || '');
+        if (vendorCompare !== 0) return vendorCompare;
+        return (a.Company || '').localeCompare(b.Company || '');
       });
 
       ws.addRows(rows);
@@ -503,7 +530,7 @@ export function Dashboard() {
         <StatCard title="Sales Recorded" value={stats.totalSales} icon={BadgeDollarSign} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10" />
       </div>
       
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard title="Doc Pending" value={stats.bluebookPending} icon={Clock} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-500/10" />
         <StatCard title="Doc Received" value={stats.bluebookReceived} icon={CheckCircle2} color="text-teal-500" bg="bg-teal-50 dark:bg-teal-500/10" />
         <StatCard 
@@ -522,6 +549,15 @@ export function Dashboard() {
           color="text-cyan-500" 
           bg="bg-cyan-50 dark:bg-cyan-500/10" 
           onExport={() => handleExportGroup('Names of JBMT', 'Names of JBMT')}
+          isExporting={isExporting}
+        />
+        <StatCard 
+          title="VAT Bill Issued" 
+          value={stats.vatBillIssued} 
+          icon={Receipt} 
+          color="text-violet-500" 
+          bg="bg-violet-50 dark:bg-violet-500/10" 
+          onExport={() => handleExportGroup('VAT Bill Issued', 'VAT Bill Issued')}
           isExporting={isExporting}
         />
         <StatCard title="Customer Done" value={stats.customerDone} icon={FileText} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10" />

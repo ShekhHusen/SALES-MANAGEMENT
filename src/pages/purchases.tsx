@@ -155,7 +155,8 @@ export function Purchases() {
       color: 'White',
       bluebookStatus: 'Not Received',
       naamsariStatus: 'Pending',
-      status: 'in-stock'
+      status: 'in-stock',
+      purchasePrice: undefined
     }]);
   };
 
@@ -182,9 +183,16 @@ export function Purchases() {
     const entries = (purchase.chassisNumbers || []).map(chassis => {
        const v = allVehicles.find(veh => veh.chassisNumber === chassis);
        if (v) {
-         return v;
+         return {
+           ...v,
+           purchasePrice: v.purchasePrice ?? purchase.chassisPrices?.[chassis] ?? undefined
+         };
        }
-       return { chassisNumber: chassis, status: 'in-stock' } as Partial<Vehicle>;
+       return { 
+         chassisNumber: chassis, 
+         status: 'in-stock',
+         purchasePrice: purchase.chassisPrices?.[chassis] ?? undefined
+       } as Partial<Vehicle>;
     });
     
     setCurrentChassisEntries(entries);
@@ -267,6 +275,7 @@ export function Purchases() {
       companyId: vehicle.companyId,
       modelId: vehicle.modelId,
       color: vehicle.color || 'White',
+      purchasePrice: vehicle.purchasePrice ?? updated[targetRowIndex]?.purchasePrice ?? undefined,
     };
     setCurrentChassisEntries(updated);
     setIsSelectorOpen(false);
@@ -288,7 +297,10 @@ export function Purchases() {
     // Sanitize entries
     const sanitizedEntries = currentChassisEntries.map(e => ({
       ...e,
-      chassisNumber: (e.chassisNumber || '').trim().toUpperCase()
+      chassisNumber: (e.chassisNumber || '').trim().toUpperCase(),
+      purchasePrice: (e.purchasePrice !== undefined && e.purchasePrice !== null && String(e.purchasePrice).trim() !== '' && !isNaN(Number(e.purchasePrice)))
+        ? Number(e.purchasePrice)
+        : null
     }));
 
     // Check for duplicates in current form
@@ -348,6 +360,13 @@ export function Purchases() {
         }
       }
 
+      const chassisPrices: Record<string, number> = {};
+      for (const entry of sanitizedEntries) {
+        if (entry.chassisNumber && typeof entry.purchasePrice === 'number' && !isNaN(entry.purchasePrice)) {
+          chassisPrices[entry.chassisNumber] = entry.purchasePrice;
+        }
+      }
+
       let batch = writeBatch(db);
       let ops = 0;
       
@@ -359,6 +378,7 @@ export function Purchases() {
             invoiceNumber,
             vendorId: selectedVendor,
             chassisNumbers,
+            chassisPrices,
             updatedAt: Timestamp.now(),
          });
       } else {
@@ -367,6 +387,7 @@ export function Purchases() {
             invoiceNumber,
             vendorId: selectedVendor,
             chassisNumbers,
+            chassisPrices,
             createdAt: Timestamp.now(),
          });
       }
@@ -392,6 +413,7 @@ export function Purchases() {
 
         batch.set(vehicleRef, {
           ...entry,
+          purchasePrice: entry.purchasePrice ?? null,
           status: existingVehicle && existingVehicle.status === 'sold' ? 'sold' : 'in-stock',
           purchaseId: purchaseRef.id,
           currentOwnerId: selectedVendor,
@@ -553,6 +575,7 @@ export function Purchases() {
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Company</TableHead>
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Model Line</TableHead>
                     <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Finish</TableHead>
+                    <TableHead className="px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Purchase Price</TableHead>
                     <TableHead className="w-16 px-6"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -629,6 +652,21 @@ export function Purchases() {
                         </Select>
                       </TableCell>
                       <TableCell className="px-6 py-2.5">
+                        <div className="relative flex items-center min-w-[130px]">
+                          <span className="absolute left-3 text-xs font-bold text-slate-400 pointer-events-none select-none">Rs.</span>
+                          <Input 
+                            type="number"
+                            placeholder="0"
+                            value={entry.purchasePrice ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? '' : Number(e.target.value);
+                              updateRow(index, 'purchasePrice', val);
+                            }}
+                            className="h-10 pl-9 rounded-lg border-slate-200 dark:border-slate-800 font-mono font-bold text-sm bg-white dark:bg-[#0f172a] text-slate-900 dark:text-slate-100 tabular-nums"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-2.5">
                         <Button variant="ghost" size="icon" onClick={() => removeRow(index)} className="h-9 w-9 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -637,7 +675,7 @@ export function Purchases() {
                   ))}
                   {currentChassisEntries.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-20 px-6">
+                      <TableCell colSpan={6} className="text-center py-20 px-6">
                         <div className="flex flex-col items-center gap-3">
                            <div className="p-4 bg-slate-50 dark:bg-[#0f172a] rounded-full">
                               <CarFront className="h-8 w-8 text-slate-300" />
@@ -910,12 +948,14 @@ export function Purchases() {
                                       <th className="px-4 py-2 border-b border-slate-200 dark:border-slate-800">Company</th>
                                       <th className="px-4 py-2 border-b border-slate-200 dark:border-slate-800">Model</th>
                                       <th className="px-4 py-2 border-b border-slate-200 dark:border-slate-800">Color</th>
+                                      <th className="px-4 py-2 border-b border-slate-200 dark:border-slate-800 text-right">Purchase Price</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                                     {vehiclesForThisPurchase.map((v, idx) => {
                                       const company = companies.find(c => c.id === v.companyId);
                                       const model = models.find(m => m.id === v.modelId);
+                                      const price = v.purchasePrice ?? purchase.chassisPrices?.[v.chassisNumber];
                                       return (
                                         <tr key={v.chassisNumber} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
                                           <td className="px-4 py-2 font-bold text-slate-500">{idx + 1}</td>
@@ -923,6 +963,11 @@ export function Purchases() {
                                           <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">{company?.name || '-'}</td>
                                           <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">{model?.name || '-'}</td>
                                           <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-300">{v.color || '-'}</td>
+                                          <td className="px-4 py-2 font-mono font-bold text-slate-900 dark:text-slate-100 text-right tabular-nums">
+                                            {price !== undefined && price !== null && price !== '' 
+                                              ? `Rs. ${Number(price).toLocaleString('en-IN')}` 
+                                              : '—'}
+                                          </td>
                                         </tr>
                                       );
                                     })}

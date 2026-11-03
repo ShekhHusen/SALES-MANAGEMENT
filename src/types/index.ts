@@ -47,6 +47,7 @@ export interface Vehicle {
   status: VehicleStatus;
   currentOwnerId?: string; // Party ID (vendor or customer)
   purchaseId?: string;
+  purchasePrice?: number;
   saleId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -58,6 +59,7 @@ export interface Purchase {
   invoiceNumber: string;
   vendorId: string;
   chassisNumbers: string[];
+  chassisPrices?: Record<string, number>;
   createdAt: Timestamp;
 }
 
